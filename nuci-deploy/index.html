@@ -2381,6 +2381,9 @@ function completePayment(){
     const email=(session.user.email||'').toLowerCase();
     const name=(session.user.user_metadata && (session.user.user_metadata.full_name||session.user.user_metadata.name))||'';
     state.userEmail=email; if(name) state.userName=name;
+    // Read the ?paid=true flag BEFORE we wipe the URL below, otherwise the
+    // payment confirmation is lost when returning from Stripe while signed in.
+    const returnedPaid = new URLSearchParams(window.location.search).get('paid')==='true';
     try{ history.replaceState({}, '', window.location.pathname); }catch(e){}
     try{ sessionStorage.setItem('unlocked','1'); }catch(e){}
     const g=document.getElementById('gate'); if(g) g.style.display='none';
@@ -2425,7 +2428,7 @@ function completePayment(){
       if(typeof generatePlan==='function'){ try{ generatePlan(state.answers); }catch(e){} }
       state.tasks = getDayTasks(state.currentDay);
       // Only treat as paid if we genuinely returned from Stripe (?paid=true).
-      const reallyPaid = new URLSearchParams(window.location.search).get('paid')==='true';
+      const reallyPaid = returnedPaid;
       if(state.paid && reallyPaid){
         try{ if(typeof gtag==='function') gtag('event','purchase',{ currency:'EUR', value:(pending&&pending.pricePaid)||state.pricePaid||0, items:[{ item_id:(pending&&pending.packageId)||'single', quantity:(pending&&pending.planCredits)||1 }] }); }catch(e){}
         setupApp(); showScreen('screen-app'); persistState();
