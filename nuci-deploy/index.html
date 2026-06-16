@@ -2377,6 +2377,10 @@ function completePayment(){
   let finished=false;
   async function finishSignIn(session){
     if(finished || !session || !session.user) return;
+    // If we're returning from a Stripe payment (?paid=true), let the dedicated
+    // payment handler (handlePaidReturn) own this load. Otherwise both handlers
+    // race for the same pendingState and the plan gets lost.
+    if(new URLSearchParams(window.location.search).get('paid')==='true') return;
     finished=true;
     const email=(session.user.email||'').toLowerCase();
     const name=(session.user.user_metadata && (session.user.user_metadata.full_name||session.user.user_metadata.name))||'';
