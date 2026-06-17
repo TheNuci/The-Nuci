@@ -2388,16 +2388,20 @@ function completePayment(){
       setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Vaš načrt je pripravljen.','Your plan is ready.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },500);
     };
 
-    // Decide: is this a brand-new first purchase, or an existing user topping up?
-    // Prefer LIVE state (no network needed): if we already have a signed-in user
-    // with at least one pet/plan in memory, this is a top-up. This avoids a
-    // network hiccup ("Failed to fetch") wrongly sending an existing user
-    // through the brand-new flow (which reset their pet and bounced them to entry).
-    const liveHasPlan = !!(state.userEmail && ((state.assessments && state.assessments.length) || state.currentAssessmentId || state.paid));
-    if(liveHasPlan){
-      finishPaid(true);
+    // Decide: brand-new first purchase vs existing user topping up.
+    // A TOP-UP means the user already has at least one registered pet/plan.
+    // We must NOT rely on state.paid here — after a re-login on return from
+    // Stripe, state.paid can be set even for a first purchase, which would
+    // wrongly add a credit (giving "paid 1, got 2") and skip plan generation.
+    const hasRegisteredPet = !!((state.assessments && state.assessments.length) || state.currentAssessmentId);
+    if(hasRegisteredPet){
+      finishPaid(true);                 // genuine top-up
     } else if(supa && email){
-      loadStateForUser(email).then(had=>finishPaid(!!had)).catch(()=>finishPaid(false));
+      // No pet in live memory — confirm against the cloud before deciding.
+      loadStateForUser(email).then(had=>{
+        const reallyHasPet = !!(had && ((state.assessments && state.assessments.length) || state.currentAssessmentId));
+        finishPaid(reallyHasPet);
+      }).catch(()=>finishPaid(false));
     } else {
       finishPaid(false);
     }
