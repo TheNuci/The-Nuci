@@ -280,7 +280,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <section class="screen" id="screen-language" style="overflow:hidden;">
   <div style="max-width:380px;margin:0 auto;width:100%;padding:24px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;height:100%;">
     <div style="margin-bottom:24px;"><div class="globe-wrap"><div class="globe-sphere"></div><div class="globe-gloss"></div></div></div>
-    <h1 id="langRotatingTitle" style="font-family:'Inter Tight',sans-serif;font-size:clamp(1.4rem,4.5vw,1.8rem);font-weight:600;letter-spacing:-0.02em;margin-bottom:26px;height:1.3em;line-height:1.3em;overflow:hidden;position:relative;width:100%;"><span class="lang-title-text" style="display:block;transition:opacity 0.5s ease;">Izberite svoj jezik</span></h1>
+    <h1 id="langRotatingTitle" style="font-family:'Inter Tight',sans-serif;font-size:clamp(1.4rem,4.5vw,1.8rem);font-weight:600;letter-spacing:-0.02em;margin-bottom:26px;height:1.3em;line-height:1.3em;overflow:hidden;position:relative;width:100%;"><span class="lang-title-text" style="display:block;transition:opacity 0.5s ease;">Select your language</span></h1>
     <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:260px;">
       <button class="lang-btn" onclick="setLanguage('en')">🇬🇧 &nbsp;English</button>
       <button class="lang-btn" onclick="setLanguage('fr')">🇫🇷 &nbsp;Français</button>
@@ -295,7 +295,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 
 <!-- ENTRY -->
 <section class="screen active" id="screen-entry">
-  <button class="btn btn-ghost" data-i18n="login" onclick="showScreen('screen-login')" style="position:fixed;top:max(16px,env(safe-area-inset-top));right:16px;z-index:20;background:rgba(250,250,250,0.8);backdrop-filter:blur(8px);border-radius:99px;padding:8px 16px;">Prijava</button>
+  <button class="btn btn-ghost" data-i18n="login" onclick="showScreen('screen-login')" style="position:fixed;top:max(16px,env(safe-area-inset-top));right:16px;z-index:20;background:rgba(250,250,250,0.8);backdrop-filter:blur(8px);border-radius:99px;padding:8px 16px;">Log In</button>
   <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg" aria-label="The Nuci" style="position:fixed;top:max(24px,calc(env(safe-area-inset-top) + 9px));left:50%;transform:translateX(-50%);height:26px;width:auto;z-index:20;">
     <circle cy="20" r="11" fill="#6B8F71">
       <animate attributeName="cx" values="26;38;26" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>
@@ -320,7 +320,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     </div>
     <div id="entrySuggestions" style="display:flex;flex-wrap:nowrap;gap:8px;margin-bottom:16px;justify-content:center;overflow:hidden;"></div>
     <p style="font-size:0.82rem;color:var(--secondary);margin-top:2px;line-height:1.5;">
-      <a href="#" data-i18n="entry_how" onclick="event.preventDefault();showScreen('screen-about')" style="color:var(--secondary);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.12);transition:color 0.2s;" onmouseenter="this.style.color='var(--text)'" onmouseleave="this.style.color='var(--secondary)'">Kako deluje in pri čem pomagamo</a>
+      <a href="#" data-i18n="entry_how" onclick="event.preventDefault();showScreen('screen-about')" style="color:var(--secondary);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.12);transition:color 0.2s;" onmouseenter="this.style.color='var(--text)'" onmouseleave="this.style.color='var(--secondary)'">How this works & what we help with</a>
     </p>
   </div>
 </section>
@@ -330,15 +330,15 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   <div style="max-width:480px;margin:0 auto;width:100%;padding:40px 24px;display:flex;flex-direction:column;min-height:100vh;">
     <button class="back-btn" onclick="showScreen('screen-entry')" style="margin-bottom:32px;">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Nazaj
+      Back
     </button>
-    <h2 style="margin-bottom:8px;">Kako deluje</h2>
+    <h2 style="margin-bottom:8px;">How this works</h2>
     <p style="margin-bottom:28px;">A calm, structured way to understand and improve your pet's behaviour - with an AI-personalized plan built from your answers.</p>
 
     <div style="display:flex;flex-direction:column;gap:16px;">
       <div style="display:flex;gap:14px;align-items:flex-start;">
         <div style="width:34px;height:34px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.9rem;font-weight:600;color:var(--success);font-family:'Inter Tight',sans-serif;">1</div>
-        <div><div style="font-size:0.95rem;font-weight:600;margin-bottom:3px;">Opišite težavo</div><p style="font-size:0.86rem;">Povejte nam, kaj se dogaja - nekaj vprašanj, prilagojenih vaši živali.</p></div>
+        <div><div style="font-size:0.95rem;font-weight:600;margin-bottom:3px;">Describe the issue</div><p style="font-size:0.86rem;">Tell us what's happening - a few questions tailored to your specific animal.</p></div>
       </div>
       <div style="display:flex;gap:14px;align-items:flex-start;">
         <div style="width:34px;height:34px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.9rem;font-weight:600;color:var(--success);font-family:'Inter Tight',sans-serif;">2</div>
@@ -359,13 +359,13 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     </div>
 
     <div class="warning-box" style="margin-top:28px;">
-      Ta platforma nudi vedenjske usmeritve in pomaga organizirati opažanja. Ni <strong style="color:var(--text);">nadomestilo za strokovno veterinarsko oskrbo</strong>. Pri zdravstvenih skrbeh se vedno posvetujte z veterinarjem.
+      This platform provides behavioral guidance and helps organize observations. It is <strong style="color:var(--text);">not a substitute for professional veterinary care</strong>. For medical concerns, always consult a vet.
     </div>
 
     <div style="flex:1;"></div>
-    <button class="btn btn-primary btn-full btn-lg" onclick="showScreen('screen-entry')" style="margin-top:28px;">Razumem</button>
+    <button class="btn btn-primary btn-full btn-lg" onclick="showScreen('screen-entry')" style="margin-top:28px;">Got it</button>
     <p style="font-size:0.74rem;text-align:center;color:var(--secondary);margin-top:14px;">
-      <a href="#" onclick="openLegal('terms');return false;" style="color:var(--secondary);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.12);">Pogoji</a> · <a href="#" onclick="openLegal('privacy');return false;" style="color:var(--secondary);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.12);">Zasebnost</a>
+      <a href="#" onclick="openLegal('terms');return false;" style="color:var(--secondary);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.12);">Terms</a> · <a href="#" onclick="openLegal('privacy');return false;" style="color:var(--secondary);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.12);">Privacy</a>
     </p>
   </div>
 </section>
@@ -385,7 +385,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   <div class="assessment-header">
     <button class="back-btn" onclick="assessBack()">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Nazaj
+      Back
     </button>
     <div class="progress-dots" id="progressDots"></div>
     <span id="progressLabel" style="font-size:0.8rem;color:var(--secondary);min-width:40px;text-align:right;"></span>
@@ -405,9 +405,9 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     </button>
     <div class="roadmap-badge">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M6 4v3.5L8 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-      Ocena dokončana
+      Assessment complete
     </div>
-    <h2 style="margin-bottom:14px;font-size:1.5rem;">Vaš prilagojen<br>načrt je pripravljen.</h2>
+    <h2 style="margin-bottom:14px;font-size:1.5rem;">Your personalized<br>plan is ready.</h2>
     <p style="display:none;" id="roadmapSub"></p>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;margin-bottom:18px;">
       <div style="display:flex;gap:11px;align-items:flex-start;">
@@ -461,7 +461,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       Unlock My Plan
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M3 7.5h9M8.5 4l3.5 3.5L8.5 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-    <p style="font-size:0.74rem;text-align:center;color:var(--secondary);margin-top:10px;">Varno plačilo · 30-dnevna garancija</p>
+    <p style="font-size:0.74rem;text-align:center;color:var(--secondary);margin-top:10px;">Secure payment · 30-day guarantee</p>
   </div>
 </section>
 
@@ -470,17 +470,17 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   <div style="max-width:440px;margin:0 auto;width:100%;padding:24px 24px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;min-height:100svh;">
     <button class="back-btn" onclick="showScreen('screen-assessment')" style="position:absolute;top:max(24px,env(safe-area-inset-top));left:24px;">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Nazaj
+      Back
     </button>
-    <h2 style="margin-bottom:8px;">Ustvarite svoj račun</h2>
-    <p style="margin-bottom:28px;max-width:300px;">Shranite napredek in dostopajte do svojega prilagojenega načrta.</p>
+    <h2 style="margin-bottom:8px;">Create your account</h2>
+    <p style="margin-bottom:28px;max-width:300px;">Save your progress and access your personalized plan.</p>
     <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;">
       <button class="auth-provider-btn" onclick="showScreen('screen-auth-email')">
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4.5" width="15" height="11" rx="2" stroke="#111" stroke-width="1.4"/><path d="M3 6l7 5 7-5" stroke="#111" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Continue with email
       </button>
     </div>
-    <p style="font-size:0.75rem;color:var(--secondary);margin-top:20px;">Vaših podatkov ne bomo nikoli delili.</p>
+    <p style="font-size:0.75rem;color:var(--secondary);margin-top:20px;">We'll never share your data.</p>
   </div>
 </section>
 
@@ -489,15 +489,15 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   <div class="auth-email-body">
     <button class="back-btn" onclick="showScreen('screen-assessment')" style="position:absolute;top:max(24px,env(safe-area-inset-top));left:24px;">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Nazaj
+      Back
     </button>
-    <h2 style="margin-bottom:8px;">Vaši podatki</h2>
-    <p style="margin-bottom:24px;max-width:300px;">Te bomo uporabili za shranjevanje vašega načrta.</p>
+    <h2 style="margin-bottom:8px;">Your details</h2>
+    <p style="margin-bottom:24px;max-width:300px;">We'll use these to save your plan.</p>
     <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:340px;">
       <input type="text" class="input-field" id="authName" placeholder="Vaše ime" autocomplete="name">
       <input type="email" class="input-field" id="authEmail" placeholder="E-poštni naslov" autocomplete="email">
       <input type="password" class="input-field" id="authPass" placeholder="Ustvarite geslo" autocomplete="new-password">
-      <button class="btn btn-primary btn-full" onclick="doAuth()" style="margin-top:4px;">Naprej</button>
+      <button class="btn btn-primary btn-full" onclick="doAuth()" style="margin-top:4px;">Continue</button>
       <div id="authMsg" style="font-size:0.82rem;color:var(--danger);text-align:center;min-height:18px;"></div>
     </div>
   </div>
@@ -508,46 +508,46 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   <div class="payment-inner" style="max-width:480px;margin:0 auto;width:100%;padding:max(24px,env(safe-area-inset-top)) 24px 40px;display:flex;flex-direction:column;justify-content:flex-start;min-height:100%;">
     <button class="back-btn" onclick="showScreen('screen-roadmap')" style="margin-bottom:14px;">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Nazaj
+      Back
     </button>
     <div style="text-align:center;margin-bottom:2px;">
       <div id="paymentAvatar" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#e8e8e8,#f4f4f4);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto 8px;">🐾</div>
-      <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:-0.02em;" id="paymentPetLabel">Načrt vašega ljubljenčka</div>
+      <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:-0.02em;" id="paymentPetLabel">Your pet's plan</div>
       <div style="font-size:0.83rem;color:var(--secondary);margin-top:2px;">Povzetek nakupa</div>
     </div>
 
     <!-- CHOSEN PACKAGE SUMMARY (selected on the roadmap) -->
     <div class="card" style="padding:18px 20px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="font-family:'Inter Tight',sans-serif;font-size:1.1rem;font-weight:600;" id="payPkgName">1 načrt</div>
+        <div style="font-family:'Inter Tight',sans-serif;font-size:1.1rem;font-weight:600;" id="payPkgName">1 plan</div>
         <div style="display:flex;align-items:baseline;gap:7px;">
           <span id="payPkgAnchor" style="font-size:0.9rem;color:var(--secondary);text-decoration:line-through;opacity:0.6;">€19.95</span>
           <span id="payPkgPrice" style="font-family:'Inter Tight',sans-serif;font-size:1.6rem;font-weight:600;letter-spacing:-0.02em;">€9.95</span>
         </div>
       </div>
       <div id="payPkgFeatures" style="display:flex;flex-direction:column;gap:9px;">
-        <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Prilagojen 7-dnevni vedenjski načrt</span></div>
-        <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Verjetni vzroki in česa ne početi</span></div>
-        <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Dnevne prijave z AI vpogledi</span></div>
-        <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Spremljanje napredka skozi čas</span></div>
+        <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">A personalized 7-day behaviour plan</span></div>
+        <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Likely causes and what not to do</span></div>
+        <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Daily check-ins with AI insights</span></div>
+        <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Progress tracking over time</span></div>
       </div>
       <button onclick="showScreen('screen-roadmap')" style="margin-top:14px;background:none;border:none;color:var(--success);font-size:0.82rem;font-weight:600;cursor:pointer;padding:0;">← Spremeni paket</button>
     </div>
 
     <!-- Promo code -->
     <div style="margin-bottom:14px;">
-      <label class="pay-label">Promo koda</label>
+      <label class="pay-label">Promo code</label>
       <div style="display:flex;gap:8px;">
         <input type="text" class="input-field" id="promoCode" placeholder="Vnesite kodo" autocapitalize="characters" style="flex:1;text-transform:uppercase;">
-        <button onclick="applyPromo()" class="btn btn-secondary" style="padding:0 18px;white-space:nowrap;">Uporabi</button>
+        <button onclick="applyPromo()" class="btn btn-secondary" style="padding:0 18px;white-space:nowrap;">Apply</button>
       </div>
       <div id="promoMsg" style="font-size:0.8rem;margin-top:6px;min-height:16px;"></div>
     </div>
 
-    <button class="btn btn-primary btn-full btn-lg" onclick="completePayment()" style="margin-bottom:12px;" id="payBtn">Plačaj €9.95</button>
+    <button class="btn btn-primary btn-full btn-lg" onclick="completePayment()" style="margin-bottom:12px;" id="payBtn">Pay €9.95</button>
     <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
       <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="5" width="10" height="7" rx="1.5" stroke="#999" stroke-width="1.1"/><path d="M4.5 5V3.5a2 2 0 014 0V5" stroke="#999" stroke-width="1.1" stroke-linecap="round"/></svg>
-      <span style="font-size:0.78rem;color:var(--secondary);">Varno plačilo prek Stripe · 30-dnevna garancija</span>
+      <span style="font-size:0.78rem;color:var(--secondary);">Secure payment via Stripe · 30-day guarantee</span>
     </div>
   </div>
 </section>
@@ -557,15 +557,15 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   <div class="login-body">
     <button class="back-btn" onclick="showScreen('screen-entry')" style="position:absolute;top:max(24px,env(safe-area-inset-top));left:24px;">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Nazaj
+      Back
     </button>
     <div style="width:100%;max-width:360px;">
-      <h2 style="margin-bottom:8px;">Dobrodošli nazaj</h2>
-      <p style="margin-bottom:24px;">Prijavite se za dostop do načrta.</p>
+      <h2 style="margin-bottom:8px;">Welcome back</h2>
+      <p style="margin-bottom:24px;">Sign in to access your plan.</p>
       <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px;">
         <input type="email" class="input-field" id="loginEmail" placeholder="E-poštni naslov" autocomplete="email">
         <input type="password" class="input-field" id="loginPass" placeholder="Geslo" autocomplete="current-password">
-        <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Prijava</button>
+        <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Log In</button>
         <div id="loginMsg" style="font-size:0.82rem;color:var(--secondary);text-align:center;min-height:18px;"></div>
       </div>
     </div>
@@ -577,19 +577,19 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   <nav class="app-nav">
     <button class="nav-item active" onclick="showTab('today')" id="nav-today">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-      <span class="nav-label">Danes</span>
+      <span class="nav-label">Today</span>
     </button>
     <button class="nav-item" onclick="showTab('plan')" id="nav-plan">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      <span class="nav-label">Načrt</span>
+      <span class="nav-label">Plan</span>
     </button>
     <button class="nav-item" onclick="showTab('progress')" id="nav-progress">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
-      <span class="nav-label">Napredek</span>
+      <span class="nav-label">Progress</span>
     </button>
     <button class="nav-item" onclick="showTab('profile')" id="nav-profile">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span class="nav-label">Profil</span>
+      <span class="nav-label">Profile</span>
     </button>
   </nav>
 
@@ -600,7 +600,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       <div id="assessmentSwitcher" style="display:none;margin-bottom:16px;position:relative;">
         <button onclick="toggleAssessDropdown()" id="assessSwitchBtn" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-family:'Inter',sans-serif;-webkit-tap-highlight-color:transparent;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--secondary);font-weight:500;">Ocena</span>
+            <span style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--secondary);font-weight:500;">Assessment</span>
             <span id="assessCurrentName" style="font-size:0.9rem;font-weight:500;">-</span>
           </div>
           <svg id="assessChevron" width="14" height="14" viewBox="0 0 14 14" fill="none" style="transition:transform 0.25s;"><path d="M3.5 5l3.5 3.5L10.5 5" stroke="#999" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -617,29 +617,29 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         </div>
         <input type="file" id="petPhotoInput" accept="image/*" style="display:none;" onchange="onPetPhotoSelected(event)">
         <div>
-          <div style="font-family:'Inter Tight',sans-serif;font-size:1.7rem;font-weight:600;letter-spacing:-0.02em;" id="todayPetName">Vaš ljubljenček</div>
-          <div style="font-size:0.9rem;color:var(--secondary);margin-top:3px;" id="todayDayLabel">Dan 1 od 7 · Vedenjski načrt</div>
+          <div style="font-family:'Inter Tight',sans-serif;font-size:1.7rem;font-weight:600;letter-spacing:-0.02em;" id="todayPetName">Your Pet</div>
+          <div style="font-size:0.9rem;color:var(--secondary);margin-top:3px;" id="todayDayLabel">Day 1 of 7 · Behaviour plan</div>
         </div>
       </div>
     </div>
     <div class="app-content" style="padding-top:4px;">
       <!-- PRIMARY CTA at top (state managed by updateCheckinButtonState) -->
       <button class="btn btn-primary btn-full btn-lg checkin-cta" onclick="attemptCheckin()" style="margin-bottom:14px;">
-        Začni današnjo prijavo
+        Start Today's Check-In
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
 
       <!-- Focus -->
       <div class="focus-card" style="padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;">
-        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:6px;">Današnji fokus</div>
-        <div style="font-size:1rem;font-weight:600;font-family:'Inter Tight',sans-serif;letter-spacing:-0.02em;margin-bottom:4px;" id="todayFocus">Prilagodi okolje</div>
-        <div style="font-size:0.84rem;color:var(--secondary);line-height:1.5;" id="todayFocusDesc">Naredite ciljne spremembe za zmanjšanje sprožilcev.</div>
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:6px;">Today's Focus</div>
+        <div style="font-size:1rem;font-weight:600;font-family:'Inter Tight',sans-serif;letter-spacing:-0.02em;margin-bottom:4px;" id="todayFocus">Adjust the environment</div>
+        <div style="font-size:0.84rem;color:var(--secondary);line-height:1.5;" id="todayFocusDesc">Make targeted changes to reduce triggers.</div>
       </div>
 
       <!-- Tasks preview card - taps to tasks page -->
       <div class="card" style="padding:16px;margin-bottom:12px;cursor:pointer;" onclick="showTab('tasks')">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;">Današnje naloge</div>
+          <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;">Today's Tasks</div>
           <div style="display:flex;align-items:center;gap:5px;">
             <span style="font-size:0.78rem;color:var(--secondary);" id="taskCountLabel">0 / 8</span>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 11l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -647,33 +647,33 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         </div>
         <div id="taskPreview"></div>
         <div style="font-size:0.8rem;color:var(--secondary);margin-top:8px;display:flex;align-items:center;gap:4px;">
-          Prikaži vse naloge
+          View all tasks
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 9l3-3-3-3" stroke="#aaa" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
       </div>
 
       <!-- AI Insight -->
       <div class="insight-box" style="margin-bottom:12px;">
-        <div class="insight-label">AI vpogled</div>
-        <div class="insight-text" id="todayInsightText">Dokončajte prvo prijavo za prvi AI vpogled.</div>
+        <div class="insight-label">AI Insight</div>
+        <div class="insight-text" id="todayInsightText">Complete your first check-in to receive your first AI insight.</div>
       </div>
 
       <!-- Streak / stats block (live) -->
       <div class="card" style="padding:16px;">
-        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:14px;">Vaš napredek</div>
+        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:14px;">Your Progress</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
           <div style="text-align:center;padding:4px 0;">
             <div style="font-family:'Inter Tight',sans-serif;font-size:2.2rem;font-weight:600;letter-spacing:-0.04em;" id="statStreak">0</div>
-            <div style="font-size:0.75rem;color:var(--secondary);margin-top:2px;">Dni zapored 🔥</div>
+            <div style="font-size:0.75rem;color:var(--secondary);margin-top:2px;">Day streak 🔥</div>
           </div>
           <div style="text-align:center;padding:4px 0;border-left:1px solid var(--border);">
             <div style="font-family:'Inter Tight',sans-serif;font-size:2.2rem;font-weight:600;letter-spacing:-0.04em;" id="statCheckins">0</div>
-            <div style="font-size:0.75rem;color:var(--secondary);margin-top:2px;">Prijave</div>
+            <div style="font-size:0.75rem;color:var(--secondary);margin-top:2px;">Check-ins</div>
           </div>
         </div>
         <div class="progress-bar-track" style="margin-top:14px;height:3px;"><div class="progress-bar-fill" id="todayPlanBar" style="width:0%;background:var(--success);"></div></div>
         <div style="display:flex;justify-content:space-between;margin-top:6px;">
-          <span style="font-size:0.75rem;color:var(--secondary);">Dokončanost načrta</span>
+          <span style="font-size:0.75rem;color:var(--secondary);">Plan completion</span>
           <span style="font-size:0.75rem;color:var(--success);font-weight:500;" id="todayPlanPct">0%</span>
         </div>
       </div>
@@ -690,10 +690,10 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         </button>
       </div>
       <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:4px;" id="tasksDayLabel">Dan 3 od 7</div>
-      <h2 style="font-size:1.4rem;margin-bottom:4px;" id="tasksFocusTitle">Prilagodi okolje</h2>
+      <h2 style="font-size:1.4rem;margin-bottom:4px;" id="tasksFocusTitle">Adjust the environment</h2>
       <p style="font-size:0.85rem;margin-bottom:16px;" id="tasksCompleteLabel">0 of 8 tasks complete</p>
       <button class="btn btn-primary btn-full btn-lg checkin-cta" onclick="attemptCheckin()" style="margin-bottom:18px;">
-        Začni današnjo prijavo
+        Start Today's Check-In
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <div class="card" style="padding:4px 20px;" id="allTasksList"></div>
@@ -702,25 +702,25 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 
   <!-- PLAN TAB -->
   <div id="tab-plan" class="tab-content" style="display:none;">
-    <div class="page-header"><div class="page-title">7-dnevni načrt</div><div class="page-sub" id="planSub">Prilagojeno vašemu ljubljenčku</div></div>
+    <div class="page-header"><div class="page-title">7-day plan</div><div class="page-sub" id="planSub">Personalized for your pet</div></div>
     <div class="app-content" style="padding-top:0;">
       <div style="display:flex;gap:8px;margin-bottom:16px;">
-        <button class="pill selected" onclick="planTab(this,'plan-view')" id="ptab-plan">Načrt</button>
-        <button class="pill" onclick="planTab(this,'overview-view')" id="ptab-overview">Pregled</button>
+        <button class="pill selected" onclick="planTab(this,'plan-view')" id="ptab-plan">Plan</button>
+        <button class="pill" onclick="planTab(this,'overview-view')" id="ptab-overview">Overview</button>
       </div>
       <div id="plan-view">
         <div id="planAccordion"></div>
       </div>
       <div id="overview-view" style="display:none;">
-        <div class="card" style="padding:20px;margin-bottom:12px;"><div style="font-size:0.8rem;font-weight:600;margin-bottom:10px;">Razlaga vedenja</div><p id="behaviorExplain" style="font-size:0.88rem;line-height:1.6;color:var(--text);"></p></div>
-        <div class="card" style="padding:20px;"><div style="font-size:0.8rem;font-weight:600;margin-bottom:10px;">Česa ne početi</div><div id="whatNotToDo"></div></div>
+        <div class="card" style="padding:20px;margin-bottom:12px;"><div style="font-size:0.8rem;font-weight:600;margin-bottom:10px;">Behavior Explanation</div><p id="behaviorExplain" style="font-size:0.88rem;line-height:1.6;color:var(--text);"></p></div>
+        <div class="card" style="padding:20px;"><div style="font-size:0.8rem;font-weight:600;margin-bottom:10px;">What Not To Do</div><div id="whatNotToDo"></div></div>
       </div>
     </div>
   </div>
 
   <!-- PROGRESS TAB -->
   <div id="tab-progress" class="tab-content" style="display:none;">
-    <div class="page-header"><div class="page-title">Napredek</div><div class="page-sub">Posodobljeno po vsaki prijavi</div></div>
+    <div class="page-header"><div class="page-title">Progress</div><div class="page-sub">Updated after each check-in</div></div>
     <div class="app-content" style="padding-top:0;">
       <div style="display:flex;gap:8px;margin-bottom:14px;" id="progressPeriods">
         <button class="pill selected" style="white-space:nowrap;">7 days</button>
@@ -728,51 +728,51 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       </div>
       <div class="progress-grid" id="progressLiveGrid"></div>
       <div class="card" style="padding:16px;margin-bottom:12px;">
-        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:12px;">Trend pogostosti</div>
+        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:12px;">Frequency Trend</div>
         <div class="trend-line" id="freqTrend"></div>
         <div id="trendLabels" style="display:flex;justify-content:space-between;margin-top:6px;"></div>
       </div>
       <div class="card" style="padding:16px;margin-bottom:12px;">
-        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:12px;">Pogosti vzorci</div>
-        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">Najpogostejši čas</span><span class="tag" id="progTime">-</span></div>
-        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">Najpogostejša lokacija</span><span class="tag" id="progLocation">-</span></div>
-        <div class="profile-row" style="border-bottom:none;"><span style="font-size:0.9rem;font-weight:500;">Glavni sprožilec</span><span class="tag" id="progTrigger">-</span></div>
+        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:12px;">Common Patterns</div>
+        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">Most Common Time</span><span class="tag" id="progTime">-</span></div>
+        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">Most Common Location</span><span class="tag" id="progLocation">-</span></div>
+        <div class="profile-row" style="border-bottom:none;"><span style="font-size:0.9rem;font-weight:500;">Top Trigger</span><span class="tag" id="progTrigger">-</span></div>
       </div>
       <div class="insight-box" style="margin-bottom:12px;">
-        <div class="insight-label">AI povzetek</div>
-        <div class="insight-text" id="progressAiSummary">Dokončajte prvo prijavo za vpogled v napredek.</div>
+        <div class="insight-label">AI Summary</div>
+        <div class="insight-text" id="progressAiSummary">Complete your first check-in to see your progress insights.</div>
       </div>
       <div class="card" style="padding:16px;">
-        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:12px;">Mejniki</div>
+        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;margin-bottom:12px;">Milestones</div>
         <div class="milestone"><div class="milestone-icon">🔥</div><div><div style="font-size:0.9rem;font-weight:500;">7-Day Streak</div><div style="font-size:0.78rem;color:var(--secondary);margin-top:2px;">7 days of consistent check-ins</div></div></div>
-        <div class="milestone"><div class="milestone-icon">📉</div><div><div style="font-size:0.9rem;font-weight:500;">Prvo izboljšanje</div><div style="font-size:0.78rem;color:var(--secondary);margin-top:2px;">Pogostost vedenja se je zmanjšala</div></div></div>
-        <div class="milestone" style="opacity:0.35;"><div class="milestone-icon" style="background:rgba(0,0,0,0.04);">🏁</div><div><div style="font-size:0.9rem;font-weight:500;">Načrt dokončan</div><div style="font-size:0.78rem;color:var(--secondary);margin-top:2px;">Dokončajte vseh 7 dni</div></div></div>
+        <div class="milestone"><div class="milestone-icon">📉</div><div><div style="font-size:0.9rem;font-weight:500;">First Improvement</div><div style="font-size:0.78rem;color:var(--secondary);margin-top:2px;">Behavior frequency decreased</div></div></div>
+        <div class="milestone" style="opacity:0.35;"><div class="milestone-icon" style="background:rgba(0,0,0,0.04);">🏁</div><div><div style="font-size:0.9rem;font-weight:500;">Plan Complete</div><div style="font-size:0.78rem;color:var(--secondary);margin-top:2px;">Complete all 7 days</div></div></div>
       </div>
     </div>
   </div>
 
   <!-- PROFILE TAB -->
   <div id="tab-profile" class="tab-content" style="display:none;">
-    <div class="page-header"><div class="page-title">Profil</div></div>
+    <div class="page-header"><div class="page-title">Profile</div></div>
     <div class="app-content" style="padding-top:0;">
       <div class="card" style="padding:20px;margin-bottom:12px;display:flex;align-items:center;gap:16px;">
         <div class="pet-avatar" id="profileAvatar" style="width:64px;height:64px;font-size:1.8rem;flex-shrink:0;"><div class="pet-avatar-placeholder" id="profileAvatarPh">🐾</div></div>
-        <div><div style="font-family:'Inter Tight',sans-serif;font-size:1.2rem;font-weight:600;letter-spacing:-0.02em;" id="profilePetName">Vaš ljubljenček</div><div style="font-size:0.85rem;color:var(--secondary);" id="profilePetMeta">Vrsta · Pasma</div></div>
+        <div><div style="font-family:'Inter Tight',sans-serif;font-size:1.2rem;font-weight:600;letter-spacing:-0.02em;" id="profilePetName">Your Pet</div><div style="font-size:0.85rem;color:var(--secondary);" id="profilePetMeta">Species · Breed</div></div>
       </div>
       <div class="card" style="padding:8px 20px;margin-bottom:12px;">
-        <div class="profile-row" onclick="openProfileDetail('history')"><span style="font-size:0.9rem;font-weight:500;">Zgodovina ocen</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="profile-row" onclick="openProfileDetail('plans')"><span style="font-size:0.9rem;font-weight:500;">Prejšnji načrti</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="profile-row" onclick="openArchive()"><span style="font-size:0.9rem;font-weight:500;">Arhiv</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="profile-row" style="border-bottom:none;" onclick="openProfileDetail('settings')"><span style="font-size:0.9rem;font-weight:500;">Nastavitve računa</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="profile-row" onclick="openProfileDetail('history')"><span style="font-size:0.9rem;font-weight:500;">Assessment History</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="profile-row" onclick="openProfileDetail('plans')"><span style="font-size:0.9rem;font-weight:500;">Previous Plans</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="profile-row" onclick="openArchive()"><span style="font-size:0.9rem;font-weight:500;">Archive</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="profile-row" style="border-bottom:none;" onclick="openProfileDetail('settings')"><span style="font-size:0.9rem;font-weight:500;">Account Settings</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       </div>
       <div class="card" style="padding:8px 20px;margin-bottom:16px;">
-        <div class="profile-row" onclick="openProfileDetail('email')"><span style="font-size:0.9rem;font-weight:500;">E-poštne nastavitve</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="profile-row" style="border-bottom:none;" onclick="openProfileDetail('billing')"><span style="font-size:0.9rem;font-weight:500;">Obračun</span><div style="display:flex;align-items:center;gap:8px;"><span class="tag" id="billingTag">€9.95 plačano</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+        <div class="profile-row" onclick="openProfileDetail('email')"><span style="font-size:0.9rem;font-weight:500;">Email Preferences</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="profile-row" style="border-bottom:none;" onclick="openProfileDetail('billing')"><span style="font-size:0.9rem;font-weight:500;">Billing</span><div style="display:flex;align-items:center;gap:8px;"><span class="tag" id="billingTag">€9.95 paid</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
       </div>
-      <button class="btn btn-secondary btn-full" style="margin-bottom:8px;" onclick="buyNewPlan()" id="newAssessmentBtn">Kupi nov načrt</button>
+      <button class="btn btn-secondary btn-full" style="margin-bottom:8px;" onclick="buyNewPlan()" id="newAssessmentBtn">Buy a new plan</button>
       <div id="creditsHint" style="font-size:0.78rem;color:var(--secondary);text-align:center;margin-bottom:8px;min-height:14px;"></div>
-      <button class="btn btn-ghost btn-full" style="margin-bottom:4px;" onclick="signOut()">Odjava</button>
-      <button class="btn btn-ghost btn-full" style="color:var(--danger);" onclick="confirmDeleteProfile()">Izbriši profil</button>
+      <button class="btn btn-ghost btn-full" style="margin-bottom:4px;" onclick="signOut()">Sign Out</button>
+      <button class="btn btn-ghost btn-full" style="color:var(--danger);" onclick="confirmDeleteProfile()">Delete Profile</button>
     </div>
   </div>
 
@@ -796,7 +796,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-shrink:0;">
       <button class="back-btn" onclick="checkinBack()" id="checkinBackBtn">
         <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Nazaj
+        Back
       </button>
       <div class="progress-dots" id="checkinDots"></div>
       <button style="background:none;border:none;cursor:pointer;font-size:0.85rem;color:var(--secondary);font-family:'Inter',sans-serif;padding:4px 0;" onclick="closeCheckin()">Shrani in zapri</button>
@@ -815,9 +815,9 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   <canvas id="confettiCanvasOverlay" style="position:absolute;inset:0;pointer-events:none;width:100%;height:100%;"></canvas>
   <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;padding:40px 24px;text-align:center;max-width:340px;">
     <div class="celebration-emoji" id="celebEmoji">🎉</div>
-    <div class="celebration-title" id="celebTitle">Odlično!</div>
-    <div class="celebration-sub" id="celebSub">Odličen napredek danes.</div>
-    <button class="btn btn-primary" onclick="closeCelebration()" style="margin-top:28px;min-width:160px;padding:14px 32px;" id="celebBtn">Naprej</button>
+    <div class="celebration-title" id="celebTitle">Amazing!</div>
+    <div class="celebration-sub" id="celebSub">Great progress today.</div>
+    <button class="btn btn-primary" onclick="closeCelebration()" style="margin-top:28px;min-width:160px;padding:14px 32px;" id="celebBtn">Continue</button>
   </div>
 </div>
 
@@ -836,14 +836,14 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <!-- BUY NEW PLAN MODAL (two package cards over a blurred profile) -->
 <div id="buyPlanModal" style="position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;background:rgba(241,241,241,0.4);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:24px;">
   <div style="width:100%;max-width:360px;">
-    <div style="text-align:center;font-family:'Inter Tight',sans-serif;font-size:1.3rem;font-weight:600;margin-bottom:4px;" id="buyPlanTitle">Kupi nov načrt</div>
+    <div style="text-align:center;font-family:'Inter Tight',sans-serif;font-size:1.3rem;font-weight:600;margin-bottom:4px;" id="buyPlanTitle">Buy a new plan</div>
     <div style="text-align:center;font-size:0.85rem;color:var(--secondary);margin-bottom:20px;" id="buyPlanSub">Izberite paket</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div id="buyCardSingle" onclick="upsellChoose('single')" style="cursor:pointer;background:var(--card);border:1.5px solid var(--border);border-radius:18px;padding:18px 20px;transition:border-color .15s;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <div>
-            <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;" id="buyName1">1 načrt</div>
-            <div style="font-size:0.78rem;color:var(--secondary);" id="buyDesc1">Za eno žival ali težavo</div>
+            <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;" id="buyName1">1 plan</div>
+            <div style="font-size:0.78rem;color:var(--secondary);" id="buyDesc1">For one pet or one issue</div>
           </div>
           <div style="display:flex;align-items:baseline;gap:6px;">
             <span style="font-size:0.85rem;color:var(--secondary);text-decoration:line-through;opacity:0.55;">€19.95</span>
@@ -852,11 +852,11 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         </div>
       </div>
       <div id="buyCardTriple" onclick="upsellChoose('triple')" style="cursor:pointer;position:relative;background:var(--card);border:1.5px solid var(--border);border-radius:18px;padding:18px 20px;transition:border-color .15s;">
-        <div class="pkg-badge" style="position:absolute;top:-10px;left:20px;" id="buyBadge">Najboljša vrednost</div>
+        <div class="pkg-badge" style="position:absolute;top:-10px;left:20px;" id="buyBadge">Best value</div>
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <div>
-            <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;" id="buyName3">3 načrti</div>
-            <div style="font-size:0.78rem;color:var(--secondary);" id="buyDesc3">Za več živali ali težav</div>
+            <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;" id="buyName3">3 plans</div>
+            <div style="font-size:0.78rem;color:var(--secondary);" id="buyDesc3">For multiple pets or issues</div>
           </div>
           <div style="display:flex;align-items:baseline;gap:6px;">
             <span style="font-size:0.85rem;color:var(--secondary);text-decoration:line-through;opacity:0.55;">€59.95</span>
@@ -875,11 +875,11 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <div style="width:60px;height:60px;border-radius:50%;background:rgba(200,161,107,0.14);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="9" rx="2" stroke="#C8A16B" stroke-width="1.6"/><path d="M8 10V7a4 4 0 018 0v3" stroke="#C8A16B" stroke-width="1.6" stroke-linecap="round"/></svg>
     </div>
-    <h3 style="font-size:1.25rem;margin-bottom:8px;">Prijava je zaprta</h3>
-    <p style="font-size:0.9rem;margin-bottom:24px;line-height:1.5;">Vaša dnevna prijava se odpre ob <strong style="color:var(--text);"><span id="lockSheetTime">20:00</span></strong>. Jo želite vseeno odkleniti in se prijaviti zdaj?</p>
+    <h3 style="font-size:1.25rem;margin-bottom:8px;">Check-in is closed</h3>
+    <p style="font-size:0.9rem;margin-bottom:24px;line-height:1.5;">Your daily check-in opens at <strong style="color:var(--text);"><span id="lockSheetTime">20:00</span></strong>. Would you like to unlock it and check in now anyway?</p>
     <div style="display:flex;gap:10px;">
-      <button class="btn btn-ghost" onclick="closeCheckinLock()" style="flex:1;">Ne</button>
-      <button class="btn btn-primary" onclick="checkinNowOverride()" style="flex:1;">Da</button>
+      <button class="btn btn-ghost" onclick="closeCheckinLock()" style="flex:1;">No</button>
+      <button class="btn btn-primary" onclick="checkinNowOverride()" style="flex:1;">Yes</button>
     </div>
   </div>
 </div>
@@ -896,7 +896,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       <button class="btn btn-secondary" style="flex:1;min-width:130px;" onclick="acceptCookies(false)" id="cookieRejectBtn">Samo nujni</button>
     </div>
     <div style="text-align:center;margin-top:10px;">
-      <a href="#" onclick="openLegal('privacy');return false;" style="font-size:0.78rem;color:var(--secondary);" id="cookieMoreLink">Več o zasebnosti</a>
+      <a href="#" onclick="openLegal('privacy');return false;" style="font-size:0.78rem;color:var(--secondary);" id="cookieMoreLink">Learn more about privacy</a>
     </div>
   </div>
 </div>
@@ -915,10 +915,10 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     </div>
 
     <!-- title + sub, calm -->
-    <div style="font-family:'Inter Tight',sans-serif;font-size:1.4rem;font-weight:600;color:white;margin-bottom:8px;letter-spacing:-0.01em;">Niz prekinjen</div>
-    <div style="font-size:0.92rem;color:rgba(255,255,255,0.82);margin-bottom:44px;line-height:1.55;" id="streakLostSub">Zamudil si svoje okno za prijavo.</div>
+    <div style="font-family:'Inter Tight',sans-serif;font-size:1.4rem;font-weight:600;color:white;margin-bottom:8px;letter-spacing:-0.01em;">Streak broken</div>
+    <div style="font-size:0.92rem;color:rgba(255,255,255,0.82);margin-bottom:44px;line-height:1.55;" id="streakLostSub">You missed your check-in window.</div>
 
-    <button class="btn" onclick="closeStreakLost()" style="background:white;color:#A85F5F;width:100%;padding:15px;font-weight:600;border-radius:14px;">Začni znova nocoj ob 20:00</button>
+    <button class="btn" onclick="closeStreakLost()" style="background:white;color:#A85F5F;width:100%;padding:15px;font-weight:600;border-radius:14px;">Start again tonight at 20:00</button>
   </div>
 </div>
 
@@ -1343,7 +1343,7 @@ function showCookieBannerIfNeeded(){
     if(txt) txt.textContent = L('Uporabljamo nujne piškotke za delovanje strani in – z vašo privolitvijo – analitične piškotke za izboljšanje storitve.','We use essential cookies to run the site and, with your consent, analytics cookies to improve the service.');
     const a=document.getElementById('cookieAcceptBtn'); if(a) a.textContent=L('Sprejmi vse','Accept all');
     const r=document.getElementById('cookieRejectBtn'); if(r) r.textContent=L('Samo nujni','Essential only');
-    const m=document.getElementById('cookieMoreLink'); if(m) m.textContent=L('Več o zasebnosti','More about privacy');
+    const m=document.getElementById('cookieMoreLink'); if(m) m.textContent=L('Learn more about privacy','More about privacy');
     b.style.display='block';
   }
 }
@@ -1365,7 +1365,7 @@ function backToLanguage(){
 function openLegal(kind){
   const updated = L('Zadnja posodobitev: junij 2026','Last updated: June 2026');
   const company = 'Spletne storitve, Urban Rus s.p.';
-  const email = 'info@thenuci.com';
+  const email = 'hello@thenuci.com';
   let html='';
   if(kind==='terms'){
     html = L(
@@ -1775,13 +1775,20 @@ function assessNext(){
     if(state.usingCredit){
       state.usingCredit=false;
       state.paid=true;
+      // Reset & build the app shell FIRST (this clears planOverrides for the new pet)…
+      try{ setupApp(); }catch(e){ console.warn('setupApp',e); }
+      try{ buildAssessmentSwitcher(); }catch(e){ console.warn('buildAssessmentSwitcher',e); }
       showPlanLoading(true);
-      generatePlanAI(state.answers).finally(()=>{
-        showPlanLoading(false);
-        setupApp();
-        buildAssessmentSwitcher();
-        showScreen('screen-app');
-        try{ persistState(); }catch(e){}
+      // …THEN generate the AI plan, which fills planOverrides without being wiped.
+      generatePlanAI(state.answers).catch(e=>{ console.warn('Plan gen failed, template fallback:', e); }).finally(()=>{
+        try{ showPlanLoading(false); }catch(e){ console.warn('showPlanLoading',e); }
+        // Re-render plan views now that AI overrides are in place
+        try{ buildPlanDaysList(); buildPlanDetail(); buildOverview(state.answers.petType||'pet'); }catch(e){ console.warn('plan render',e); }
+        try{ state.tasks=getDayTasks(1); renderTaskPreview(); renderAllTasks(); refreshTodayForDay(); }catch(e){ console.warn('task render',e); }
+        // Always enter the app — the user paid with a credit, they must get in.
+        try{ showScreen('screen-app'); }catch(e){ console.warn('showScreen',e); }
+        try{ showTab('today'); }catch(e){}
+        try{ persistState(); }catch(e){ console.warn('persistState',e); }
         setTimeout(()=>{ try{ showCelebration('🎉',L('Nov načrt pripravljen!','New plan ready!'),L('Začnimo s to živaljo.','Let\'s get started with this pet.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },300);
       });
       return;
@@ -2784,7 +2791,7 @@ function buildPlanDaysList(){
               <div style="display:flex;flex-wrap:wrap;gap:6px;">${planCausesFor(i).map(c=>`<span class="tag">${c}</span>`).join('')}</div>
             </div>
             <div>
-              <div style="font-size:0.78rem;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);">Takojšnji ukrepi</div>
+              <div style="font-size:0.78rem;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);">Immediate actions</div>
               ${planActionsFor(actions,i,state.answers.petName||'vaš ljubljenček').map(a=>`<div class="task-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--text);flex-shrink:0;margin-top:7px;"></div><div class="task-text">${a}</div></div>`).join('')}
             </div>
           </div>
@@ -3368,7 +3375,7 @@ function openProfileDetail(kind){
       <div class="card" style="padding:8px 18px;">
         <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">${L('Način plačila','Payment method')}</span><span style="font-size:0.85rem;color:var(--secondary);">${L('Kartica, ki se konča na','Card ending in')} ${state.cardLast4||'••••'}</span></div>
         <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">${L('Račun','Receipt')}</span><span style="font-size:0.85rem;color:var(--secondary);">${L('Prenesi','Download')}</span></div>
-        <div class="profile-row" style="border-bottom:none;"><span style="font-size:0.9rem;font-weight:500;">${L('Potrebujete pomoč?','Need help?')}</span><span style="font-size:0.85rem;color:var(--secondary);">${L('Kontaktiraj podporo','Contact support')}</span></div>
+        <div class="profile-row" style="border-bottom:none;"><span style="font-size:0.9rem;font-weight:500;">${L('Potrebujete pomoč?','Need help?')}</span><a href="mailto:hello@thenuci.com" style="font-size:0.85rem;color:var(--success);text-decoration:none;font-weight:500;">hello@thenuci.com</a></div>
       </div>
       <p style="font-size:0.78rem;color:var(--secondary);margin-top:14px;line-height:1.5;">${L('Plačila varno obdeluje Stripe. To je bil enkratni nakup - ponovno vam ne bo zaračunano.','Payments are processed securely by Stripe. This was a one-time purchase - you will not be charged again.')}</p>`;
   }
@@ -3494,7 +3501,7 @@ function showCIComplete(){
   else if(sev>=8)insight=L(`Danes je bilo težko. Resnost ${sev}/10 je visoka. To se pogosto zgodi v prehodnih obdobjih - ne obupajte. Preglejte, kaj je bilo danes drugače.`,`Today was tough. Severity ${sev}/10 is high. This often happens during transition periods - don't give up. Review what was different today.`);
   else insight=L(`Podatki današnje prijave so zabeleženi. Incidenti se običajno pojavljajo ${ciData.time||'zvečer'}. Ohranjanje tega časa z malo dražljaji lahko pomaga.`,`Today's check-in data has been logged. Incidents usually occur ${ciData.time||'in the evening'}. Keeping that time low-stimulation can help.`);
   const body=document.getElementById('checkinBody');
-  body.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px 0;"><div style="width:64px;height:64px;border-radius:50%;background:rgba(107,143,113,0.1);display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:20px;animation:scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;">✓</div><h2 style="font-size:1.4rem;margin-bottom:8px;">Prijava shranjena!</h2><p style="margin-bottom:24px;font-size:0.9rem;">Tukaj je, kaj opažamo.</p></div><div class="insight-box" style="width:100%;text-align:left;"><div class="insight-label">AI dnevni vpogled</div><div class="insight-text">${insight}</div></div>`;
+  body.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px 0;"><div style="width:64px;height:64px;border-radius:50%;background:rgba(107,143,113,0.1);display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:20px;animation:scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;">✓</div><h2 style="font-size:1.4rem;margin-bottom:8px;">Check-in saved!</h2><p style="margin-bottom:24px;font-size:0.9rem;">Here's what we're seeing.</p></div><div class="insight-box" style="width:100%;text-align:left;"><div class="insight-label">AI daily insight</div><div class="insight-text">${insight}</div></div>`;
   const doneRow=document.createElement('div');
   doneRow.style.cssText='display:flex;justify-content:center;margin-top:28px;';
   const doneBtn=document.createElement('button');
@@ -3879,7 +3886,7 @@ function buildProgressGrid(){
   if(!has){
     grid.innerHTML=`<div class="metric-card full" style="text-align:center;padding:28px 16px;">
       <div style="font-size:1.6rem;margin-bottom:10px;">📊</div>
-      <div style="font-size:0.95rem;font-weight:600;margin-bottom:4px;">Še ni podatkov</div>
+      <div style="font-size:0.95rem;font-weight:600;margin-bottom:4px;">No data yet</div>
       <div style="font-size:0.84rem;color:var(--secondary);">Dokončajte prvo dnevno prijavo in vaš napredek se bo prikazal tukaj.</div>
     </div>`;
     const ai=document.getElementById('progressAiSummary'); if(ai)ai.textContent=L('Vaši vpogledi se bodo prikazali po prvi prijavi.','Your insights will appear after your first check-in.');
@@ -3894,10 +3901,10 @@ function buildProgressGrid(){
   const impColor = s.improvement===null?'var(--secondary)':(s.improvement<0?'var(--success)':(s.improvement>0?'var(--danger)':'var(--secondary)'));
   grid.innerHTML=`
     <div class="metric-card"><div class="metric-label">Vedenjski rezultat</div><div style="display:flex;align-items:baseline;gap:3px;"><div class="metric-value">${s.score}</div><div style="font-size:0.75rem;color:var(--secondary);">/100</div></div><div class="metric-change ${s.score>=60?'up':''}" style="${s.score<60?'color:var(--secondary);':''}">${s.score>=60?'improving':'building baseline'}</div></div>
-    <div class="metric-card"><div class="metric-label">Izboljšanje</div><div class="metric-value" style="color:${impColor};">${impTxt}</div><div class="metric-change" style="color:var(--secondary);font-size:0.73rem;">${s.improvement===null?'need 4+ check-ins':'incidents trend'}</div></div>
+    <div class="metric-card"><div class="metric-label">Improvement</div><div class="metric-value" style="color:${impColor};">${impTxt}</div><div class="metric-change" style="color:var(--secondary);font-size:0.73rem;">${s.improvement===null?'need 4+ check-ins':'incidents trend'}</div></div>
     <div class="metric-card"><div class="metric-label">Niz</div><div class="metric-value">${s.streak}</div><div class="metric-change up">dni 🔥</div></div>
     <div class="metric-card"><div class="metric-label">Stopnja prijav</div><div class="metric-value">${s.checkinRate}%</div><div class="metric-change ${s.checkinRate>=70?'up':''}" style="${s.checkinRate<70?'color:var(--secondary);':''}">${s.total} total</div></div>
-    <div class="metric-card full"><div class="metric-label">Dokončanost načrta</div><div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px;"><div class="metric-value" style="font-size:1.4rem;">${s.planPct}%</div><div style="font-size:0.82rem;color:var(--secondary);">${s.completedDays} of ${state.planLength} days</div></div><div class="progress-bar-track" style="height:4px;"><div class="progress-bar-fill" style="width:${s.planPct}%;background:var(--success);"></div></div></div>`;
+    <div class="metric-card full"><div class="metric-label">Plan completion</div><div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px;"><div class="metric-value" style="font-size:1.4rem;">${s.planPct}%</div><div style="font-size:0.82rem;color:var(--secondary);">${s.completedDays} of ${state.planLength} days</div></div><div class="progress-bar-track" style="height:4px;"><div class="progress-bar-fill" style="width:${s.planPct}%;background:var(--success);"></div></div></div>`;
 
   setText('progTime', s.commonTime||'-');
   setText('progLocation', s.commonLoc||'-');
@@ -4139,7 +4146,7 @@ function showPlanEndScreen(kind){
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div>
               <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;">${L('1 načrt','1 plan')}</div>
-              <div style="font-size:0.78rem;color:var(--secondary);">${L('Za eno žival ali težavo','For one pet or issue')}</div>
+              <div style="font-size:0.78rem;color:var(--secondary);">${L('For one pet or one issue','For one pet or issue')}</div>
             </div>
             <div style="display:flex;align-items:baseline;gap:6px;">
               <span style="font-size:0.85rem;color:var(--secondary);text-decoration:line-through;opacity:0.55;">€19.95</span>
@@ -4152,7 +4159,7 @@ function showPlanEndScreen(kind){
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div>
               <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;">${L('3 načrti','3 plans')}</div>
-              <div style="font-size:0.78rem;color:var(--secondary);">${L('Za več živali ali težav','For multiple pets or issues')}</div>
+              <div style="font-size:0.78rem;color:var(--secondary);">${L('For multiple pets or issues','For multiple pets or issues')}</div>
             </div>
             <div style="display:flex;align-items:baseline;gap:6px;">
               <span style="font-size:0.85rem;color:var(--secondary);text-decoration:line-through;opacity:0.55;">€59.95</span>
