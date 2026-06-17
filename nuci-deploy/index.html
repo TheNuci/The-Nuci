@@ -396,7 +396,15 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     </div>
     <h2 style="margin-bottom:14px;font-size:1.5rem;">Vaš prilagojen<br>načrt je pripravljen.</h2>
     <p style="display:none;" id="roadmapSub"></p>
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:4px 18px;margin-bottom:18px;" id="roadmapDays"></div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;margin-bottom:18px;">
+      <div style="display:flex;gap:11px;align-items:flex-start;">
+        <span style="font-size:1.4rem;line-height:1;">✨</span>
+        <div>
+          <div style="font-family:'Inter Tight',sans-serif;font-size:1.02rem;font-weight:600;margin-bottom:6px;">Crafted by AI, just for your pet</div>
+          <p style="font-size:0.9rem;line-height:1.5;color:var(--secondary);margin:0;">Based on everything you've shared, our AI builds a personalized 7-day behaviour plan made specifically for your pet and your situation - with clear daily steps, likely causes, and what to avoid. Each day adapts as you check in.</p>
+        </div>
+      </div>
+    </div>
 
     <!-- PACKAGE CAROUSEL (choose 1 or 3 plans) -->
     <div style="text-align:center;margin-bottom:10px;font-size:0.83rem;color:var(--secondary);">Choose your package</div>
@@ -1776,15 +1784,12 @@ function assessBack(){if(state.currentQ>0){state.currentQ--;renderQuestion();}el
 // ═══════════════════════════════════════
 function buildRoadmap(){
   const petName=state.answers.petName||(currentLang==='en'?'your pet':'vaš ljubljenček');
-  document.getElementById('roadmapSub').textContent = currentLang==='en'
+  const subEl=document.getElementById('roadmapSub');
+  if(subEl) subEl.textContent = currentLang==='en'
     ? `A personalized 7-day plan for ${petName}.`
     : `Prilagojen 7-dnevni načrt za ${petName}.`;
-  const days=getPlanDays();const container=document.getElementById('roadmapDays');container.innerHTML='';
-  days.forEach((d,i)=>{
-    const row=document.createElement('div');row.className='plan-day';
-    row.innerHTML=`<div class="day-num ${d.done?'done':d.current?'current':''}">${d.done?'<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>':i+1}</div><div style="flex:1;"><div style="font-size:0.85rem;font-weight:500;">${d.title}</div><div style="font-size:0.76rem;color:var(--secondary);margin-top:1px;">${d.sub}</div></div>`;
-    container.appendChild(row);
-  });
+  // The 7-day table was removed from this screen; the day-by-day plan now
+  // lives only inside the profile after purchase.
   // If a loyalty discount is active, reflect −10% on the carousel prices
   updateRoadmapPrices();
 }
@@ -2401,6 +2406,16 @@ function completePayment(){
     let pending=null;
     try{ const raw=localStorage.getItem('pendingState'); if(raw) pending=JSON.parse(raw); }catch(e){}
     try{ localStorage.removeItem('pendingState'); }catch(e){}
+
+    // Fallback: if pending didn't capture the assessment but it's still in
+    // memory (e.g. signed in right after finishing the questionnaire), use that
+    // so we don't bounce the user back to the questionnaire.
+    if((!pending || !pending.answers || !pending.answers.petType) && state.answers && state.answers.petType){
+      pending = pending || {};
+      pending.answers = state.answers;
+      pending.entryText = pending.entryText || state.entryText;
+      pending.planLength = pending.planLength || state.planLength || 7;
+    }
 
     if(had){
       // returning user with a saved plan → straight into the app (do NOT reset state)
