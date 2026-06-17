@@ -3256,7 +3256,15 @@ function startNewAssessment(){
   state.planComplete=false; state.extended=false;
   const ei=document.getElementById('entryInput'); if(ei) ei.value='';
   const ec=document.getElementById('entryChar'); if(ec) ec.textContent='0/500';
-  showScreen('screen-entry');
+  // Existing signed-in user adding another pet: skip the intro entry screen
+  // (they've seen it already) and go straight into the questionnaire.
+  if(hasActivePlan){
+    state.currentQ=0;
+    try{ renderQuestion(); }catch(e){ console.warn('renderQuestion',e); }
+    showScreen('screen-assessment');
+  } else {
+    showScreen('screen-entry');
+  }
 }
 
 // ═══════════════════════════════════════
