@@ -13,10 +13,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="color-scheme" content="light only">
 <meta name="theme-color" content="#F1F1F1">
-<title>Nucci - Pet Behaviour & Wellbeing</title>
-<meta name="description" content="Nucci helps you understand and improve your pet's behaviour with a personalized 7-day plan, daily check-ins and progress tracking.">
-<meta property="og:title" content="Nucci - Pet Behaviour & Wellbeing">
-<meta property="og:description" content="A calm, structured way to understand and improve your pet's behaviour in 7 days.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236B8F71'/%3E%3Ccircle cx='25' cy='32' r='11' fill='%23FAFAFA'/%3E%3Ccircle cx='39' cy='32' r='11' fill='%23FAFAFA' fill-opacity='0.55'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236B8F71'/%3E%3Ccircle cx='25' cy='32' r='11' fill='%23FAFAFA'/%3E%3Ccircle cx='39' cy='32' r='11' fill='%23FAFAFA' fill-opacity='0.55'/%3E%3C/svg%3E">
+<title>The Nuci - Pet Behaviour & Wellbeing</title>
+<meta name="description" content="The Nuci helps you understand and improve your pet's behaviour with an AI-personalized 7-day plan, daily check-ins and progress tracking.">
+<meta property="og:title" content="The Nuci - Pet Behaviour & Wellbeing">
+<meta property="og:description" content="A calm, structured way to understand and improve your pet's behaviour in 7 days, with an AI-personalized plan.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://thenuci.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -154,7 +156,7 @@ html.kb-up #screen-entry.active .entry-center{animation:none!important}
 .entry-top{position:absolute;top:24px;right:24px}
 .entry-center{max-width:520px;width:100%;text-align:center}
 .entry-logo{font-family:'Inter Tight',sans-serif;font-size:0.9rem;font-weight:600;color:var(--text);opacity:0.5;margin-bottom:48px}
-.entry-headline{font-family:'Inter Tight',sans-serif;font-size:clamp(1.7rem,5vw,2.4rem);font-weight:600;letter-spacing:-0.04em;color:var(--text);line-height:1.12;margin-bottom:12px;text-wrap:balance}
+.entry-headline{font-family:'Inter Tight',sans-serif;font-size:clamp(1.7rem,5vw,2.4rem);font-weight:600;letter-spacing:-0.02em;color:var(--text);line-height:1.25;margin-bottom:12px;text-wrap:balance}
 .entry-sub{font-size:0.98rem;color:var(--secondary);margin-bottom:24px;line-height:1.5}
 /* When the browser scrolls a focused field into view above the keyboard,
    leave generous space above it so the content sits lower / more centered,
@@ -229,6 +231,8 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 .back-btn:hover{color:var(--text)}
 .back-btn svg{width:18px;height:18px}
 .or-sep{display:flex;align-items:center;gap:12px;margin:14px 0}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.shake{animation:shake 0.3s ease}
 .or-sep::before,.or-sep::after{content:'';flex:1;height:1px;background:var(--border)}
 .or-sep span{font-size:0.8rem;color:var(--secondary)}
 .page-header{padding:60px clamp(24px,8%,64px) 16px;max-width:480px;margin:0 auto;width:100%}
@@ -292,18 +296,19 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <!-- ENTRY -->
 <section class="screen active" id="screen-entry">
   <button class="btn btn-ghost" data-i18n="login" onclick="showScreen('screen-login')" style="position:fixed;top:max(16px,env(safe-area-inset-top));right:16px;z-index:20;background:rgba(250,250,250,0.8);backdrop-filter:blur(8px);border-radius:99px;padding:8px 16px;">Prijava</button>
-  <svg viewBox="0 0 1062.77 291.04" xmlns="http://www.w3.org/2000/svg" aria-label="The Nuci" style="position:fixed;top:max(24px,calc(env(safe-area-inset-top) + 9px));left:50%;transform:translateX(-50%);height:22px;width:auto;z-index:20;fill:#666666;">
-    <path d="m65.87,231.26c0,21.12,12.8,35.82,31.69,34.11,21.6-1.96,38.34-15.68,42.77-32.08.04-.14.23-.12.23.03v39.05c-11,14-31.37,18.68-45.69,18.68-35.08,0-56.56-21.84-56.56-57.99v-100.24H0v-22.91h38.3V37.59l27.57-8.95v81.26h77.32v22.91h-77.32v98.45Z"/>
-    <path d="m312.22,184.14l1.34,102.23-35.77.02v-100.59c0-32.94-19.69-55.13-49.04-55.13-36.87,0-61.21,25.06-61.21,70.88v84.84h-27.21V0h27.21v139.26c14.32-21.48,36.87-33.65,66.58-33.65,38.8,0,71.99,24.06,77.6,62.16.8,5.42.88,10.91.5,16.37Z"/>
-    <path d="m489.72,203.69h-151.43c2.51,39.74,32.58,63.36,63.01,63.36,25.06,0,47.61-9.67,60.14-37.95l24.34,5.73c-13.96,36.87-44.75,56.2-84.48,56.2-46.9,0-91.73-36.47-91.73-92.68s44.84-92.76,93.52-92.76,84.84,35.44,86.63,88.06v10.02Zm-150.35-20.4h122.79c-5.01-34.73-29.71-53.7-59.07-53.7s-58.35,18.97-63.72,53.7Z"/>
-    <path d="m692.56,286.37c0-17,.13-68.03.13-85.12v-15.45c0-32.94-19.69-55.13-49.04-55.13-36.87,0-61.21,25.06-61.21,70.88v84.84h-27.21V109.9h27.21v29.35c14.32-21.48,36.87-33.65,66.58-33.65,42.6,0,70.88,30.43,70.88,75.18l-.34,105.58"/>
-    <path d="m857.62,286.03h-27.56l-.5-25.67c-14.32,21.12-28.64,26-58,26-42.6,0-64-24-76-69l-1-9-2-82,19,26,2,35,4.15,19.28c1.1,2.81,1.8,5.77,1.95,8.78,1.57,30.59,20.76,47.95,48.9,47.95,36.87,0,61.5-22.8,61.5-68.62v-84.84h27.56v176.13Z"/>
-    <path d="m1000.52,221.59l25.06,6.8c-10.38,37.59-45.11,62.29-86.63,62.29-52.27,0-93.79-38.66-93.79-92.72s41.53-92.36,93.79-92.36c41.17,0,75.54,24.34,86.63,61.22l-26.13,7.88c-8.23-28.28-31.5-44.39-60.5-44.39-39.02,0-67.3,28.64-67.3,67.66s28.28,67.66,67.3,67.66c29,0,52.27-16.11,61.57-44.03Z"/>
-    <path d="m1062.77,44.03c0,10.38-19.77,61.06-19.21,50.33,2-38-7-34-18.38-50.33-5.53-7.93,7.88-18.26,18.62-18.26s18.97,8.59,18.97,18.26Zm-32.58,242.36l.35-113.65c.01-4.86,1.13-9.64,3.27-14l22.44-45.78c.37-.75,1.5-.49,1.5.35v173.08h-27.56Z"/>
+  <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg" aria-label="The Nuci" style="position:fixed;top:max(24px,calc(env(safe-area-inset-top) + 9px));left:50%;transform:translateX(-50%);height:26px;width:auto;z-index:20;">
+    <circle cy="20" r="11" fill="#6B8F71">
+      <animate attributeName="cx" values="26;38;26" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>
+      <animate attributeName="fill-opacity" values="1;0.5;1" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>
+    </circle>
+    <circle cy="20" r="11" fill="#6B8F71">
+      <animate attributeName="cx" values="38;26;38" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>
+      <animate attributeName="fill-opacity" values="0.5;1;0.5" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>
+    </circle>
   </svg>
   <div class="entry-center fade-up">
-    <h1 class="entry-headline" data-i18n="entry_headline">Naučite se pomagati svojemu ljubljenčku v 7 dneh</h1>
-    <p class="entry-sub" data-i18n="entry_sub">Opišite vedenje, skrb ali težavo.</p>
+    <h1 class="entry-headline" data-i18n="entry_headline">Learn how to help your pet in 7 days</h1>
+    <p class="entry-sub" data-i18n="entry_sub">Describe the behaviour and our AI builds a personalized 7-day plan for your pet.</p>
     <div class="entry-field-wrap" id="entryFieldWrap" style="margin-bottom:14px;">
       <textarea class="entry-textarea" id="entryInput" maxlength="500" data-i18n-ph="entry_placeholder"
         placeholder="Moj pes se je začel vesti drugače…" rows="3"
@@ -328,7 +333,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       Nazaj
     </button>
     <h2 style="margin-bottom:8px;">Kako deluje</h2>
-    <p style="margin-bottom:28px;">Miren, strukturiran način za razumevanje in izboljšanje vedenja vašega ljubljenčka.</p>
+    <p style="margin-bottom:28px;">A calm, structured way to understand and improve your pet's behaviour - with an AI-personalized plan built from your answers.</p>
 
     <div style="display:flex;flex-direction:column;gap:16px;">
       <div style="display:flex;gap:14px;align-items:flex-start;">
@@ -337,11 +342,19 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       </div>
       <div style="display:flex;gap:14px;align-items:flex-start;">
         <div style="width:34px;height:34px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.9rem;font-weight:600;color:var(--success);font-family:'Inter Tight',sans-serif;">2</div>
-        <div><div style="font-size:0.95rem;font-weight:600;margin-bottom:3px;">Pridobite prilagojen načrt</div><p style="font-size:0.86rem;">7-dnevni načrt z verjetnimi vzroki, kaj storiti in čemu se izogniti.</p></div>
+        <div><div style="font-size:0.95rem;font-weight:600;margin-bottom:3px;">Get an AI-personalized plan</div><p style="font-size:0.86rem;">Our AI builds a 7-day plan made specifically for your pet - with likely causes, what to do, and what to avoid.</p></div>
       </div>
       <div style="display:flex;gap:14px;align-items:flex-start;">
         <div style="width:34px;height:34px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.9rem;font-weight:600;color:var(--success);font-family:'Inter Tight',sans-serif;">3</div>
-        <div><div style="font-size:0.95rem;font-weight:600;margin-bottom:3px;">Spremljajte in izboljšujte</div><p style="font-size:0.86rem;">Hitre dnevne prijave ustvarijo vpoglede in prikažejo vaš napredek skozi čas.</p></div>
+        <div><div style="font-size:0.95rem;font-weight:600;margin-bottom:3px;">Track and improve</div><p style="font-size:0.86rem;">Quick daily check-ins create AI insights and show your progress over time.</p></div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;">
+        <div style="width:34px;height:34px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.9rem;font-weight:600;color:var(--success);font-family:'Inter Tight',sans-serif;">4</div>
+        <div><div style="font-size:0.95rem;font-weight:600;margin-bottom:3px;">Add more pets</div><p style="font-size:0.86rem;">Have more than one animal? You can add additional pets, each with their own personalized plan.</p></div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;">
+        <div style="width:34px;height:34px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.9rem;font-weight:600;color:var(--success);font-family:'Inter Tight',sans-serif;">5</div>
+        <div><div style="font-size:0.95rem;font-weight:600;margin-bottom:3px;">Plan extends if needed</div><p style="font-size:0.86rem;">If the issue hasn't resolved after 7 days, your plan extends so you can keep working toward a calmer pet.</p></div>
       </div>
     </div>
 
@@ -462,13 +475,9 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <h2 style="margin-bottom:8px;">Ustvarite svoj račun</h2>
     <p style="margin-bottom:28px;max-width:300px;">Shranite napredek in dostopajte do svojega prilagojenega načrta.</p>
     <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;">
-      <button class="auth-provider-btn" onclick="signInWithGoogle()">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M18.2 10.2c0-.7-.1-1.3-.2-1.9H10v3.6h4.6c-.2 1.1-.8 2-1.7 2.6v2.1h2.7c1.6-1.5 2.6-3.7 2.6-6.4z" fill="#4285F4"/><path d="M10 18.4c2.3 0 4.2-.8 5.6-2.1l-2.7-2.1c-.8.5-1.7.8-2.9.8-2.2 0-4.1-1.5-4.8-3.5H2.4v2.2C3.8 16.5 6.7 18.4 10 18.4z" fill="#34A853"/><path d="M5.2 11.5c-.2-.5-.3-1-.3-1.5s.1-1 .3-1.5V6.3H2.4C1.9 7.3 1.6 8.6 1.6 10s.3 2.7.8 3.7l2.8-2.2z" fill="#FBBC04"/><path d="M10 5.5c1.2 0 2.3.4 3.2 1.3l2.4-2.4C14.2 3 12.3 2.2 10 2.2 6.7 2.2 3.8 4.1 2.4 6.9l2.8 2.2c.7-2 2.6-3.6 4.8-3.6z" fill="#EA4335"/></svg>
-        Nadaljuj z Google
-      </button>
       <button class="auth-provider-btn" onclick="showScreen('screen-auth-email')">
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4.5" width="15" height="11" rx="2" stroke="#111" stroke-width="1.4"/><path d="M3 6l7 5 7-5" stroke="#111" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Nadaljuj z e-pošto
+        Continue with email
       </button>
     </div>
     <p style="font-size:0.75rem;color:var(--secondary);margin-top:20px;">Vaših podatkov ne bomo nikoli delili.</p>
@@ -478,7 +487,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <!-- AUTH EMAIL (enter details) -->
 <section class="screen" id="screen-auth-email">
   <div class="auth-email-body">
-    <button class="back-btn" onclick="showScreen('screen-auth')" style="position:absolute;top:max(24px,env(safe-area-inset-top));left:24px;">
+    <button class="back-btn" onclick="showScreen('screen-assessment')" style="position:absolute;top:max(24px,env(safe-area-inset-top));left:24px;">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Nazaj
     </button>
@@ -553,15 +562,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <div style="width:100%;max-width:360px;">
       <h2 style="margin-bottom:8px;">Dobrodošli nazaj</h2>
       <p style="margin-bottom:24px;">Prijavite se za dostop do načrta.</p>
-      <!-- Google sign-in -->
-      <div style="margin-bottom:18px;">
-        <button class="auth-provider-btn" style="width:100%;justify-content:center;" onclick="signInWithGoogle()">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M18.2 10.2c0-.7-.1-1.3-.2-1.9H10v3.6h4.6c-.2 1.1-.8 2-1.7 2.6v2.1h2.7c1.6-1.5 2.6-3.7 2.6-6.4z" fill="#4285F4"/><path d="M10 18.4c2.3 0 4.2-.8 5.6-2.1l-2.7-2.1c-.8.5-1.7.8-2.9.8-2.2 0-4.1-1.5-4.8-3.5H2.4v2.2C3.8 16.5 6.7 18.4 10 18.4z" fill="#34A853"/><path d="M5.2 11.5c-.2-.5-.3-1-.3-1.5s.1-1 .3-1.5V6.3H2.4C1.9 7.3 1.6 8.6 1.6 10s.3 2.7.8 3.7l2.8-2.2z" fill="#FBBC04"/><path d="M10 5.5c1.2 0 2.3.4 3.2 1.3l2.4-2.4C14.2 3 12.3 2.2 10 2.2 6.7 2.2 3.8 4.1 2.4 6.9l2.8 2.2c.7-2 2.6-3.6 4.8-3.6z" fill="#EA4335"/></svg>
-          Nadaljuj z Google
-        </button>
-      </div>
-      <div class="or-sep"><span>ali</span></div>
-      <div style="display:flex;flex-direction:column;gap:12px;margin-top:18px;">
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px;">
         <input type="email" class="input-field" id="loginEmail" placeholder="E-poštni naslov" autocomplete="email">
         <input type="password" class="input-field" id="loginPass" placeholder="Geslo" autocomplete="current-password">
         <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Prijava</button>
@@ -1750,9 +1751,23 @@ function checkWarning(q){
 
 function assessNext(){
   const qs=getQuestions();const q=qs[state.currentQ];
-  if(['text','textarea'].includes(q.type)&&!state.answers[q.id]?.trim()){
+  // Every question is required — the plan quality depends on complete answers.
+  const ans=state.answers[q.id];
+  let missing=false;
+  if(['text','textarea'].includes(q.type)){
+    missing = !ans || !String(ans).trim();
+  } else if(q.type==='multi'){
+    missing = !Array.isArray(ans) || ans.length===0;
+  } else {
+    // pet-type, pills, options → a single value must be selected
+    missing = ans===undefined || ans===null || ans==='';
+  }
+  if(missing){
     const inp=document.querySelector('#answerWrap input,#answerWrap textarea');
-    if(inp){inp.style.borderColor='var(--danger)';setTimeout(()=>inp.style.borderColor='',1500);}return;
+    if(inp){inp.style.borderColor='var(--danger)';setTimeout(()=>inp.style.borderColor='',1500);}
+    const wrap=document.getElementById('answerWrap');
+    if(wrap){ wrap.classList.remove('shake'); void wrap.offsetWidth; wrap.classList.add('shake'); }
+    return;
   }
   if(state.currentQ<qs.length-1){state.currentQ++;renderQuestion();}
   else{
@@ -1774,7 +1789,7 @@ function assessNext(){
     buildRoadmap();
     // Register first (to capture the email) unless the user is already signed in.
     if(state.userEmail){ showScreen('screen-roadmap'); }
-    else{ showScreen('screen-auth'); }
+    else{ showScreen('screen-auth-email'); }
   }
 }
 function assessBack(){if(state.currentQ>0){state.currentQ--;renderQuestion();}else showScreen('screen-entry');}
@@ -4466,7 +4481,7 @@ function handleInAppBack(){
     if(id==='screen-auth'){showScreen('screen-assessment');return true;}
     if(id==='screen-roadmap'){
       if(state.fromUpsell){ state.fromUpsell=false; showScreen('screen-app'); showTab('profile'); return true; }
-      showScreen(state.userEmail?'screen-auth':'screen-assessment');return true;
+      showScreen(state.userEmail?'screen-auth-email':'screen-assessment');return true;
     }
     if(id==='screen-payment'){showScreen('screen-roadmap');return true;}
     if(id==='screen-about'||id==='screen-login'){showScreen('screen-entry');return true;}
