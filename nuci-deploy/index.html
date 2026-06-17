@@ -2197,7 +2197,7 @@ function goToStripeFromRoadmap(){
     }));
   }catch(e){}
   if(link){ window.location.href = link; }
-  else { showScreen('screen-payment'); }   // fallback if no link set
+  else { showScreen('screen-roadmap'); }   // fallback if no link set
 }
 // Keep dots + selection in sync while the user swipes the carousel.
 (function setupPkgCarousel(){
@@ -2453,12 +2453,10 @@ function completePayment(){
         setupApp(); showScreen('screen-app'); persistState();
       } else {
         state.paid=false;
-        // assessment done but not paid yet → send to payment to finish
+        // assessment done but not paid yet → send to package choice (roadmap)
         persistState();
-        const pn=state.answers.petName||'vaš ljubljenček';const pt=state.answers.petType||'other';
-        const pa=document.getElementById('paymentAvatar'); if(pa) pa.textContent=EMOJIS[pt]||'🐾';
-        const pl=document.getElementById('paymentPetLabel'); if(pl) pl.textContent=`Načrt za ${pn}`;
-        showScreen('screen-payment');
+        try{ buildRoadmap(); }catch(e){}
+        showScreen('screen-roadmap');
       }
     } else {
       // brand-new user with nothing in progress → start the assessment
@@ -3018,9 +3016,9 @@ function startNewAssessment(){
       state.usingCredit = true;          // this pet is already paid for
       try{ persistState(); }catch(e){}
     } else {
-      // out of credits → send to payment to buy more
-      showScreen('screen-payment');
-      try{ refreshPriceDisplay(); }catch(e){}
+      // out of credits → send to package choice to buy more
+      try{ buildRoadmap(); }catch(e){}
+      showScreen('screen-roadmap');
       return;
     }
   }
