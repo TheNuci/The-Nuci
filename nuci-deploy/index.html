@@ -2086,19 +2086,44 @@ function promptNewPassword(){
 }
 async function saveNewPassword(){
   const msg=document.getElementById('newPassMsg');
+  const btn=document.querySelector('#screen-newpass button.btn-primary');
   const p1=(document.getElementById('newPass1')||{}).value||'';
   const p2=(document.getElementById('newPass2')||{}).value||'';
   if(p1.length<6){ if(msg){msg.style.color='var(--danger)';msg.textContent='Password must be at least 6 characters.';} return; }
   if(p1!==p2){ if(msg){msg.style.color='var(--danger)';msg.textContent='Passwords do not match.';} return; }
   if(!supa){ if(msg){msg.style.color='var(--danger)';msg.textContent='Unable to update password right now.';} return; }
+  if(window.__passwordUpdated){ return; }   // already done — ignore extra taps
+  if(btn){ btn.disabled=true; btn.style.opacity='0.6'; }
   if(msg){msg.style.color='var(--secondary)';msg.textContent='Saving…';}
   try{
-    const { error } = await supa.auth.updateUser({ password: p1 });
-    if(error){ if(msg){msg.style.color='var(--danger)';msg.textContent='Could not update password. Try the reset link again.';} console.warn('updateUser',error); return; }
-    if(msg){msg.style.color='var(--success)';msg.textContent='Password updated. Signing you in…';}
-    window.__isPasswordRecovery = false;   // recovery done — allow normal sign-in
-    setTimeout(()=>{ try{ supa.auth.getSession().then(({data})=>{ if(data&&data.session) finishSignIn(data.session); else showScreen('screen-login'); }); }catch(e){ showScreen('screen-login'); } }, 800);
-  }catch(e){ console.warn('save pass failed',e); if(msg){msg.style.color='var(--danger)';msg.textContent='Could not update password.';} }
+    const { data, error } = await supa.auth.updateUser({ password: p1 });
+    if(error){
+      if(btn){ btn.disabled=false; btn.style.opacity='1'; }
+      if(msg){msg.style.color='var(--danger)';msg.textContent='Could not update password. Request a new reset link.';}
+      console.warn('updateUser',error); return;
+    }
+    // Success — lock against re-submission (the recovery token is now spent).
+    window.__passwordUpdated = true;
+    window.__isPasswordRecovery = false;
+    if(msg){msg.style.color='var(--success)';msg.textContent='Password updated! You can now log in.';}
+    // Capture the account email so we can prefill it on the login screen.
+    let resetEmail = '';
+    try{ const d=(data&&data.user)?data.user:null; if(d&&d.email) resetEmail=d.email; }catch(e){}
+    if(!resetEmail){ try{ const s=await supa.auth.getSession(); resetEmail=(s&&s.data&&s.data.session&&s.data.session.user&&s.data.session.user.email)||''; }catch(e){} }
+    // Sign out the recovery session so the user logs in fresh with the new password.
+    try{ await supa.auth.signOut(); }catch(e){}
+    setTimeout(()=>{
+      try{ const le=document.getElementById('loginEmail'); if(le && resetEmail) le.value=resetEmail; }catch(e){}
+      try{ const lp=document.getElementById('loginPass'); if(lp) lp.value=''; }catch(e){}
+      try{ const lm=document.getElementById('loginMsg'); if(lm){ lm.style.color='var(--success)'; lm.textContent='Password changed. Sign in with your new password.'; } }catch(e){}
+      showScreen('screen-login');
+      try{ const lp=document.getElementById('loginPass'); if(lp) lp.focus(); }catch(e){}
+    }, 900);
+  }catch(e){
+    console.warn('save pass failed',e);
+    if(btn){ btn.disabled=false; btn.style.opacity='1'; }
+    if(msg){msg.style.color='var(--danger)';msg.textContent='Could not update password.';}
+  }
 }
 async function forgotPassword(){
   const msg=document.getElementById('loginMsg');
