@@ -2200,12 +2200,15 @@ async function doLogin(method){
   let authOk=false;
   if(supa){
     try{
-      const { data, error } = await supa.auth.signInWithPassword({ email, password: pass });
+      const { data, error } = await Promise.race([
+        supa.auth.signInWithPassword({ email, password: pass }),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), 10000))
+      ]);
       if(error){
         // On the live domain a real error means wrong credentials.
         // In preview (Supabase unreachable) we fall through to local mode below.
         if(!/fetch|network/i.test(error.message||'')){
-          if(msg){msg.style.color='var(--danger)';msg.textContent='Napačen e-poštni naslov ali geslo.';}
+          if(msg){msg.style.color='var(--danger)';msg.textContent='Incorrect email or password.';}
           return;
         }
       } else {
@@ -2213,28 +2216,49 @@ async function doLogin(method){
         state.userId=data.user?data.user.id:null;
       }
     }catch(e){
-      // Network unreachable (preview) — continue locally for testing.
-      console.warn('Supabase unreachable on login, continuing locally:', e);
+      // Network unreachable or timeout — continue locally for testing.
+      console.warn('Supabase login issue, continuing:', e);
+      if(/timeout/.test(e.message||'')){
+        if(msg){msg.style.color='var(--danger)';msg.textContent='Connection timed out. Please try again.';}
+        return;
+      }
     }
   }
   state.userEmail=email;
 
-  // Load their saved profile
+  // Load their saved profile (with a timeout so a slow/hung network can't
+  // leave the user stuck on "Signing in…").
   let found=false;
-  try{ found=await loadStateForUser(email); }catch(e){}
+  try{
+    found=await Promise.race([
+      loadStateForUser(email),
+      new Promise(res=>setTimeout(()=>res('timeout'), 8000))
+    ]);
+    if(found==='timeout'){ console.warn('profile load timed out'); found=false; }
+  }catch(e){ console.warn('login profile load failed', e); found=false; }
+
   if(found){
-    const petType=state.answers.petType||'other';
-    document.getElementById('todayPetName').textContent=state.answers.petName||'Vaš ljubljenček';
-    document.getElementById('todayAvatarPh').textContent=EMOJIS[petType]||'🐾';
-    document.getElementById('profileAvatarPh').textContent=EMOJIS[petType]||'🐾';
-    document.getElementById('profilePetName').textContent=state.answers.petName||'Vaš ljubljenček';
-    const typeLabel=petType.charAt(0).toUpperCase()+petType.slice(1);
-    document.getElementById('profilePetMeta').textContent=`${typeLabel} · ${state.answers.breed||typeLabel}`;
-    renderTaskPreview();renderAllTasks();buildPlanDaysList();buildPlanDetail();
-    buildOverview(petType);buildPeriodButtons();buildAssessmentSwitcher();
-    recomputeStats();refreshTodayForDay();generatePetImage();
-    showScreen('screen-app');showTab('today');
-    if(msg)msg.textContent='';
+    try{
+      const petType=state.answers.petType||'other';
+      document.getElementById('todayPetName').textContent=state.answers.petName||'your pet';
+      document.getElementById('todayAvatarPh').textContent=EMOJIS[petType]||'🐾';
+      document.getElementById('profileAvatarPh').textContent=EMOJIS[petType]||'🐾';
+      document.getElementById('profilePetName').textContent=state.answers.petName||'your pet';
+      const typeLabel=petType.charAt(0).toUpperCase()+petType.slice(1);
+      document.getElementById('profilePetMeta').textContent=`${typeLabel} · ${state.answers.breed||typeLabel}`;
+    }catch(e){ console.warn('profile header render', e); }
+    try{ renderTaskPreview(); }catch(e){ console.warn('renderTaskPreview',e); }
+    try{ renderAllTasks(); }catch(e){ console.warn('renderAllTasks',e); }
+    try{ buildPlanDaysList(); }catch(e){ console.warn('buildPlanDaysList',e); }
+    try{ buildPlanDetail(); }catch(e){ console.warn('buildPlanDetail',e); }
+    try{ buildOverview(state.answers.petType||'other'); }catch(e){ console.warn('buildOverview',e); }
+    try{ buildPeriodButtons(); }catch(e){ console.warn('buildPeriodButtons',e); }
+    try{ buildAssessmentSwitcher(); }catch(e){ console.warn('buildAssessmentSwitcher',e); }
+    try{ recomputeStats(); }catch(e){ console.warn('recomputeStats',e); }
+    try{ refreshTodayForDay(); }catch(e){ console.warn('refreshTodayForDay',e); }
+    try{ generatePetImage(); }catch(e){ console.warn('generatePetImage',e); }
+    if(msg) msg.textContent='';
+    showScreen('screen-app'); showTab('today');
   } else {
     // Authenticated but no saved plan yet → start assessment
     if(msg){msg.style.color='var(--secondary)';msg.textContent='Signed in. No saved plan yet - start an assessment.';}
