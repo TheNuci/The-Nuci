@@ -46,22 +46,23 @@ exports.handler = async (event) => {
 
   // The instruction we give the AI. It must return STRICT JSON only.
   const systemPrompt =
-    `You are an expert animal behaviourist creating a personalised 7-day ` +
-    `behaviour-improvement plan. The plan must DIRECTLY address the specific ` +
-    `animal, the exact problem described, its frequency, triggers, location, ` +
-    `and what the owner has already tried. Be concrete and practical: every ` +
-    `task must be a small, doable action a normal owner can perform that day, ` +
-    `building logically from stabilising the situation toward resolving it. ` +
-    `Avoid generic filler. Reference the actual trigger and context where known. ` +
-    `Respond in ${langName}. ` +
+    `You are an expert animal behaviourist creating the START of a personalised ` +
+    `7-day behaviour-improvement plan. Address the specific animal, the exact ` +
+    `problem described, its triggers and context. Reference the actual trigger ` +
+    `where known. No generic filler. Respond in ${langName}. ` +
+    `Be CONCISE: tasks are short imperative phrases (max ~8 words each), ` +
+    `subtitles max ~6 words, day desc one short sentence. ` +
+    `Generate the meta info plus ONLY the FIRST 3 DAYS (day 1 stabilise, ` +
+    `day 2 observe, day 3 first adjustment). The remaining days are handled ` +
+    `separately, so do NOT include them. ` +
     `Return ONLY valid JSON (no markdown, no prose) with this exact shape:\n` +
     `{\n` +
-    `  "behaviorExplain": "2-3 sentence explanation of the likely cause for THIS pet and problem",\n` +
-    `  "whatNotToDo": ["specific mistake to avoid", "...", "...", "..."],\n` +
-    `  "causes": ["likely cause 1", "likely cause 2", "likely cause 3"],\n` +
+    `  "behaviorExplain": "2 sentence cause for THIS pet and problem",\n` +
+    `  "whatNotToDo": ["short mistake to avoid", "...", "...", "..."],\n` +
+    `  "causes": ["cause 1", "cause 2", "cause 3"],\n` +
     `  "days": [\n` +
-    `    {"title":"short title","sub":"one-line subtitle","desc":"1-2 sentence focus for the day","tasks":["task1","task2","task3","task4","task5"]}\n` +
-    `    // exactly 7 entries, progressing from day 1 (stabilise) to day 7 (consolidate)\n` +
+    `    {"title":"short title","sub":"short subtitle","desc":"one short sentence","tasks":["task1","task2","task3","task4","task5"]}\n` +
+    `    // EXACTLY 3 entries (day 1, day 2, day 3)\n` +
     `  ]\n` +
     `}`;
 
@@ -77,7 +78,7 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
+        max_tokens: 1000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
