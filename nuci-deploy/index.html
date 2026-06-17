@@ -2605,18 +2605,24 @@ function completePayment(){
   }
   // (a) react to future auth changes
   supa.auth.onAuthStateChange((event, session)=>{
-    if(event==='PASSWORD_RECOVERY'){ promptNewPassword(); return; }
+    if(event==='PASSWORD_RECOVERY'){ window.__isPasswordRecovery = true; promptNewPassword(); return; }
     if(window.__isPasswordRecovery){ return; }   // stay on new-password screen
     if(event==='SIGNED_IN') finishSignIn(session);
   });
-  // (b) if we already have a session right now (e.g. just came back from Google), use it
-  const looksLikeReturn = /[?#&](code|access_token|error)=/.test(window.location.href);
-  supa.auth.getSession().then(({data})=>{
-    if(data && data.session){ finishSignIn(data.session); }
-  }).catch(e=>console.warn('getSession failed',e));
+  // (b) if we already have a session right now (e.g. just came back from Google), use it.
+  // Delay slightly so a PASSWORD_RECOVERY event (reset link) can set its flag first
+  // and prevent us from bouncing the user into the app instead of the reset screen.
+  const looksLikeReturn = /[?#&](code|access_token|error|type=recovery)=/.test(window.location.href) || /type=recovery/.test(window.location.href);
+  setTimeout(()=>{
+    if(window.__isPasswordRecovery) return;   // recovery in progress — don't sign in
+    supa.auth.getSession().then(({data})=>{
+      if(window.__isPasswordRecovery) return;
+      if(data && data.session){ finishSignIn(data.session); }
+    }).catch(e=>console.warn('getSession failed',e));
+  }, 350);
   // safety: also try once more shortly after load for slow URL parsing
   if(looksLikeReturn){
-    setTimeout(()=>{ supa.auth.getSession().then(({data})=>{ if(data&&data.session) finishSignIn(data.session); }); }, 800);
+    setTimeout(()=>{ if(window.__isPasswordRecovery) return; supa.auth.getSession().then(({data})=>{ if(!window.__isPasswordRecovery && data&&data.session) finishSignIn(data.session); }); }, 1200);
   }
 })();
 function setupApp(){
