@@ -563,10 +563,27 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       <h2 style="margin-bottom:8px;">Welcome back</h2>
       <p style="margin-bottom:24px;">Sign in to access your plan.</p>
       <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px;">
-        <input type="email" class="input-field" id="loginEmail" placeholder="E-poštni naslov" autocomplete="email">
-        <input type="password" class="input-field" id="loginPass" placeholder="Geslo" autocomplete="current-password">
+        <input type="email" class="input-field" id="loginEmail" placeholder="Email address" autocomplete="email">
+        <input type="password" class="input-field" id="loginPass" placeholder="Password" autocomplete="current-password">
         <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Log In</button>
         <div id="loginMsg" style="font-size:0.82rem;color:var(--secondary);text-align:center;min-height:18px;"></div>
+        <button onclick="forgotPassword()" style="background:none;border:none;color:var(--secondary);font-size:0.85rem;cursor:pointer;padding:6px;text-decoration:underline;">Forgot password?</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NEW PASSWORD (after reset link) -->
+<section class="screen" id="screen-newpass" style="display:none;">
+  <div class="login-body">
+    <div style="width:100%;max-width:360px;">
+      <h2 style="margin-bottom:8px;">Set a new password</h2>
+      <p style="margin-bottom:24px;">Choose a new password for your account.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px;">
+        <input type="password" class="input-field" id="newPass1" placeholder="New password" autocomplete="new-password">
+        <input type="password" class="input-field" id="newPass2" placeholder="Confirm new password" autocomplete="new-password">
+        <button class="btn btn-primary btn-full btn-lg" onclick="saveNewPassword()">Save password</button>
+        <div id="newPassMsg" style="font-size:0.82rem;color:var(--secondary);text-align:center;min-height:18px;"></div>
       </div>
     </div>
   </div>
@@ -2044,6 +2061,56 @@ async function doAuth(method){
 }
 
 // Log in with an existing email → load saved profile and jump into the app
+function promptNewPassword(){
+  try{ const g=document.getElementById('gate'); if(g) g.style.display='none'; }catch(e){}
+  try{ const ap=document.getElementById('app'); if(ap) ap.style.display=''; }catch(e){}
+  try{ history.replaceState({}, '', window.location.pathname); }catch(e){}
+  showScreen('screen-newpass');
+}
+async function saveNewPassword(){
+  const msg=document.getElementById('newPassMsg');
+  const p1=(document.getElementById('newPass1')||{}).value||'';
+  const p2=(document.getElementById('newPass2')||{}).value||'';
+  if(p1.length<6){ if(msg){msg.style.color='var(--danger)';msg.textContent='Password must be at least 6 characters.';} return; }
+  if(p1!==p2){ if(msg){msg.style.color='var(--danger)';msg.textContent='Passwords do not match.';} return; }
+  if(!supa){ if(msg){msg.style.color='var(--danger)';msg.textContent='Unable to update password right now.';} return; }
+  if(msg){msg.style.color='var(--secondary)';msg.textContent='Saving…';}
+  try{
+    const { error } = await supa.auth.updateUser({ password: p1 });
+    if(error){ if(msg){msg.style.color='var(--danger)';msg.textContent='Could not update password. Try the reset link again.';} console.warn('updateUser',error); return; }
+    if(msg){msg.style.color='var(--success)';msg.textContent='Password updated. Signing you in…';}
+    setTimeout(()=>{ try{ supa.auth.getSession().then(({data})=>{ if(data&&data.session) finishSignIn(data.session); else showScreen('screen-login'); }); }catch(e){ showScreen('screen-login'); } }, 800);
+  }catch(e){ console.warn('save pass failed',e); if(msg){msg.style.color='var(--danger)';msg.textContent='Could not update password.';} }
+}
+async function forgotPassword(){
+  const msg=document.getElementById('loginMsg');
+  const inp=document.getElementById('loginEmail');
+  const email=(inp&&inp.value.trim().toLowerCase())||'';
+  if(!email){
+    if(msg){msg.style.color='var(--danger)';msg.textContent='Enter your email above first, then tap "Forgot password?".';}
+    if(inp) inp.focus();
+    return;
+  }
+  if(!supa){
+    if(msg){msg.style.color='var(--danger)';msg.textContent='Password reset is unavailable right now.';}
+    return;
+  }
+  if(msg){msg.style.color='var(--secondary)';msg.textContent='Sending reset link…';}
+  try{
+    const { error } = await supa.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/?reset=1'
+    });
+    if(error){
+      if(msg){msg.style.color='var(--danger)';msg.textContent='Could not send reset email. Please try again.';}
+      console.warn('Reset error', error);
+      return;
+    }
+    if(msg){msg.style.color='var(--success)';msg.textContent='Check your email for a reset link.';}
+  }catch(e){
+    console.warn('Reset failed', e);
+    if(msg){msg.style.color='var(--danger)';msg.textContent='Could not send reset email. Please try again.';}
+  }
+}
 async function doLogin(method){
   const msg=document.getElementById('loginMsg');
   // For Apple/Google in the prototype there's no real OAuth; guide to email.
@@ -2056,9 +2123,9 @@ async function doLogin(method){
   const passEl=document.getElementById('loginPass');
   const email=(inp&&inp.value.trim().toLowerCase())||'';
   const pass=(passEl&&passEl.value)||'';
-  if(!email){ if(msg){msg.style.color='var(--danger)';msg.textContent='Prosimo, vnesite svoj e-poštni naslov.';} return; }
-  if(!pass){ if(msg){msg.style.color='var(--danger)';msg.textContent='Prosimo, vnesite svoje geslo.';} return; }
-  if(msg){msg.style.color='var(--secondary)';msg.textContent='Prijavljanje…';}
+  if(!email){ if(msg){msg.style.color='var(--danger)';msg.textContent='Please enter your email address.';} return; }
+  if(!pass){ if(msg){msg.style.color='var(--danger)';msg.textContent='Please enter your password.';} return; }
+  if(msg){msg.style.color='var(--secondary)';msg.textContent='Signing in…';}
 
   // Authenticate with Supabase Auth
   let authOk=false;
@@ -2134,6 +2201,17 @@ const PACKAGES = [
   { id:'triple', credits:3, price:19.95, anchor:59.95, link:STRIPE_PAYMENT_LINK_3PACK, best:true },
 ];
 let selectedPackage = PACKAGES[0];
+
+// Append a purchase to the billing history. Each entry is one transaction.
+function recordTransaction(pkgId, price, credits){
+  if(!Array.isArray(state.transactions)) state.transactions=[];
+  state.transactions.push({
+    date: new Date().toISOString(),
+    packageId: pkgId || 'single',
+    price: (price!=null? price : 9.95),
+    credits: (credits!=null? credits : 1)
+  });
+}
 
 // ─── Pricing & promo codes ──────────────────────────────────────────
 const BASE_PRICE = 9.95;
@@ -2345,6 +2423,7 @@ function completePayment(){
         // Their pets/plans stay as they are; new credits unlock new pets.
         state.planCredits = (state.planCredits||0) + purchasedCredits;
         state.paid = true;
+        try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
         // Do NOT call setupApp() here — that resets the plan to Day 1 and would
         // wipe the existing pet's progress. Just refresh the switcher + stay put.
         try{ buildAssessmentSwitcher(); }catch(e){}
@@ -2369,6 +2448,7 @@ function completePayment(){
             return generatePlanAI(state.answers).finally(()=>{
               showPlanLoading(false);
               state.planCredits = Math.max(0, purchasedCredits - 1);
+              try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
               try{ setupApp(); }catch(e){ console.warn('setupApp failed', e); }
               try{ buildAssessmentSwitcher(); }catch(e){}
               showScreen('screen-app');
@@ -2379,6 +2459,7 @@ function completePayment(){
         }
         // First pet uses one plan; the rest become available credits.
         state.planCredits = Math.max(0, purchasedCredits - 1);
+        try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
       }
       try{ setupApp(); }catch(e){ console.warn('setupApp failed', e); }
       // make sure the first/active pet is registered as an assessment
@@ -2506,6 +2587,7 @@ function completePayment(){
   }
   // (a) react to future auth changes
   supa.auth.onAuthStateChange((event, session)=>{
+    if(event==='PASSWORD_RECOVERY'){ promptNewPassword(); return; }
     if(event==='SIGNED_IN') finishSignIn(session);
   });
   // (b) if we already have a session right now (e.g. just came back from Google), use it
@@ -3385,18 +3467,31 @@ function openProfileDetail(kind){
         ${labels.map((label,i)=>`<div class="profile-row" style="${i===3?'border-bottom:none;':''}"><span style="font-size:0.9rem;font-weight:500;">${label}</span><div onclick="this.querySelector('.tgl').classList.toggle('on')" style="cursor:pointer;"><div class="tgl ${i<3?'on':''}" style="width:42px;height:24px;border-radius:99px;background:var(--border);position:relative;transition:background 0.2s;"><div style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform 0.2s;"></div></div></div></div>`).join('')}
       </div>`;
   }else if(kind==='billing'){
-    const priceLine = state.pricePaid!=null ? `€${state.pricePaid.toFixed(2)}` : '€9.95';
+    const txns = Array.isArray(state.transactions) && state.transactions.length
+      ? state.transactions.slice().reverse()   // newest first
+      : (state.pricePaid!=null ? [{date:null,packageId:state.packageId||'single',price:state.pricePaid,credits:1}] : []);
+    const pkgName = (id)=> id==='triple' ? L('Paket 3 načrtov','3-plan package') : L('1 načrt','1 plan');
+    const fmtDate = (iso)=>{ if(!iso) return ''; try{ const d=new Date(iso); return d.toLocaleDateString(currentLang==='en'?'en-GB':'sl-SI',{day:'numeric',month:'short',year:'numeric'}); }catch(e){ return ''; } };
+    const rows = txns.length
+      ? txns.map(t=>`
+        <div class="card" style="padding:16px 18px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:0.95rem;font-weight:500;">${pkgName(t.packageId)}</span>
+            <span style="font-size:0.95rem;font-weight:600;">€${(t.price!=null?t.price:9.95).toFixed(2)}</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:0.8rem;color:var(--secondary);">${fmtDate(t.date)||L('Enkratni nakup','One-time purchase')}</span>
+            <span class="tag" style="background:rgba(107,143,113,0.12);color:var(--success);">${L('Plačano','Paid')}</span>
+          </div>
+        </div>`).join('')
+      : `<div class="card" style="padding:18px;margin-bottom:10px;"><div style="font-size:0.88rem;color:var(--secondary);">${L('Ni nakupov.','No purchases yet.')}</div></div>`;
     html=`<h2 style="font-size:1.4rem;margin-bottom:16px;">${L('Obračun','Billing')}</h2>
-      <div class="card" style="padding:18px;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.95rem;font-weight:500;">${L(`7-dnevni načrt za ${pet}`,`7-day plan for ${pet}`)}</span><span class="tag" style="background:rgba(107,143,113,0.12);color:var(--success);">${L('Plačano','Paid')}</span></div>
-        <div style="font-size:0.82rem;color:var(--secondary);">${priceLine} · ${L('Enkratni nakup · Brez naročnine','One-time purchase · No subscription')}</div>
-      </div>
-      <div class="card" style="padding:8px 18px;">
+      ${rows}
+      <div class="card" style="padding:8px 18px;margin-top:2px;">
         <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">${L('Način plačila','Payment method')}</span><span style="font-size:0.85rem;color:var(--secondary);">${L('Kartica, ki se konča na','Card ending in')} ${state.cardLast4||'••••'}</span></div>
-        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">${L('Račun','Receipt')}</span><span style="font-size:0.85rem;color:var(--secondary);">${L('Prenesi','Download')}</span></div>
         <div class="profile-row" style="border-bottom:none;"><span style="font-size:0.9rem;font-weight:500;">${L('Potrebujete pomoč?','Need help?')}</span><a href="mailto:hello@thenuci.com" style="font-size:0.85rem;color:var(--success);text-decoration:none;font-weight:500;">hello@thenuci.com</a></div>
       </div>
-      <p style="font-size:0.78rem;color:var(--secondary);margin-top:14px;line-height:1.5;">${L('Plačila varno obdeluje Stripe. To je bil enkratni nakup - ponovno vam ne bo zaračunano.','Payments are processed securely by Stripe. This was a one-time purchase - you will not be charged again.')}</p>`;
+      <p style="font-size:0.78rem;color:var(--secondary);margin-top:14px;line-height:1.5;">${L('Plačila varno obdeluje Stripe. To so enkratni nakupi - naročnine ni.','Payments are processed securely by Stripe. These are one-time purchases - there is no subscription.')}</p>`;
   }
   c.innerHTML=html;
   showTab('profileDetail');
@@ -4063,6 +4158,7 @@ function serializeState(){
     archive: state.archive||[],
     pricePaid: state.pricePaid!=null?state.pricePaid:null,
     packageId: state.packageId||null,
+    transactions: state.transactions||[],
   };
 }
 
@@ -4098,6 +4194,7 @@ function restoreState(data){
     archive: data.archive||[],
     pricePaid: data.pricePaid!=null?data.pricePaid:null,
     packageId: data.packageId||null,
+    transactions: data.transactions||[],
   });
   // rebuild today's tasks for the current day, restore their done-state
   state.tasks = getDayTasks(state.currentDay);
