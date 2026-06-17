@@ -565,6 +565,10 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px;">
         <input type="email" class="input-field" id="loginEmail" placeholder="Email address" autocomplete="email">
         <input type="password" class="input-field" id="loginPass" placeholder="Password" autocomplete="current-password">
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--secondary);cursor:pointer;padding:2px 2px;">
+          <input type="checkbox" onchange="toggleLoginPassVisibility(this.checked)" style="width:16px;height:16px;accent-color:var(--success);cursor:pointer;">
+          Show password
+        </label>
         <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Log In</button>
         <div id="loginMsg" style="font-size:0.82rem;color:var(--secondary);text-align:center;min-height:18px;"></div>
         <button onclick="forgotPassword()" style="background:none;border:none;color:var(--secondary);font-size:0.85rem;cursor:pointer;padding:6px;text-decoration:underline;">Forgot password?</button>
@@ -582,6 +586,10 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px;">
         <input type="password" class="input-field" id="newPass1" placeholder="New password" autocomplete="new-password">
         <input type="password" class="input-field" id="newPass2" placeholder="Confirm new password" autocomplete="new-password">
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--secondary);cursor:pointer;padding:2px 2px;">
+          <input type="checkbox" onchange="toggleNewPassVisibility(this.checked)" style="width:16px;height:16px;accent-color:var(--success);cursor:pointer;">
+          Show password
+        </label>
         <button class="btn btn-primary btn-full btn-lg" onclick="saveNewPassword()">Save password</button>
         <div id="newPassMsg" style="font-size:0.82rem;color:var(--secondary);text-align:center;min-height:18px;"></div>
       </div>
@@ -2084,6 +2092,14 @@ function promptNewPassword(){
   try{ history.replaceState({}, '', window.location.pathname); }catch(e){}
   showScreen('screen-newpass');
 }
+function toggleNewPassVisibility(show){
+  const t = show ? 'text' : 'password';
+  const a=document.getElementById('newPass1'); if(a) a.type=t;
+  const b=document.getElementById('newPass2'); if(b) b.type=t;
+}
+function toggleLoginPassVisibility(show){
+  const el=document.getElementById('loginPass'); if(el) el.type = show ? 'text' : 'password';
+}
 async function saveNewPassword(){
   const msg=document.getElementById('newPassMsg');
   const btn=document.querySelector('#screen-newpass button.btn-primary');
@@ -2138,6 +2154,16 @@ async function forgotPassword(){
     if(msg){msg.style.color='var(--danger)';msg.textContent='Password reset is unavailable right now.';}
     return;
   }
+  if(msg){msg.style.color='var(--secondary)';msg.textContent='Checking account…';}
+  // Only allow reset for an email that actually has an account (exists in profiles).
+  try{
+    const { data: prof, error: perr } = await supa.from('profiles').select('email').eq('email', email).maybeSingle();
+    if(perr){ console.warn('profile check', perr); }
+    if(!prof){
+      if(msg){msg.style.color='var(--danger)';msg.textContent='No account found with that email. Please sign up first.';}
+      return;
+    }
+  }catch(e){ console.warn('account check failed', e); }
   if(msg){msg.style.color='var(--secondary)';msg.textContent='Sending reset link…';}
   try{
     const { error } = await supa.auth.resetPasswordForEmail(email, {
@@ -2211,7 +2237,7 @@ async function doLogin(method){
     if(msg)msg.textContent='';
   } else {
     // Authenticated but no saved plan yet → start assessment
-    if(msg){msg.style.color='var(--secondary)';msg.textContent='Prijavljeni. Še ni shranjenega načrta - začnite oceno.';}
+    if(msg){msg.style.color='var(--secondary)';msg.textContent='Signed in. No saved plan yet - start an assessment.';}
     setTimeout(()=>showScreen('screen-entry'),1200);
   }
 }
