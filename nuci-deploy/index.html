@@ -2345,6 +2345,14 @@ function completePayment(){
         // Their pets/plans stay as they are; new credits unlock new pets.
         state.planCredits = (state.planCredits||0) + purchasedCredits;
         state.paid = true;
+        // Do NOT call setupApp() here — that resets the plan to Day 1 and would
+        // wipe the existing pet's progress. Just refresh the switcher + stay put.
+        try{ buildAssessmentSwitcher(); }catch(e){}
+        try{ showScreen('screen-app'); }catch(e){}
+        try{ showTab('profile'); }catch(e){}
+        try{ persistState(); }catch(e){}
+        setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Krediti so dodani.','Credits added.'),L('V redu','Got it'),()=>{}); }catch(e){} },400);
+        return;
       } else {
         // BRAND-NEW user → the pendingState holds their first pet.
         if(p){
@@ -2380,8 +2388,15 @@ function completePayment(){
       setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Vaš načrt je pripravljen.','Your plan is ready.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },500);
     };
 
-    // Try to load an existing cloud profile (existing user topping up).
-    if(supa && email){
+    // Decide: is this a brand-new first purchase, or an existing user topping up?
+    // Prefer LIVE state (no network needed): if we already have a signed-in user
+    // with at least one pet/plan in memory, this is a top-up. This avoids a
+    // network hiccup ("Failed to fetch") wrongly sending an existing user
+    // through the brand-new flow (which reset their pet and bounced them to entry).
+    const liveHasPlan = !!(state.userEmail && ((state.assessments && state.assessments.length) || state.currentAssessmentId || state.paid));
+    if(liveHasPlan){
+      finishPaid(true);
+    } else if(supa && email){
       loadStateForUser(email).then(had=>finishPaid(!!had)).catch(()=>finishPaid(false));
     } else {
       finishPaid(false);
