@@ -1487,6 +1487,23 @@ function stopLangRotation(){ if(langRotTimer){ clearInterval(langRotTimer); lang
   try{
     const ap=document.getElementById('app'); if(ap) ap.style.display='';
   }catch(e){}
+  // Password reset return: Supabase puts the recovery token in the URL hash
+  // (#access_token=...&type=recovery) or we set ?reset=1. Detect either and
+  // lock the UI to the new-password screen so other handlers don't bounce away.
+  try{
+    const hash = window.location.hash || '';
+    const qs = window.location.search || '';
+    const isRecovery = /type=recovery/.test(hash) || /[?&]reset=1/.test(qs);
+    if(isRecovery){
+      window.__isPasswordRecovery = true;
+      const g=document.getElementById('gate'); if(g) g.style.display='none';
+      const ap=document.getElementById('app'); if(ap) ap.style.display='';
+      // Show the screen as soon as the DOM is ready
+      const showNP=()=>{ try{ showScreen('screen-newpass'); }catch(e){} };
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', showNP);
+      else showNP();
+    }
+  }catch(e){}
   // Translate the hardcoded Slovenian DOM into English once it's ready.
   const runTr=()=>{ try{ translatePage(); }catch(e){} };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', runTr);
@@ -2079,6 +2096,7 @@ async function saveNewPassword(){
     const { error } = await supa.auth.updateUser({ password: p1 });
     if(error){ if(msg){msg.style.color='var(--danger)';msg.textContent='Could not update password. Try the reset link again.';} console.warn('updateUser',error); return; }
     if(msg){msg.style.color='var(--success)';msg.textContent='Password updated. Signing you in…';}
+    window.__isPasswordRecovery = false;   // recovery done — allow normal sign-in
     setTimeout(()=>{ try{ supa.auth.getSession().then(({data})=>{ if(data&&data.session) finishSignIn(data.session); else showScreen('screen-login'); }); }catch(e){ showScreen('screen-login'); } }, 800);
   }catch(e){ console.warn('save pass failed',e); if(msg){msg.style.color='var(--danger)';msg.textContent='Could not update password.';} }
 }
@@ -2588,6 +2606,7 @@ function completePayment(){
   // (a) react to future auth changes
   supa.auth.onAuthStateChange((event, session)=>{
     if(event==='PASSWORD_RECOVERY'){ promptNewPassword(); return; }
+    if(window.__isPasswordRecovery){ return; }   // stay on new-password screen
     if(event==='SIGNED_IN') finishSignIn(session);
   });
   // (b) if we already have a session right now (e.g. just came back from Google), use it
