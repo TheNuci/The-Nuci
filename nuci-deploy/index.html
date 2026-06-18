@@ -3231,24 +3231,36 @@ function switchAssessment(id){
 }
 
 function rebuildForCurrentAssessment(){
-  const petName=state.answers.petName||'Vaš ljubljenček';
+  const petName=state.answers.petName||'your pet';
   const petType=state.answers.petType||'pet';
   const emoji=EMOJIS[petType]||'🐾';
   const typeLabel=petType.charAt(0).toUpperCase()+petType.slice(1);
   const breed=state.answers.breed||typeLabel;
-  document.getElementById('todayPetName').textContent=petName;
-  document.getElementById('todayAvatarPh').textContent=emoji;
-  document.getElementById('profileAvatarPh').textContent=emoji;
-  document.getElementById('profilePetName').textContent=petName;
-  document.getElementById('profilePetMeta').textContent=`${typeLabel} · ${breed}`;
-  const pt=getPersonalizedTasks(petType,state.answers.mainIssue||'');
-  document.getElementById('todayFocus').textContent=getPlanDays()[state.currentDay-1]?.title||getPlanDays()[0].title;
-  document.getElementById('todayFocusDesc').textContent=pt.focusDesc;
-  document.getElementById('tasksFocusTitle').textContent=getPlanDays()[state.currentDay-1]?.title||getPlanDays()[0].title;
-  document.getElementById('planSub').textContent=L(`Prilagojeno za ${petName}`,`Personalized for ${petName}`);
-  state.tasks=getDayTasks(state.currentDay);
-  renderTaskPreview();renderAllTasks();buildPlanDaysList();
-  renderAssessmentSwitcher();recomputeStats();refreshTodayForDay();generatePetImage();
+  const setTxt=(id,val)=>{ const el=document.getElementById(id); if(el) el.textContent=val; };
+  setTxt('todayPetName',petName);
+  setTxt('todayAvatarPh',emoji);
+  setTxt('profileAvatarPh',emoji);
+  setTxt('profilePetName',petName);
+  setTxt('profilePetMeta',`${typeLabel} · ${breed}`);
+  let pt={focusDesc:''};
+  try{ pt=getPersonalizedTasks(petType,state.answers.mainIssue||''); }catch(e){}
+  let days=[];
+  try{ days=getPlanDays(); }catch(e){ console.warn('getPlanDays',e); }
+  const dayTitle=(days[state.currentDay-1]&&days[state.currentDay-1].title)||(days[0]&&days[0].title)||'';
+  setTxt('todayFocus',dayTitle);
+  setTxt('todayFocusDesc',pt.focusDesc||'');
+  setTxt('tasksFocusTitle',dayTitle);
+  setTxt('planSub',L(`Prilagojeno za ${petName}`,`Personalized for ${petName}`));
+  try{ state.tasks=getDayTasks(state.currentDay); }catch(e){}
+  try{ renderTaskPreview(); }catch(e){}
+  try{ renderAllTasks(); }catch(e){}
+  try{ buildPlanDaysList(); }catch(e){}
+  try{ buildPlanDetail(); }catch(e){}
+  try{ buildOverview(petType); }catch(e){}
+  try{ renderAssessmentSwitcher(); }catch(e){}
+  try{ recomputeStats(); }catch(e){}
+  try{ refreshTodayForDay(); }catch(e){}
+  try{ generatePetImage(); }catch(e){}
 }
 
 function updateCreditsHint(){
