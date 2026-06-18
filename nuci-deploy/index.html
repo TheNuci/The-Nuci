@@ -494,9 +494,13 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <h2 style="margin-bottom:8px;">Your details</h2>
     <p style="margin-bottom:24px;max-width:300px;">We'll use these to save your plan.</p>
     <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:340px;">
-      <input type="text" class="input-field" id="authName" placeholder="Vaše ime" autocomplete="name">
-      <input type="email" class="input-field" id="authEmail" placeholder="E-poštni naslov" autocomplete="email">
-      <input type="password" class="input-field" id="authPass" placeholder="Ustvarite geslo" autocomplete="new-password">
+      <input type="text" class="input-field" id="authName" placeholder="Your name" autocomplete="name">
+      <input type="email" class="input-field" id="authEmail" placeholder="Email address" autocomplete="email">
+      <input type="password" class="input-field" id="authPass" placeholder="Create a password" autocomplete="new-password">
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--secondary);cursor:pointer;padding:2px 2px;">
+        <input type="checkbox" onchange="toggleAuthPassVisibility(this.checked)" style="width:16px;height:16px;accent-color:var(--success);cursor:pointer;">
+        Show password
+      </label>
       <button class="btn btn-primary btn-full" onclick="doAuth()" style="margin-top:4px;">Continue</button>
       <div id="authMsg" style="font-size:0.82rem;color:var(--danger);text-align:center;min-height:18px;"></div>
     </div>
@@ -1487,6 +1491,10 @@ function startLangRotation(){
 }
 function stopLangRotation(){ if(langRotTimer){ clearInterval(langRotTimer); langRotTimer=null; } }
 
+// Capture the landing URL immediately, before any handler cleans it.
+window.__landingURL = window.location.href;
+try{ console.log('[LANDING URL]', window.__landingURL); }catch(e){}
+
 // Show the app directly on load (access gate removed)
 // Language selection is disabled for now — the whole app runs in English.
 (function(){
@@ -1841,7 +1849,17 @@ function assessNext(){
     else{ showScreen('screen-auth-email'); }
   }
 }
-function assessBack(){if(state.currentQ>0){state.currentQ--;renderQuestion();}else showScreen('screen-entry');}
+function assessBack(){
+  if(state.currentQ>0){ state.currentQ--; renderQuestion(); return; }
+  // At the first question: a signed-in user who was adding another pet should
+  // go back to their profile (not the public entry screen, which feels like a logout).
+  const signedInWithPlan = !!(state.userEmail && ((state.assessments && state.assessments.length) || state.currentAssessmentId || (state.answers && state.planComplete)));
+  if(signedInWithPlan){
+    try{ showScreen('screen-app'); showTab('profile'); }catch(e){ showScreen('screen-entry'); }
+  } else {
+    showScreen('screen-entry');
+  }
+}
 
 // ═══════════════════════════════════════
 // ROADMAP
@@ -2091,6 +2109,9 @@ function promptNewPassword(){
   try{ const ap=document.getElementById('app'); if(ap) ap.style.display=''; }catch(e){}
   try{ history.replaceState({}, '', window.location.pathname); }catch(e){}
   showScreen('screen-newpass');
+}
+function toggleAuthPassVisibility(show){
+  const el=document.getElementById('authPass'); if(el) el.type = show ? 'text' : 'password';
 }
 function toggleNewPassVisibility(show){
   const t = show ? 'text' : 'password';
@@ -2495,6 +2516,7 @@ function completePayment(){
 (function(){
   function handlePaidReturn(){
     const params=new URLSearchParams(window.location.search);
+    console.log('[PAID] handlePaidReturn called. paid param =', params.get('paid'), 'URL =', window.location.href);
     if(params.get('paid')!=='true'){
       // Not a real return from Stripe. Any stashed pendingState is stale
       // (user abandoned checkout) — discard it so nobody gets a plan for free.
@@ -2508,6 +2530,7 @@ function completePayment(){
 
     const purchasedCredits = p && p.planCredits!=null ? p.planCredits : 1;  // 1 or 3
     const email = (p && p.userEmail) || state.userEmail;
+    console.log('[PAID] pendingState =', p, '| purchasedCredits =', purchasedCredits, '| email =', email);
 
     // Apply the purchase to the live state, then open the app.
     const finishPaid=(hadExistingProfile)=>{
