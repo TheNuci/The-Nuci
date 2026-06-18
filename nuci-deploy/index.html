@@ -1493,7 +1493,6 @@ function stopLangRotation(){ if(langRotTimer){ clearInterval(langRotTimer); lang
 
 // Capture the landing URL immediately, before any handler cleans it.
 window.__landingURL = window.location.href;
-try{ console.log('[LANDING URL]', window.__landingURL); }catch(e){}
 
 // Show the app directly on load (access gate removed)
 // Language selection is disabled for now — the whole app runs in English.
@@ -1502,6 +1501,19 @@ try{ console.log('[LANDING URL]', window.__landingURL); }catch(e){}
   try{ localStorage.setItem('lang','en'); }catch(e){}
   try{
     const ap=document.getElementById('app'); if(ap) ap.style.display='';
+  }catch(e){}
+  // Anti-flash: if a Supabase session token is present (returning signed-in user)
+  // or we're returning from Stripe/reset, hide the entry screen immediately so it
+  // doesn't flash before the loaders route to the profile / correct screen.
+  try{
+    let hasSession=false;
+    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && /supabase|sb-/.test(k) && /auth|token/i.test(k)){ hasSession=true; break; } }
+    const url=window.location.href;
+    const returning = /[?#&](paid|reset|code|access_token|type=recovery)/.test(url);
+    if(hasSession || returning){
+      const hideEntry=()=>{ const e=document.getElementById('screen-entry'); if(e) e.classList.remove('active'); };
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', hideEntry); else hideEntry();
+    }
   }catch(e){}
   // Password reset return: Supabase puts the recovery token in the URL hash
   // (#access_token=...&type=recovery) or we set ?reset=1. Detect either and
@@ -1677,7 +1689,7 @@ function startAssessment(){
       hint.style.cssText='font-size:0.8rem;color:var(--danger);margin-top:-8px;margin-bottom:12px;text-align:left;';
       ta.parentElement.after(hint);
     }
-    hint.textContent='Prosimo, opišite, kaj se dogaja - na tem temelji vaš načrt.';
+    hint.textContent=L('Prosimo, opišite, kaj se dogaja - na tem temelji vaš načrt.','Please describe what is happening - your plan is built on this.');
     ta.focus();
     setTimeout(()=>{ta.style.borderColor='';},2000);
     return;
@@ -2051,7 +2063,7 @@ async function doAuth(method){
   if(method==='apple'||method==='google'){
     // OAuth not configured yet — guide to email signup
     const msg=document.getElementById('authMsg');
-    if(msg){msg.style.color='var(--secondary)';msg.textContent='Za zdaj se prosimo registrirajte z e-pošto.';}
+    if(msg){msg.style.color='var(--secondary)';msg.textContent=L('Za zdaj se prosimo registrirajte z e-pošto.','For now, please sign up with email.');}
     showScreen('screen-auth-email');
     return;
   }
@@ -2060,10 +2072,10 @@ async function doAuth(method){
   const pass=(document.getElementById('authPass')||{}).value||'';
   const msg=document.getElementById('authMsg');
   if(!name.trim()||!email.trim()||!pass.trim()){
-    if(msg){msg.style.color='var(--danger)';msg.textContent='Prosimo, izpolnite ime, e-pošto in geslo.';}
+    if(msg){msg.style.color='var(--danger)';msg.textContent=L('Prosimo, izpolnite ime, e-pošto in geslo.','Please fill in your name, email and password.');}
     return;
   }
-  if(!email.includes('@')){ if(msg){msg.style.color='var(--danger)';msg.textContent='Prosimo, vnesite veljaven e-poštni naslov.';} return; }
+  if(!email.includes('@')){ if(msg){msg.style.color='var(--danger)';msg.textContent=L('Prosimo, vnesite veljaven e-poštni naslov.','Please enter a valid email address.');} return; }
   if(pass.length<6){ if(msg){msg.style.color='var(--danger)';msg.textContent='Geslo mora imeti vsaj 6 znakov.';} return; }
 
   state.userName=name.trim();
@@ -2071,7 +2083,7 @@ async function doAuth(method){
 
   // Create the account in Supabase Auth
   if(supa){
-    if(msg){msg.style.color='var(--secondary)';msg.textContent='Ustvarjanje vašega računa…';}
+    if(msg){msg.style.color='var(--secondary)';msg.textContent=L('Ustvarjanje vašega računa…','Creating your account…');}
     try{
       const { data, error } = await supa.auth.signUp({
         email: state.userEmail,
@@ -2080,7 +2092,7 @@ async function doAuth(method){
       });
       if(error){
         if(error.message&&/already/i.test(error.message)){
-          if(msg){msg.style.color='var(--danger)';msg.textContent='Račun s tem e-poštnim naslovom že obstaja. Prosimo, prijavite se.';}
+          if(msg){msg.style.color='var(--danger)';msg.textContent=L('Račun s tem e-poštnim naslovom že obstaja. Prosimo, prijavite se.','An account with this email already exists. Please log in.');}
           return;
         } else {
           // Non-fatal: log it but continue in local mode (e.g. preview env
@@ -2518,7 +2530,6 @@ function completePayment(){
 (function(){
   function handlePaidReturn(){
     const params=new URLSearchParams(window.location.search);
-    console.log('[PAID] handlePaidReturn called. paid param =', params.get('paid'), 'URL =', window.location.href);
     if(params.get('paid')!=='true'){
       // Not a real return from Stripe. Any stashed pendingState is stale
       // (user abandoned checkout) — discard it so nobody gets a plan for free.
@@ -2533,7 +2544,6 @@ function completePayment(){
 
     const purchasedCredits = p && p.planCredits!=null ? p.planCredits : 1;  // 1 or 3
     const email = (p && p.userEmail) || state.userEmail;
-    console.log('[PAID] pendingState =', p, '| purchasedCredits =', purchasedCredits, '| email =', email);
 
     // ───────────────────────────────────────────────────────────────
     // Clean purchase handling. Two cases, decided by ONE question:
@@ -2567,7 +2577,6 @@ function completePayment(){
     };
 
     const doFirstPurchase=()=>{
-      console.log('[PAID] FIRST purchase branch. purchasedCredits=',purchasedCredits);
       state.userEmail = email || state.userEmail;   // make sure we know who to save for
       if(p){
         Object.assign(state, {
@@ -2597,12 +2606,10 @@ function completePayment(){
     };
 
     const doTopUp=()=>{
-      console.log('[PAID] TOP-UP branch. before credits=',state.planCredits,'adding=',purchasedCredits);
       state.userEmail = email || state.userEmail;   // make sure we know who to save for
       state.planCredits = (state.planCredits||0) + purchasedCredits;   // all purchased → credits
       state.paid = true;
       try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
-      console.log('[PAID] TOP-UP done. credits now=',state.planCredits,'txns=',(state.transactions||[]).length,'email=',state.userEmail);
       try{ buildAssessmentSwitcher(); }catch(e){}
       try{ showScreen('screen-app'); showTab('profile'); }catch(e){}
       persistStateNow().finally(()=>{ setTimeout(()=>{ window.__handlingPaidReturn=false; }, 1500); });
@@ -2613,7 +2620,6 @@ function completePayment(){
     if(supa && email){
       loadStateForUser(email).then(had=>{
         const alreadyHasPlan = !!(had && ((state.assessments && state.assessments.length) || state.currentAssessmentId || state.planComplete || (state.answers && state.answers.petName)));
-        console.log('[PAID] cloud had profile=',!!had,'alreadyHasPlan=',alreadyHasPlan);
         if(alreadyHasPlan) doTopUp(); else doFirstPurchase();
       }).catch(e=>{ console.warn('loadStateForUser failed, treating as first purchase',e); doFirstPurchase(); });
     } else {
@@ -2754,6 +2760,7 @@ function setupApp(){
   state.streak=0; state.lastCheckinDate=null; state._missShown=false;
   state.planComplete=false; state.extended=false; state.subscribed=false; state.askedContinue=false;
   state.taskOverrides={}; state.planOverrides={}; state.selectedPeriod=null;
+  state.petPhoto=null;   // new pet starts with no photo (species emoji)
 
   document.getElementById('todayPetName').textContent=petName;
   document.getElementById('todayAvatarPh').textContent=emoji;
@@ -2765,7 +2772,7 @@ function setupApp(){
   const pt=getPersonalizedTasks(petType,state.answers.mainIssue||state.entryText||'');
   document.getElementById('todayFocus').textContent=getPlanDays()[0].title;
   document.getElementById('todayFocusDesc').textContent=pt.focusDesc;
-  document.getElementById('todayInsightText').textContent='Dokončajte prvo prijavo za prvi AI vpogled.';
+  document.getElementById('todayInsightText').textContent=L('Dokončajte prvo prijavo za prvi AI vpogled.','Complete your first check-in to receive your first AI insight.');
   document.getElementById('tasksFocusTitle').textContent=getPlanDays()[0].title;
   document.getElementById('planSub').textContent=L(`Prilagojeno za ${petName}`,`Personalized for ${petName}`);
 
@@ -2934,13 +2941,17 @@ function renderAllTasks(){
 
 function toggleTask(i){
   state.tasks[i].done=!state.tasks[i].done;
+  // Persist the done-state for THIS day so it survives pet switches & reloads.
+  if(!state.tasksDone || typeof state.tasksDone!=='object' || Array.isArray(state.tasksDone)) state.tasksDone={};
+  const day=state.currentDay||1;
+  state.tasksDone[day]=state.tasks.map(t=>!!t.done);
   const doneCount=state.tasks.filter(t=>t.done).length;
   const total=state.tasks.length;
   renderAllTasks();renderTaskPreview();persistState();
   if(doneCount===total){
-    setTimeout(()=>showCelebration('🌟','Vse naloge dokončane!','Danes ste opravili vse naloge. Neverjetna doslednost.','Odlično!',()=>{}),200);
+    setTimeout(()=>showCelebration('🌟',L('Vse naloge dokončane!','All tasks done!'),L('Danes ste opravili vse naloge. Neverjetna doslednost.','You completed everything today. Amazing consistency.'),L('Odlično!','Great!'),()=>{}),200);
   }else if(doneCount===Math.ceil(total/2)&&state.tasks[i].done){
-    setTimeout(()=>showCelebration('💪','Na pol poti!','Opravili ste polovico današnjih nalog. Kar tako naprej.','Nadaljuj',()=>{}),200);
+    setTimeout(()=>showCelebration('💪',L('Na pol poti!','Halfway there!'),L('Opravili ste polovico današnjih nalog. Kar tako naprej.','You finished half of today\'s tasks. Keep it up.'),L('Nadaljuj','Continue'),()=>{}),200);
   }
 }
 
@@ -3134,6 +3145,7 @@ function buildAssessmentSwitcher(){
       answers:{...state.answers},
       focus:document.getElementById('todayFocus').textContent,
       mainIssue:state.answers.mainIssue||'',
+      petPhoto: state.petPhoto||null,
       // per-pet AI plan + task overrides
       planOverrides: state.planOverrides ? JSON.parse(JSON.stringify(state.planOverrides)) : {},
       taskOverrides: state.taskOverrides ? JSON.parse(JSON.stringify(state.taskOverrides)) : {},
@@ -3161,6 +3173,7 @@ function saveCurrentProgress(){
   a.planOverrides = state.planOverrides ? JSON.parse(JSON.stringify(state.planOverrides)) : {};
   a.taskOverrides = state.taskOverrides ? JSON.parse(JSON.stringify(state.taskOverrides)) : {};
   a.mainIssue = state.answers.mainIssue||a.mainIssue||'';
+  a.petPhoto = state.petPhoto||null;   // each pet keeps its own photo
 }
 
 function renderAssessmentSwitcher(){
@@ -3217,6 +3230,7 @@ function switchAssessment(id){
   // load this pet's OWN AI plan + task overrides
   state.planOverrides = a.planOverrides ? JSON.parse(JSON.stringify(a.planOverrides)) : {};
   state.taskOverrides = a.taskOverrides ? JSON.parse(JSON.stringify(a.taskOverrides)) : {};
+  state.petPhoto = a.petPhoto||null;   // load this pet's own photo
   // load this pet's own plan progress
   const p=a.progress||{};
   state.currentDay=p.currentDay||1;
@@ -3634,10 +3648,17 @@ function openProfileDetail(kind){
     const labels = currentLang==='en'
       ? ['Daily check-in reminders','Weekly progress summary','New insight alerts','Product updates']
       : ['Opomniki za dnevno prijavo','Tedenski povzetek napredka','Obvestila o novih vpogledih','Posodobitve izdelka'];
+    // First toggle (daily reminders) is wired to the real email_reminders flag.
+    const remindersOn = state.emailReminders !== false;
     html=`<h2 style="font-size:1.4rem;margin-bottom:16px;">${L('E-poštne nastavitve','Email Preferences')}</h2>
       <div class="card" style="padding:8px 18px;">
-        ${labels.map((label,i)=>`<div class="profile-row" style="${i===3?'border-bottom:none;':''}"><span style="font-size:0.9rem;font-weight:500;">${label}</span><div onclick="this.querySelector('.tgl').classList.toggle('on')" style="cursor:pointer;"><div class="tgl ${i<3?'on':''}" style="width:42px;height:24px;border-radius:99px;background:var(--border);position:relative;transition:background 0.2s;"><div style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform 0.2s;"></div></div></div></div>`).join('')}
-      </div>`;
+        ${labels.map((label,i)=>{
+          const on = i===0 ? remindersOn : (i<3);
+          const handler = i===0 ? `onclick="toggleEmailReminders(this)"` : `onclick="this.querySelector('.tgl').classList.toggle('on')"`;
+          return `<div class="profile-row" style="${i===3?'border-bottom:none;':''}"><span style="font-size:0.9rem;font-weight:500;">${label}</span><div ${handler} style="cursor:pointer;"><div class="tgl ${on?'on':''}" style="width:42px;height:24px;border-radius:99px;background:var(--border);position:relative;transition:background 0.2s;"><div style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform 0.2s;"></div></div></div></div>`;
+        }).join('')}
+      </div>
+      <p style="font-size:0.78rem;color:var(--secondary);margin-top:14px;line-height:1.5;">${L('Opomnik za prijavo prejmete vsak dan ob 20:00 po vašem času, če se še niste prijavili.','You\'ll get a check-in reminder every day at 20:00 your time, if you haven\'t checked in yet.')}</p>`;
   }else if(kind==='billing'){
     const txns = Array.isArray(state.transactions) && state.transactions.length
       ? state.transactions.slice().reverse()   // newest first
@@ -3667,6 +3688,19 @@ function openProfileDetail(kind){
   }
   c.innerHTML=html;
   showTab('profileDetail');
+}
+
+function toggleEmailReminders(wrap){
+  const tgl=wrap.querySelector('.tgl'); if(!tgl) return;
+  tgl.classList.toggle('on');
+  const on=tgl.classList.contains('on');
+  state.emailReminders=on;
+  // Save to the email_reminders COLUMN (the reminder function reads that column).
+  try{
+    if(supa && state.userEmail){
+      supa.from('profiles').update({ email_reminders: on }).eq('email', state.userEmail.toLowerCase());
+    }
+  }catch(e){ console.warn('save reminder pref failed', e); }
 }
 
 // toggle styling
@@ -3770,7 +3804,7 @@ function checkinNext(){
       closeCheckin();
       const wasLast = state.currentDay >= state.planLength;
       completeCheckinDay();
-      if(!wasLast) setTimeout(()=>showCelebration('🥳','Danes brez incidentov!','Cel dan brez incidentov je pravi napredek. Jutri nadaljujte z rutino.','Odlično!',()=>{}),300);
+      if(!wasLast) setTimeout(()=>showCelebration('🥳',L('Danes brez incidentov!','No incidents today!'),L('Cel dan brez incidentov je pravi napredek. Jutri nadaljujte z rutino.','A full day without incidents is real progress. Keep the routine going tomorrow.'),L('Odlično!','Great!'),()=>{}),300);
       return;
     }
     // YES (Da) - continue through the full check-in
@@ -3799,7 +3833,7 @@ function showCIComplete(){
     closeCheckin();
     const wasLast = state.currentDay >= state.planLength;
     completeCheckinDay();
-    if(!wasLast) setTimeout(()=>showCelebration('✅','Prijava dokončana!','Vaši podatki so zabeleženi. Gradite dragocen vzorec.','Kar tako naprej',()=>{}),300);
+    if(!wasLast) setTimeout(()=>showCelebration('✅',L('Prijava dokončana!','Check-in complete!'),L('Vaši podatki so zabeleženi. Gradite dragocen vzorec.','Your data is recorded. You\'re building a valuable pattern.'),L('Kar tako naprej','Keep it up'),()=>{}),300);
   };
   doneRow.appendChild(doneBtn);
   body.appendChild(doneRow);
@@ -3998,7 +4032,7 @@ function acceptExtension(){
   state.selectedPeriod=null;      // re-pick largest available window
   closePlanEnd();
   buildPlanDaysList(); refreshTodayForDay(); buildPeriodButtons(); recomputeStats(); persistState();
-  setTimeout(()=>showCelebration('🎁','Odklenjeni 4 dodatni dnevi','Vaš načrt je bil prilagojen na podlagi vsega doslej - brezplačno.','Naprej',()=>{}),300);
+  setTimeout(()=>showCelebration('🎁',L('Odklenjeni 4 dodatni dnevi','4 extra days unlocked'),L('Vaš načrt je bil prilagojen na podlagi vsega doslej - brezplačno.','Your plan has been adapted based on everything so far - free of charge.'),L('Naprej','Continue'),()=>{}),300);
 }
 
 // Monthly subscription path (€4.99) - Stripe in production
@@ -4011,7 +4045,7 @@ function startSubscription(){
   state.selectedPeriod=null;      // re-pick largest available window
   closePlanEnd();
   buildPlanDaysList(); refreshTodayForDay(); buildPeriodButtons(); recomputeStats(); persistState();
-  setTimeout(()=>showCelebration('🔓','Naročnina aktivna','Vaš načrt se zdaj nadaljuje z novimi tedenskimi koraki in polnim spremljanjem.','Naprej',()=>{}),300);
+  setTimeout(()=>showCelebration('🔓',L('Naročnina aktivna','Subscription active'),L('Vaš načrt se zdaj nadaljuje z novimi tedenskimi koraki in polnim spremljanjem.','Your plan now continues with new weekly steps and full tracking.'),L('Naprej','Continue'),()=>{}),300);
 }
 
 function cancelSubscription(){
@@ -4128,9 +4162,11 @@ function setText(id,v){const el=document.getElementById(id);if(el)el.textContent
 // ═══════════════════════════════════════════════════════════════════
 function getDayTasks(day){
   const pet=state.answers.petName||L('vaš ljubljenček','your pet');
+  const savedDone=(state.tasksDone && state.tasksDone[day]) ? state.tasksDone[day] : null;
+  const applyDone=(arr)=> arr.map((t,i)=>({text:(typeof t==='string'?t:t.text), done: savedDone?!!savedDone[i]:false}));
   // AI override if present
   if(state.taskOverrides&&state.taskOverrides[day]){
-    return state.taskOverrides[day].map(t=>({text:t,done:false}));
+    return applyDone(state.taskOverrides[day]);
   }
   const byDaySL={
     1:[`Natančno opazujte ${pet} in zabeležite, kdaj točno se vedenje pojavi`,'Odstranite najbolj očiten sprožilec iz okolja',`Naj bo rutina za ${pet} danes mirna in predvidljiva`,'Izogibajte se kaznovanju - ostanite nevtralni in potrpežljivi','Zapišite čas vsakega incidenta za prijavo'],
@@ -4157,7 +4193,7 @@ function getDayTasks(day){
       ? [`Maintain ${pet}'s established calm routine`,'Reinforce positive behavior with timely rewards','Watch for returning triggers and remove them','Keep the safe space available','Log today\'s observations in the check-in']
       : [`Ohranjajte uveljavljeno mirno rutino za ${pet}`,'Krepite pozitivno vedenje s pravočasnimi nagradami','Bodite pozorni na vračajoče se sprožilce in jih odstranite','Naj bo varno mesto na voljo','Zabeležite današnja opažanja v prijavi'];
   }
-  return list.map(t=>({text:t,done:false}));
+  return applyDone(list);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4257,7 +4293,7 @@ function updateCheckinButtonState(){
     btn.style.opacity=''; btn.style.cursor=''; btn.style.animation='';
     if(planDone){
       btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary');
-      btn.innerHTML='✓ Ocena dokončana';
+      btn.innerHTML=L('✓ Ocena dokončana','✓ Assessment complete');
       btn.onclick=()=>{}; btn.style.opacity='0.75'; btn.style.cursor='default';
     } else if(status==='done'){
       btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary');
@@ -4265,7 +4301,7 @@ function updateCheckinButtonState(){
       btn.onclick=()=>{}; btn.style.opacity='0.75'; btn.style.cursor='default';
     } else if(status==='open'){
       btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary');
-      btn.innerHTML='Začni današnjo prijavo <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      btn.innerHTML=L('Začni današnjo prijavo','Start today\'s check-in')+' <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       btn.style.animation='ciPulse 2s ease-out infinite';
       btn.onclick=()=>openCheckin();
     } else { // 'before' or 'after' → locked, tappable to show the unlock sheet
@@ -4321,7 +4357,7 @@ function serializeState(){
     assessments: state.assessments,
     currentAssessmentId: state.currentAssessmentId,
     petImageUrl: state.petImageUrl,
-    tasksDone: (state.tasks||[]).map(t=>!!t.done),
+    tasksDone: (state.tasksDone && typeof state.tasksDone==='object' && !Array.isArray(state.tasksDone)) ? state.tasksDone : {},
     selectedPeriod: state.selectedPeriod,
     streak: state.streak||0,
     lastCheckinDate: state.lastCheckinDate||null,
@@ -4368,9 +4404,10 @@ function restoreState(data){
     packageId: data.packageId||null,
     transactions: data.transactions||[],
   });
+  // restore per-day done-state (object keyed by day)
+  state.tasksDone = (data.tasksDone && typeof data.tasksDone==='object' && !Array.isArray(data.tasksDone)) ? data.tasksDone : {};
   // rebuild today's tasks for the current day, restore their done-state
   state.tasks = getDayTasks(state.currentDay);
-  if(Array.isArray(data.tasksDone)) state.tasks.forEach((t,i)=>{ if(data.tasksDone[i]) t.done=true; });
 }
 
 // Save current state to Supabase (debounced so rapid taps don't spam)
@@ -4404,7 +4441,6 @@ async function persistStateNow(){
         last_checkin_date: state.lastCheckinDate||null },
       { onConflict: 'email' }
     );
-    console.log('[PAID] persistStateNow saved. credits=',state.planCredits,'txns=',(state.transactions||[]).length);
   }catch(e){ console.warn('persistStateNow failed', e); }
 }
 
@@ -4412,9 +4448,12 @@ async function persistStateNow(){
 async function loadStateForUser(email){
   if(!supa || !email) return false;
   try{
-    const { data, error } = await supa.from('profiles').select('data').eq('email', email.toLowerCase()).maybeSingle();
+    const { data, error } = await supa.from('profiles').select('data,email_reminders').eq('email', email.toLowerCase()).maybeSingle();
     if(error){ console.warn('Load error', error); return false; }
-    if(data && data.data){ restoreState(data.data); return true; }
+    if(data){
+      if(data.email_reminders!=null) state.emailReminders = data.email_reminders!==false;
+      if(data.data){ restoreState(data.data); return true; }
+    }
   }catch(e){ console.warn('Load failed', e); }
   return false;
 }
