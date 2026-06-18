@@ -2563,18 +2563,21 @@ function completePayment(){
     };
 
     // Decide: brand-new first purchase vs existing user topping up.
-    // A TOP-UP means the user already has at least one registered pet/plan.
-    // We must NOT rely on state.paid here — after a re-login on return from
-    // Stripe, state.paid can be set even for a first purchase, which would
-    // wrongly add a credit (giving "paid 1, got 2") and skip plan generation.
-    const hasRegisteredPet = !!((state.assessments && state.assessments.length) || state.currentAssessmentId);
+    // A TOP-UP means the user already has an account/plan. Checking for a pet
+    // in live memory is unreliable right after returning from Stripe (the
+    // profile may not be loaded yet), so we also treat ANY existing cloud
+    // profile as a top-up. We avoid state.paid (it can be set on a first
+    // purchase after re-login, which would wrongly add a credit).
+    const hasRegisteredPet = !!((state.assessments && state.assessments.length) || state.currentAssessmentId || state.planComplete || (state.answers && state.answers.petName));
     if(hasRegisteredPet){
       finishPaid(true);                 // genuine top-up
     } else if(supa && email){
-      // No pet in live memory — confirm against the cloud before deciding.
+      // Confirm against the cloud. It's a top-up only if the existing profile
+      // already had a plan/pet (a brand-new buyer may have a bare profile row
+      // created at signup but no plan yet).
       loadStateForUser(email).then(had=>{
-        const reallyHasPet = !!(had && ((state.assessments && state.assessments.length) || state.currentAssessmentId));
-        finishPaid(reallyHasPet);
+        const reallyHasPlan = !!(had && ((state.assessments && state.assessments.length) || state.currentAssessmentId || (state.answers && state.answers.petName) || (Array.isArray(state.transactions) && state.transactions.length)));
+        finishPaid(reallyHasPlan);
       }).catch(()=>finishPaid(false));
     } else {
       finishPaid(false);
