@@ -963,7 +963,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 // ═══════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
 // i18n — the app is authored in Slovenian; for English we translate the
-// DOM text nodes + placeholders via this SL→EN map after every render.
+// DOM text nodes + placeholders via this SL->EN map after every render.
 // ═══════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
 // MULTILINGUAL DICTIONARY  DICT_ML[slovenian] = {en, fr, de, it, es}
@@ -1528,9 +1528,9 @@ try{ console.log('[LANDING URL]', window.__landingURL); }catch(e){}
 
 // ═══════════════════════════════════════════════════════════════════
 // SUPABASE CONFIG
-// 1. In Supabase dashboard → Project Settings → API, copy your values:
-//    - "Project URL"  → paste into SUPABASE_URL
-//    - "anon public" key → paste into SUPABASE_ANON_KEY
+// 1. In Supabase dashboard -> Project Settings -> API, copy your values:
+//    - "Project URL"  -> paste into SUPABASE_URL
+//    - "anon public" key -> paste into SUPABASE_ANON_KEY
 // 2. Create the table (see instructions given in chat).
 // Until both are filled in, the app runs in local (no-save) mode.
 // ═══════════════════════════════════════════════════════════════════
@@ -1809,7 +1809,7 @@ function assessNext(){
   } else if(q.type==='multi'){
     missing = !Array.isArray(ans) || ans.length===0;
   } else {
-    // pet-type, pills, options → a single value must be selected
+    // pet-type, pills, options -> a single value must be selected
     missing = ans===undefined || ans===null || ans==='';
   }
   if(missing){
@@ -1825,11 +1825,11 @@ function assessNext(){
     if(state.usingCredit){
       state.usingCredit=false;
       state.paid=true;
-      // Reset & build the app shell FIRST (this clears planOverrides for the new pet)…
+      // Reset & build the app shell FIRST (this clears planOverrides for the new pet)...
       try{ setupApp(); }catch(e){ console.warn('setupApp',e); }
       try{ buildAssessmentSwitcher(); }catch(e){ console.warn('buildAssessmentSwitcher',e); }
       showPlanLoading(true);
-      // …THEN generate the AI plan, which fills planOverrides without being wiped.
+      // ...THEN generate the AI plan, which fills planOverrides without being wiped.
       generatePlanAI(state.answers).catch(e=>{ console.warn('Plan gen failed, template fallback:', e); }).finally(()=>{
         try{ showPlanLoading(false); }catch(e){ console.warn('showPlanLoading',e); }
         // Re-render plan views now that AI overrides are in place
@@ -2019,7 +2019,7 @@ function getPlanDays(){
 // AUTH & PAYMENT
 // ═══════════════════════════════════════
 // ─── Google OAuth sign-in ────────────────────────────────────────
-// Works once Google is enabled in Supabase Auth → Providers.
+// Works once Google is enabled in Supabase Auth -> Providers.
 // Redirects to Google, then back to this page; handleOAuthReturn() finishes it.
 async function signInWithGoogle(){
   if(!supa){ alert(L('Prijava trenutno ni na voljo.','Sign-in is not available right now.')); return; }
@@ -2097,13 +2097,13 @@ async function doAuth(method){
   const petName=state.answers.petName||'vaš ljubljenček';const petType=state.answers.petType||'other';
   document.getElementById('paymentAvatar').textContent=EMOJIS[petType]||'🐾';
   document.getElementById('paymentPetLabel').textContent=`Načrt za ${petName}`;
-  // Registered → now show the plan + package choice (roadmap).
+  // Registered -> now show the plan + package choice (roadmap).
   buildRoadmap();
   showScreen('screen-roadmap');
   try{ refreshPriceDisplay(); }catch(e){}
 }
 
-// Log in with an existing email → load saved profile and jump into the app
+// Log in with an existing email -> load saved profile and jump into the app
 function promptNewPassword(){
   try{ const g=document.getElementById('gate'); if(g) g.style.display='none'; }catch(e){}
   try{ const ap=document.getElementById('app'); if(ap) ap.style.display=''; }catch(e){}
@@ -2248,7 +2248,7 @@ async function doLogin(method){
   state.userEmail=email;
 
   // Load their saved profile (with a timeout so a slow/hung network can't
-  // leave the user stuck on "Signing in…").
+  // leave the user stuck on "Signing in...").
   let found=false;
   try{
     found=await Promise.race([
@@ -2281,7 +2281,7 @@ async function doLogin(method){
     if(msg) msg.textContent='';
     showScreen('screen-app'); showTab('today');
   } else {
-    // Authenticated but no saved plan yet → start assessment
+    // Authenticated but no saved plan yet -> start assessment
     if(msg){msg.style.color='var(--secondary)';msg.textContent='Signed in. No saved plan yet - start an assessment.';}
     setTimeout(()=>showScreen('screen-entry'),1200);
   }
@@ -2536,9 +2536,9 @@ function completePayment(){
     // ───────────────────────────────────────────────────────────────
     // Clean purchase handling. Two cases, decided by ONE question:
     // does this account already have a saved plan in the cloud?
-    //   • NO  → FIRST purchase: first pet uses 1 plan, the rest are credits,
+    //   - NO  = FIRST purchase: first pet uses 1 plan, the rest are credits,
     //           generate the plan, open the app.
-    //   • YES → TOP-UP: add ALL purchased plans as credits, keep existing
+    //   - YES = TOP-UP: add ALL purchased plans as credits, keep existing
     //           plan/pets untouched, stay in profile.
     // ───────────────────────────────────────────────────────────────
     const openAppAfter=()=>{
@@ -2651,7 +2651,7 @@ function completePayment(){
     }
 
     if(had){
-      // returning user with a saved plan → straight into the app (do NOT reset state)
+      // returning user with a saved plan -> straight into the app (do NOT reset state)
       state.paid=true;
       const petType=state.answers.petType||'other';
       const nm=state.answers.petName||'Vaš ljubljenček';
@@ -2665,7 +2665,7 @@ function completePayment(){
       checkMissedWindow(); recomputeStats();refreshTodayForDay();generatePetImage();
       showScreen('screen-app');showTab('today');
     } else if(pending && pending.answers && pending.answers.petType){
-      // new Google user who just finished the assessment → keep their data
+      // new Google user who just finished the assessment -> keep their data
       Object.assign(state, {
         answers: pending.answers||{},
         entryText: pending.entryText||'',
@@ -2686,13 +2686,13 @@ function completePayment(){
         setupApp(); showScreen('screen-app'); persistState();
       } else {
         state.paid=false;
-        // assessment done but not paid yet → send to package choice (roadmap)
+        // assessment done but not paid yet -> send to package choice (roadmap)
         persistState();
         try{ buildRoadmap(); }catch(e){}
         showScreen('screen-roadmap');
       }
     } else {
-      // brand-new user with nothing in progress → start the assessment
+      // brand-new user with nothing in progress -> start the assessment
       showScreen('screen-entry');
     }
   }
@@ -3111,6 +3111,10 @@ function buildAssessmentSwitcher(){
       id,petName,petType,emoji:EMOJIS[petType]||'🐾',
       answers:{...state.answers},
       focus:document.getElementById('todayFocus').textContent,
+      mainIssue:state.answers.mainIssue||'',
+      // per-pet AI plan + task overrides
+      planOverrides: state.planOverrides ? JSON.parse(JSON.stringify(state.planOverrides)) : {},
+      taskOverrides: state.taskOverrides ? JSON.parse(JSON.stringify(state.taskOverrides)) : {},
       // per-pet plan progress
       progress:{ currentDay:state.currentDay||1, planLength:state.planLength||7,
                  checkins:state.checkins?[...state.checkins]:[], streak:state.streak||0,
@@ -3131,6 +3135,10 @@ function saveCurrentProgress(){
   a.progress={ currentDay:state.currentDay||1, planLength:state.planLength||7,
                checkins:state.checkins?[...state.checkins]:[], streak:state.streak||0,
                lastCheckinDate:state.lastCheckinDate||null, tasksDone:state.tasksDone?{...state.tasksDone}:{} };
+  // Each pet keeps its OWN AI-generated plan + task overrides.
+  a.planOverrides = state.planOverrides ? JSON.parse(JSON.stringify(state.planOverrides)) : {};
+  a.taskOverrides = state.taskOverrides ? JSON.parse(JSON.stringify(state.taskOverrides)) : {};
+  a.mainIssue = state.answers.mainIssue||a.mainIssue||'';
 }
 
 function renderAssessmentSwitcher(){
@@ -3184,6 +3192,9 @@ function switchAssessment(id){
   const a=state.assessments.find(x=>x.id===id);if(!a)return;
   state.currentAssessmentId=id;
   state.answers={...a.answers};
+  // load this pet's OWN AI plan + task overrides
+  state.planOverrides = a.planOverrides ? JSON.parse(JSON.stringify(a.planOverrides)) : {};
+  state.taskOverrides = a.taskOverrides ? JSON.parse(JSON.stringify(a.taskOverrides)) : {};
   // load this pet's own plan progress
   const p=a.progress||{};
   state.currentDay=p.currentDay||1;
@@ -3258,7 +3269,7 @@ function startNewAssessment(){
       state.usingCredit = true;          // this pet is already paid for
       try{ persistState(); }catch(e){}
     } else {
-      // out of credits → send to package choice to buy more
+      // out of credits -> send to package choice to buy more
       try{ buildRoadmap(); }catch(e){}
       showScreen('screen-roadmap');
       return;
@@ -3793,7 +3804,7 @@ function completeCheckinDay(){
   const isLastDay = state.currentDay >= state.planLength;
 
   if(isLastDay){
-    // Reached the end of the current plan → decide end-state
+    // Reached the end of the current plan -> decide end-state
     handlePlanEnd();
   } else {
     const justFinished = state.currentDay;
@@ -4396,7 +4407,7 @@ function showPlanEndScreen(kind){
       <button class="btn btn-primary" style="margin-top:28px;min-width:200px;padding:14px 32px;" onclick="acceptExtension()">${L('Nadaljuj še 4 dni - brezplačno','Continue 4 more days - free')}</button>`;
   } else if(kind==='subscribe'){
     // One-time model. If the user still has prepaid credits, offer to add a pet.
-    // Otherwise show the two package cards (tap → straight to payment).
+    // Otherwise show the two package cards (tap -> straight to payment).
     const credits = state.planCredits||0;
     const offer = credits>0
       ? `<div style="font-size:0.9rem;color:var(--secondary);margin-bottom:20px;">${L(`Na voljo imate še ${credits} `+(credits===1?'načrt':'načrtov')+'.',`You still have ${credits} plan${credits===1?'':'s'} available.`)}</div>
@@ -4439,7 +4450,7 @@ function showPlanEndScreen(kind){
   ov.classList.add('open');
 }
 // Start a new plan from the upsell. If the user has credits, it's free; otherwise
-// apply a 10% discount code and send them through a fresh assessment → payment.
+// apply a 10% discount code and send them through a fresh assessment -> payment.
 function upsellChoose(pkgId){
   // Highlight the chosen card green, then go to Stripe.
   const card=document.getElementById(pkgId==='triple'?'buyCardTriple':'buyCardSingle');
@@ -4502,7 +4513,7 @@ function showStreakLost(lostFrom){
   const ov=document.getElementById('streakLostOverlay');
   ov.style.display='flex';
   playSadTone();
-  // animate the number counting down from lostFrom → 0 over ~1.5s
+  // animate the number counting down from lostFrom -> 0 over ~1.5s
   let val=lostFrom||0;
   numEl.textContent=val;
   const fireEl = numEl.previousElementSibling;  // the 🔥 span
@@ -4737,7 +4748,7 @@ function handleInAppBack(){
   if(active){
     const id=active.id;
     if(id==='screen-app'){
-      // within app: subpages → today; today stays
+      // within app: subpages -> today; today stays
       const visible=['profileDetail','tasks','plan','progress','profile'].find(t=>{const el=document.getElementById('tab-'+t);return el&&el.style.display==='block';});
       if(visible==='profileDetail'){showTab('profile');return true;}
       if(visible==='tasks'){showTab('today');return true;}
