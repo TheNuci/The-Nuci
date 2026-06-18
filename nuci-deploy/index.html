@@ -1835,6 +1835,8 @@ function assessNext(){
         // Re-render plan views now that AI overrides are in place
         try{ buildPlanDaysList(); buildPlanDetail(); buildOverview(state.answers.petType||'pet'); }catch(e){ console.warn('plan render',e); }
         try{ state.tasks=getDayTasks(1); renderTaskPreview(); renderAllTasks(); refreshTodayForDay(); }catch(e){ console.warn('task render',e); }
+        // Persist the freshly generated plan INTO this pet's assessment record.
+        try{ saveCurrentProgress(); }catch(e){ console.warn('saveCurrentProgress',e); }
         // Always enter the app — the user paid with a credit, they must get in.
         try{ showScreen('screen-app'); }catch(e){ console.warn('showScreen',e); }
         try{ showTab('today'); }catch(e){}
@@ -2544,6 +2546,7 @@ function completePayment(){
     const openAppAfter=()=>{
       try{ setupApp(); }catch(e){ console.warn('setupApp',e); }
       try{ buildAssessmentSwitcher(); }catch(e){}
+      try{ saveCurrentProgress(); }catch(e){}   // store this pet's plan in its record
       try{ showScreen('screen-app'); showTab('today'); }catch(e){}
       persistStateNow().finally(()=>{ setTimeout(()=>{ window.__handlingPaidReturn=false; }, 1500); });
       setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Vaš načrt je pripravljen.','Your plan is ready.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },500);
