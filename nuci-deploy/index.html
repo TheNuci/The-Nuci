@@ -2545,8 +2545,7 @@ function completePayment(){
       try{ setupApp(); }catch(e){ console.warn('setupApp',e); }
       try{ buildAssessmentSwitcher(); }catch(e){}
       try{ showScreen('screen-app'); showTab('today'); }catch(e){}
-      try{ persistState(); }catch(e){}
-      setTimeout(()=>{ window.__handlingPaidReturn=false; }, 4000);
+      persistStateNow().finally(()=>{ setTimeout(()=>{ window.__handlingPaidReturn=false; }, 1500); });
       setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Vaš načrt je pripravljen.','Your plan is ready.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },500);
     };
 
@@ -2582,8 +2581,7 @@ function completePayment(){
       console.log('[PAID] TOP-UP done. credits now=',state.planCredits,'txns=',(state.transactions||[]).length);
       try{ buildAssessmentSwitcher(); }catch(e){}
       try{ showScreen('screen-app'); showTab('profile'); }catch(e){}
-      try{ persistState(); }catch(e){}
-      setTimeout(()=>{ window.__handlingPaidReturn=false; }, 4000);
+      persistStateNow().finally(()=>{ setTimeout(()=>{ window.__handlingPaidReturn=false; }, 1500); });
       setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Krediti so dodani.','Credits added.'),L('V redu','Got it'),()=>{}); }catch(e){} },400);
     };
 
@@ -4344,6 +4342,23 @@ function persistState(){
       );
     }catch(e){ console.warn('Save failed', e); }
   }, 600);
+}
+
+// Immediate, awaitable save — use for critical moments (purchases) where we
+// must not lose data to the debounce or a race.
+async function persistStateNow(){
+  try{ saveCurrentProgress(); }catch(e){}
+  if(!supa || !state.userEmail) return;
+  clearTimeout(_saveTimer);
+  try{
+    await supa.from('profiles').upsert(
+      { email: state.userEmail.toLowerCase(), data: serializeState(), updated_at: new Date().toISOString(),
+        timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone)||null,
+        last_checkin_date: state.lastCheckinDate||null },
+      { onConflict: 'email' }
+    );
+    console.log('[PAID] persistStateNow saved. credits=',state.planCredits,'txns=',(state.transactions||[]).length);
+  }catch(e){ console.warn('persistStateNow failed', e); }
 }
 
 // Load a user's saved state. Returns true if an existing profile was found.
