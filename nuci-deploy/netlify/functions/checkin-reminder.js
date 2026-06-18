@@ -36,26 +36,26 @@ function localParts(tz) {
 
 function emailHtml() {
   return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"></head>
-<body style="margin:0;background:#F1F1F1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;">
-  <div style="max-width:480px;margin:0 auto;padding:40px 24px;">
-    <div style="background:#fff;border-radius:20px;padding:32px;text-align:center;">
-      <div style="font-size:40px;margin-bottom:8px;">🐾</div>
-      <h1 style="font-size:1.35rem;margin:0 0 12px;">Time for today's check-in</h1>
-      <p style="font-size:0.95rem;line-height:1.5;color:#555;margin:0 0 24px;">
-        A quick daily check-in keeps your pet's plan on track and your streak alive.
-        It only takes a minute.
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;background:#F1F1F1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111111;">
+  <div style="max-width:440px;margin:0 auto;padding:40px 16px;">
+    <div style="background:#FAFAFA;border-radius:20px;padding:36px 32px;text-align:center;">
+      <img src="https://thenuci.com/email-logo.png" width="50" height="30" alt="The Nuci" style="display:block;margin:0 auto 16px;border:0;">
+      <h1 style="font-size:1.35rem;margin:0 0 12px;font-weight:600;letter-spacing:-0.02em;">Time for today's check-in</h1>
+      <p style="font-size:0.95rem;line-height:1.6;color:#555;margin:0 0 28px;">
+        A quick daily check-in keeps your pet's plan on track and your streak alive. It only takes a minute.
       </p>
       <a href="https://thenuci.com/"
-         style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;
-                padding:13px 28px;border-radius:99px;font-size:0.95rem;font-weight:600;">
-        Open Nucci
+         style="display:inline-block;background:#111111;color:#fff;text-decoration:none;
+                padding:14px 32px;border-radius:14px;font-size:0.95rem;font-weight:600;">
+        Open The Nuci
       </a>
-      <p style="font-size:0.75rem;color:#aaa;margin:24px 0 0;">
+      <p style="font-size:0.75rem;color:#aaa;margin:28px 0 0;line-height:1.5;">
         You're receiving this because daily reminders are on.
-        You can turn them off anytime in your Nucci profile.
+        You can turn them off anytime in your profile.
       </p>
     </div>
+    <p style="text-align:center;font-size:12px;color:#aaa;margin:20px 0 0;">The Nuci &middot; Pet Behaviour &amp; Wellbeing</p>
   </div>
 </body></html>`;
 }

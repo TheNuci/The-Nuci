@@ -33,7 +33,7 @@ exports.handler = async (event) => {
     nextDay      = body.nextDay || 2;
     planLength   = body.planLength || 7;
     nextDayPlan  = body.nextDayPlan || null;   // current (template/AI) plan for that day
-    lang         = body.lang === 'en' ? 'en' : 'sl';
+    lang         = body.lang === 'sl' ? 'sl' : 'en';   // default to English
   } catch (e) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Bad request body' }) };
   }
