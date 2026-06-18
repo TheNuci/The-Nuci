@@ -2523,6 +2523,7 @@ function completePayment(){
       try{ localStorage.removeItem('pendingState'); }catch(e){}
       return;
     }
+    window.__handlingPaidReturn = true;   // block other loaders from overwriting
     let p=null;
     try{ const raw=localStorage.getItem('pendingState'); if(raw) p=JSON.parse(raw); }catch(e){}
     try{ localStorage.removeItem('pendingState'); }catch(e){}
@@ -2545,6 +2546,7 @@ function completePayment(){
       try{ buildAssessmentSwitcher(); }catch(e){}
       try{ showScreen('screen-app'); showTab('today'); }catch(e){}
       try{ persistState(); }catch(e){}
+      setTimeout(()=>{ window.__handlingPaidReturn=false; }, 4000);
       setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Vaš načrt je pripravljen.','Your plan is ready.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },500);
     };
 
@@ -2581,6 +2583,7 @@ function completePayment(){
       try{ buildAssessmentSwitcher(); }catch(e){}
       try{ showScreen('screen-app'); showTab('profile'); }catch(e){}
       try{ persistState(); }catch(e){}
+      setTimeout(()=>{ window.__handlingPaidReturn=false; }, 4000);
       setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Krediti so dodani.','Credits added.'),L('V redu','Got it'),()=>{}); }catch(e){} },400);
     };
 
@@ -2705,14 +2708,15 @@ function completePayment(){
   const looksLikeReturn = /[?#&](code|access_token|error|type=recovery)=/.test(window.location.href) || /type=recovery/.test(window.location.href);
   setTimeout(()=>{
     if(window.__isPasswordRecovery) return;   // recovery in progress — don't sign in
+    if(window.__handlingPaidReturn) return;    // a purchase is being applied — don't overwrite
     supa.auth.getSession().then(({data})=>{
-      if(window.__isPasswordRecovery) return;
+      if(window.__isPasswordRecovery || window.__handlingPaidReturn) return;
       if(data && data.session){ finishSignIn(data.session); }
     }).catch(e=>console.warn('getSession failed',e));
   }, 350);
   // safety: also try once more shortly after load for slow URL parsing
   if(looksLikeReturn){
-    setTimeout(()=>{ if(window.__isPasswordRecovery) return; supa.auth.getSession().then(({data})=>{ if(!window.__isPasswordRecovery && data&&data.session) finishSignIn(data.session); }); }, 1200);
+    setTimeout(()=>{ if(window.__isPasswordRecovery || window.__handlingPaidReturn) return; supa.auth.getSession().then(({data})=>{ if(!window.__isPasswordRecovery && !window.__handlingPaidReturn && data&&data.session) finishSignIn(data.session); }); }, 1200);
   }
 })();
 function setupApp(){
