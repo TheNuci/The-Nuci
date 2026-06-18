@@ -2512,18 +2512,25 @@ function completePayment(){
     // Apply the purchase to the live state, then open the app.
     const finishPaid=(hadExistingProfile)=>{
       if(hadExistingProfile){
-        // EXISTING user topping up → just add the purchased plans as credits.
-        // Their pets/plans stay as they are; new credits unlock new pets.
-        state.planCredits = (state.planCredits||0) + purchasedCredits;
-        state.paid = true;
-        try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
-        // Do NOT call setupApp() here — that resets the plan to Day 1 and would
-        // wipe the existing pet's progress. Just refresh the switcher + stay put.
-        try{ buildAssessmentSwitcher(); }catch(e){}
-        try{ showScreen('screen-app'); }catch(e){}
-        try{ showTab('profile'); }catch(e){}
-        try{ persistState(); }catch(e){}
-        setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Krediti so dodani.','Credits added.'),L('V redu','Got it'),()=>{}); }catch(e){} },400);
+        // EXISTING user topping up. To avoid a race where another loader
+        // overwrites planCredits back to its old value, we LOAD the freshest
+        // cloud state first, THEN add the purchased credits, THEN save.
+        const applyTopUp=()=>{
+          state.planCredits = (state.planCredits||0) + purchasedCredits;
+          state.paid = true;
+          try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
+          window.__topUpDone = true;   // tell other loaders not to overwrite
+          try{ buildAssessmentSwitcher(); }catch(e){}
+          try{ showScreen('screen-app'); }catch(e){}
+          try{ showTab('profile'); }catch(e){}
+          try{ persistState(); }catch(e){}
+          setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Krediti so dodani.','Credits added.'),L('V redu','Got it'),()=>{}); }catch(e){} },400);
+        };
+        if(supa && email){
+          loadStateForUser(email).then(()=>applyTopUp()).catch(()=>applyTopUp());
+        } else {
+          applyTopUp();
+        }
         return;
       } else {
         // BRAND-NEW user → the pendingState holds their first pet.
