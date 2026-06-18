@@ -2532,85 +2532,67 @@ function completePayment(){
     const email = (p && p.userEmail) || state.userEmail;
     console.log('[PAID] pendingState =', p, '| purchasedCredits =', purchasedCredits, '| email =', email);
 
-    // Apply the purchase to the live state, then open the app.
-    const finishPaid=(hadExistingProfile)=>{
-      if(hadExistingProfile){
-        // EXISTING user topping up. To avoid a race where another loader
-        // overwrites planCredits back to its old value, we LOAD the freshest
-        // cloud state first, THEN add the purchased credits, THEN save.
-        const applyTopUp=()=>{
-          state.planCredits = (state.planCredits||0) + purchasedCredits;
-          state.paid = true;
-          try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
-          window.__topUpDone = true;   // tell other loaders not to overwrite
-          try{ buildAssessmentSwitcher(); }catch(e){}
-          try{ showScreen('screen-app'); }catch(e){}
-          try{ showTab('profile'); }catch(e){}
-          try{ persistState(); }catch(e){}
-          setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Krediti so dodani.','Credits added.'),L('V redu','Got it'),()=>{}); }catch(e){} },400);
-        };
-        if(supa && email){
-          loadStateForUser(email).then(()=>applyTopUp()).catch(()=>applyTopUp());
-        } else {
-          applyTopUp();
-        }
-        return;
-      } else {
-        // BRAND-NEW user → the pendingState holds their first pet.
-        if(p){
-          Object.assign(state, {
-            answers: p.answers||{}, entryText: p.entryText||'',
-            planLength: p.planLength||7, currentDay: p.currentDay||1,
-            petPhoto: p.petPhoto||null, userEmail: email||state.userEmail,
-            pricePaid: p.pricePaid!=null?p.pricePaid:9.95, promoUsed: p.promoUsed||null,
-            packageId: p.packageId||'single', paid:true
-          });
-          if(state.answers && state.answers.petType){
-            // Generate the personalised plan via AI (falls back to template).
-            showPlanLoading(true);
-            return generatePlanAI(state.answers).finally(()=>{
-              showPlanLoading(false);
-              state.planCredits = Math.max(0, purchasedCredits - 1);
-              try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
-              try{ setupApp(); }catch(e){ console.warn('setupApp failed', e); }
-              try{ buildAssessmentSwitcher(); }catch(e){}
-              showScreen('screen-app');
-              try{ persistState(); }catch(e){}
-              setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Vaš načrt je pripravljen.','Your plan is ready.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },500);
-            });
-          }
-        }
-        // First pet uses one plan; the rest become available credits.
-        state.planCredits = Math.max(0, purchasedCredits - 1);
-        try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
-      }
-      try{ setupApp(); }catch(e){ console.warn('setupApp failed', e); }
-      // make sure the first/active pet is registered as an assessment
+    // ───────────────────────────────────────────────────────────────
+    // Clean purchase handling. Two cases, decided by ONE question:
+    // does this account already have a saved plan in the cloud?
+    //   • NO  → FIRST purchase: first pet uses 1 plan, the rest are credits,
+    //           generate the plan, open the app.
+    //   • YES → TOP-UP: add ALL purchased plans as credits, keep existing
+    //           plan/pets untouched, stay in profile.
+    // ───────────────────────────────────────────────────────────────
+    const openAppAfter=()=>{
+      try{ setupApp(); }catch(e){ console.warn('setupApp',e); }
       try{ buildAssessmentSwitcher(); }catch(e){}
-      showScreen('screen-app');
+      try{ showScreen('screen-app'); showTab('today'); }catch(e){}
       try{ persistState(); }catch(e){}
       setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Vaš načrt je pripravljen.','Your plan is ready.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },500);
     };
 
-    // Decide: brand-new first purchase vs existing user topping up.
-    // A TOP-UP means the user already has an account/plan. Checking for a pet
-    // in live memory is unreliable right after returning from Stripe (the
-    // profile may not be loaded yet), so we also treat ANY existing cloud
-    // profile as a top-up. We avoid state.paid (it can be set on a first
-    // purchase after re-login, which would wrongly add a credit).
-    const hasRegisteredPet = !!((state.assessments && state.assessments.length) || state.currentAssessmentId || state.planComplete || (state.answers && state.answers.petName));
-    if(hasRegisteredPet){
-      finishPaid(true);                 // genuine top-up
-    } else if(supa && email){
-      // Confirm against the cloud. It's a top-up only if the existing profile
-      // already had a plan/pet (a brand-new buyer may have a bare profile row
-      // created at signup but no plan yet).
+    const doFirstPurchase=()=>{
+      console.log('[PAID] FIRST purchase branch. purchasedCredits=',purchasedCredits);
+      if(p){
+        Object.assign(state, {
+          answers: p.answers||state.answers||{}, entryText: p.entryText||'',
+          planLength: p.planLength||7, currentDay: p.currentDay||1,
+          petPhoto: p.petPhoto||null, userEmail: email||state.userEmail,
+          pricePaid: p.pricePaid!=null?p.pricePaid:9.95, promoUsed: p.promoUsed||null,
+          packageId: p.packageId||'single', paid:true
+        });
+      }
+      state.planCredits = Math.max(0, purchasedCredits - 1);   // first pet consumes one
+      try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
+      if(state.answers && state.answers.petType){
+        showPlanLoading(true);
+        generatePlanAI(state.answers).finally(()=>{
+          showPlanLoading(false);
+          openAppAfter();
+        });
+      } else {
+        openAppAfter();
+      }
+    };
+
+    const doTopUp=()=>{
+      console.log('[PAID] TOP-UP branch. before credits=',state.planCredits,'adding=',purchasedCredits);
+      state.planCredits = (state.planCredits||0) + purchasedCredits;   // all purchased → credits
+      state.paid = true;
+      try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
+      console.log('[PAID] TOP-UP done. credits now=',state.planCredits,'txns=',(state.transactions||[]).length);
+      try{ buildAssessmentSwitcher(); }catch(e){}
+      try{ showScreen('screen-app'); showTab('profile'); }catch(e){}
+      try{ persistState(); }catch(e){}
+      setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Krediti so dodani.','Credits added.'),L('V redu','Got it'),()=>{}); }catch(e){} },400);
+    };
+
+    // Decide using the CLOUD profile as the single source of truth.
+    if(supa && email){
       loadStateForUser(email).then(had=>{
-        const reallyHasPlan = !!(had && ((state.assessments && state.assessments.length) || state.currentAssessmentId || (state.answers && state.answers.petName) || (Array.isArray(state.transactions) && state.transactions.length)));
-        finishPaid(reallyHasPlan);
-      }).catch(()=>finishPaid(false));
+        const alreadyHasPlan = !!(had && ((state.assessments && state.assessments.length) || state.currentAssessmentId || state.planComplete || (state.answers && state.answers.petName)));
+        console.log('[PAID] cloud had profile=',!!had,'alreadyHasPlan=',alreadyHasPlan);
+        if(alreadyHasPlan) doTopUp(); else doFirstPurchase();
+      }).catch(e=>{ console.warn('loadStateForUser failed, treating as first purchase',e); doFirstPurchase(); });
     } else {
-      finishPaid(false);
+      doFirstPurchase();
     }
   }
   // Run after DOM is ready so screens and elements exist. Also delay slightly
