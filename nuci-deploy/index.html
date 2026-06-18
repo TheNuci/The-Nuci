@@ -2544,7 +2544,21 @@ function completePayment(){
     //           plan/pets untouched, stay in profile.
     // ───────────────────────────────────────────────────────────────
     const openAppAfter=()=>{
-      try{ setupApp(); }catch(e){ console.warn('setupApp',e); }
+      // NOTE: do NOT call setupApp() here — it resets state.planOverrides={},
+      // which would wipe the AI plan we just generated. Render directly instead.
+      try{
+        const petType=state.answers.petType||'other';
+        const petName=state.answers.petName||'your pet';
+        const emoji=EMOJIS[petType]||'🐾';
+        const typeLabel=petType.charAt(0).toUpperCase()+petType.slice(1);
+        const e1=document.getElementById('todayPetName'); if(e1) e1.textContent=petName;
+        const e2=document.getElementById('todayAvatarPh'); if(e2) e2.textContent=emoji;
+        const e3=document.getElementById('profileAvatarPh'); if(e3) e3.textContent=emoji;
+        const e4=document.getElementById('profilePetName'); if(e4) e4.textContent=petName;
+        const e5=document.getElementById('profilePetMeta'); if(e5) e5.textContent=`${typeLabel} · ${state.answers.breed||typeLabel}`;
+      }catch(e){ console.warn('header render',e); }
+      try{ state.tasks=getDayTasks(state.currentDay||1); }catch(e){}
+      try{ renderTaskPreview(); renderAllTasks(); buildPlanDaysList(); buildPlanDetail(); buildOverview(state.answers.petType||'other'); buildPeriodButtons(); recomputeStats(); refreshTodayForDay(); generatePetImage(); }catch(e){ console.warn('render',e); }
       try{ buildAssessmentSwitcher(); }catch(e){}
       try{ saveCurrentProgress(); }catch(e){}   // store this pet's plan in its record
       try{ showScreen('screen-app'); showTab('today'); }catch(e){}
@@ -2566,6 +2580,11 @@ function completePayment(){
       }
       state.planCredits = Math.max(0, purchasedCredits - 1);   // first pet consumes one
       try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
+      // Fresh start for this first pet (Day 1, no check-ins) BEFORE generating,
+      // so we don't inherit stale plan state. generatePlanAI then fills planOverrides.
+      state.currentDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
+      state.lastCheckinDate=null; state.tasksDone={}; state.planComplete=false;
+      state.taskOverrides={}; state.planOverrides={};
       if(state.answers && state.answers.petType){
         showPlanLoading(true);
         generatePlanAI(state.answers).finally(()=>{
