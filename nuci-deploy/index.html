@@ -2551,6 +2551,7 @@ function completePayment(){
 
     const doFirstPurchase=()=>{
       console.log('[PAID] FIRST purchase branch. purchasedCredits=',purchasedCredits);
+      state.userEmail = email || state.userEmail;   // make sure we know who to save for
       if(p){
         Object.assign(state, {
           answers: p.answers||state.answers||{}, entryText: p.entryText||'',
@@ -2575,10 +2576,11 @@ function completePayment(){
 
     const doTopUp=()=>{
       console.log('[PAID] TOP-UP branch. before credits=',state.planCredits,'adding=',purchasedCredits);
+      state.userEmail = email || state.userEmail;   // make sure we know who to save for
       state.planCredits = (state.planCredits||0) + purchasedCredits;   // all purchased → credits
       state.paid = true;
       try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
-      console.log('[PAID] TOP-UP done. credits now=',state.planCredits,'txns=',(state.transactions||[]).length);
+      console.log('[PAID] TOP-UP done. credits now=',state.planCredits,'txns=',(state.transactions||[]).length,'email=',state.userEmail);
       try{ buildAssessmentSwitcher(); }catch(e){}
       try{ showScreen('screen-app'); showTab('profile'); }catch(e){}
       persistStateNow().finally(()=>{ setTimeout(()=>{ window.__handlingPaidReturn=false; }, 1500); });
