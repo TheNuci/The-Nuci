@@ -37,7 +37,7 @@ exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
     answers = body.answers || {};
-    lang = body.lang === 'en' ? 'en' : 'sl';   // respond in the user's language
+    lang = body.lang === 'sl' ? 'sl' : 'en';   // default to English
   } catch (e) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Bad request body' }) };
   }
@@ -47,13 +47,19 @@ exports.handler = async (event) => {
   // The instruction we give the AI. It must return STRICT JSON only.
   const systemPrompt =
     `You are an expert animal behaviourist creating the START of a personalised ` +
-    `7-day behaviour-improvement plan. Address the specific animal, the exact ` +
-    `problem described, its triggers and context. Reference the actual trigger ` +
-    `where known. No generic filler. Respond in ${langName}. ` +
-    `Be CONCISE: tasks are short imperative phrases (max ~8 words each), ` +
+    `7-day behaviour-improvement plan. ` +
+    `CRITICAL: Build the ENTIRE plan around the ONE specific problem the owner described ` +
+    `(e.g. "dog hates car rides", "cat scratches the sofa", "dog barks at the doorbell"). ` +
+    `Every task must visibly relate to THAT exact situation - name the trigger, the place, ` +
+    `the object, the context. A reader must immediately see the plan is about THEIR problem, ` +
+    `not generic pet advice. If the problem is car travel, tasks involve the car, the route, ` +
+    `the crate, short drives, positive associations with the vehicle - never vague "observe your pet". ` +
+    `Use the pet's name in at least one task per day. Make day 1 concrete and actionable, not just watching. ` +
+    `Address the exact problem described, its triggers and context. No generic filler. Respond in ${langName}. ` +
+    `Be CONCISE: tasks are short imperative phrases (max ~10 words each), ` +
     `subtitles max ~6 words, day desc one short sentence. ` +
-    `Generate the meta info plus ONLY the FIRST 3 DAYS (day 1 stabilise, ` +
-    `day 2 observe, day 3 first adjustment). The remaining days are handled ` +
+    `Generate the meta info plus ONLY the FIRST 3 DAYS (day 1 first concrete steps on the problem, ` +
+    `day 2 build on it, day 3 first progression). The remaining days are handled ` +
     `separately, so do NOT include them. ` +
     `Return ONLY valid JSON (no markdown, no prose) with this exact shape:\n` +
     `{\n` +

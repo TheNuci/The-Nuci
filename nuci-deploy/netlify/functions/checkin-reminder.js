@@ -13,7 +13,7 @@
 // env vars, never in index.html.
 
 const REMINDER_HOUR = 20;            // 20:00 local time
-const FROM = 'Nuci <noreply@thenuci.com>';
+const FROM = 'The Nuci <noreply@thenuci.com>';
 
 // Returns the local hour (0–23) and YYYY-MM-DD date for a given IANA timezone.
 function localParts(tz) {
