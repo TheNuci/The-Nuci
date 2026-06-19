@@ -2702,10 +2702,28 @@ function completePayment(){
     }
 
     if(had){
-      // returning user with a saved plan -> straight into the app (do NOT reset state)
+      // We loaded a saved profile. But "has a profile" is NOT the same as "paid".
+      // Someone can finish the questionnaire + sign up (profile row created) WITHOUT
+      // paying. Only let them into the app if there's real evidence of payment:
+      // a recorded transaction, available credits, or a completed/generated plan.
+      const hasPaidEvidence = !!(
+        (Array.isArray(state.transactions) && state.transactions.length) ||
+        (state.planCredits||0) > 0 ||
+        state.planComplete ||
+        (state.planOverrides && Object.keys(state.planOverrides).length) ||
+        (Array.isArray(state.assessments) && state.assessments.length)
+      );
+      if(!hasPaidEvidence){
+        // Signed in, profile exists, but never paid -> send to the package/payment step.
+        state.paid=false;
+        try{ buildRoadmap(); }catch(e){}
+        showScreen('screen-roadmap');
+        return;
+      }
+      // returning user with a saved, paid plan -> straight into the app (do NOT reset state)
       state.paid=true;
       const petType=state.answers.petType||'other';
-      const nm=state.answers.petName||'Vaš ljubljenček';
+      const nm=state.answers.petName||L('vaš ljubljenček','your pet');
       const tl=petType.charAt(0).toUpperCase()+petType.slice(1);
       const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
       set('todayPetName',nm); set('todayAvatarPh',EMOJIS[petType]||'🐾');
