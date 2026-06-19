@@ -796,7 +796,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       </div>
       <div class="card" style="padding:8px 20px;margin-bottom:16px;">
         <div class="profile-row" onclick="openProfileDetail('email')"><span style="font-size:0.9rem;font-weight:500;">Email Preferences</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="profile-row" style="border-bottom:none;" onclick="openProfileDetail('billing')"><span style="font-size:0.9rem;font-weight:500;">Billing</span><div style="display:flex;align-items:center;gap:8px;"><span class="tag" id="billingTag">€9.95 paid</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+        <div class="profile-row" style="border-bottom:none;" onclick="openProfileDetail('billing')"><span style="font-size:0.9rem;font-weight:500;">Billing</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       </div>
       <button class="btn btn-secondary btn-full" style="margin-bottom:8px;" onclick="buyNewPlan()" id="newAssessmentBtn">Buy a new plan</button>
       <div id="creditsHint" style="font-size:0.78rem;color:var(--secondary);text-align:center;margin-bottom:8px;min-height:14px;"></div>
@@ -1869,7 +1869,7 @@ function assessBack(){
   // go back to their profile (not the public entry screen, which feels like a logout).
   const signedInWithPlan = !!(state.userEmail && ((state.assessments && state.assessments.length) || state.currentAssessmentId || (state.answers && state.planComplete)));
   if(signedInWithPlan){
-    try{ showScreen('screen-app'); showTab('profile'); }catch(e){ showScreen('screen-entry'); }
+    try{ showScreen('screen-app'); showTab('today'); }catch(e){ showScreen('screen-entry'); }
   } else {
     showScreen('screen-entry');
   }
@@ -2101,6 +2101,27 @@ async function doAuth(method){
         }
       } else {
         state.userId = data.user ? data.user.id : null;
+        // Record signup time + pet name so the server can send a gentle
+        // "your pet is waiting" nudge if no purchase happens shortly after.
+        try{
+          if(supa){
+            const petName=(state.answers && state.answers.petName) || null;
+            supa.from('profiles').upsert(
+              { email: state.userEmail.toLowerCase(),
+                signup_at: new Date().toISOString(),
+                pet_name_pending: petName,
+                purchased: false },
+              { onConflict: 'email' }
+            );
+          }
+        }catch(e){}
+        // Fire-and-forget welcome email (server-side function holds the key).
+        try{
+          fetch('/.netlify/functions/welcome-email', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ email: state.userEmail, name: state.userName })
+          }).catch(()=>{});
+        }catch(e){}
       }
     }catch(e){
       // Network unreachable (preview/offline) — continue in local mode.
@@ -2589,6 +2610,7 @@ function completePayment(){
       }
       state.planCredits = Math.max(0, purchasedCredits - 1);   // first pet consumes one
       try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
+      try{ if(supa && email) supa.from('profiles').update({ purchased:true }).eq('email', email.toLowerCase()); }catch(e){}
       // Fresh start for this first pet (Day 1, no check-ins) BEFORE generating,
       // so we don't inherit stale plan state. generatePlanAI then fills planOverrides.
       state.currentDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
@@ -2610,6 +2632,7 @@ function completePayment(){
       state.planCredits = (state.planCredits||0) + purchasedCredits;   // all purchased → credits
       state.paid = true;
       try{ recordTransaction((p&&p.packageId)||'single', (p&&p.pricePaid), purchasedCredits); }catch(e){}
+      try{ if(supa && state.userEmail) supa.from('profiles').update({ purchased:true }).eq('email', state.userEmail.toLowerCase()); }catch(e){}
       try{ buildAssessmentSwitcher(); }catch(e){}
       try{ showScreen('screen-app'); showTab('profile'); }catch(e){}
       persistStateNow().finally(()=>{ setTimeout(()=>{ window.__handlingPaidReturn=false; }, 1500); });
@@ -2761,6 +2784,7 @@ function setupApp(){
   state.planComplete=false; state.extended=false; state.subscribed=false; state.askedContinue=false;
   state.taskOverrides={}; state.planOverrides={}; state.selectedPeriod=null;
   state.petPhoto=null;   // new pet starts with no photo (species emoji)
+  state.dayInsights={};  // new pet starts with no AI insights
 
   document.getElementById('todayPetName').textContent=petName;
   document.getElementById('todayAvatarPh').textContent=emoji;
@@ -3134,7 +3158,11 @@ function showTab(tab){
 function buildAssessmentSwitcher(){
   // Save current assessment into the list if not present
   if(!state.assessments)state.assessments=[];
-  const petName=state.answers.petName||'Vaš ljubljenček';
+  // Guard: don't register a phantom/empty pet. Only create an assessment when
+  // we actually have a real pet (a name AND a type from a completed intake).
+  const hasRealPet = !!(state.answers && state.answers.petName && state.answers.petType);
+  if(!hasRealPet){ try{ renderAssessmentSwitcher(); }catch(e){} return; }
+  const petName=state.answers.petName;
   const petType=state.answers.petType||'other';
   const existing=state.assessments.find(a=>a.id===state.currentAssessmentId);
   if(!existing){
@@ -3146,6 +3174,7 @@ function buildAssessmentSwitcher(){
       focus:document.getElementById('todayFocus').textContent,
       mainIssue:state.answers.mainIssue||'',
       petPhoto: state.petPhoto||null,
+      dayInsights: state.dayInsights ? JSON.parse(JSON.stringify(state.dayInsights)) : {},
       // per-pet AI plan + task overrides
       planOverrides: state.planOverrides ? JSON.parse(JSON.stringify(state.planOverrides)) : {},
       taskOverrides: state.taskOverrides ? JSON.parse(JSON.stringify(state.taskOverrides)) : {},
@@ -3174,6 +3203,7 @@ function saveCurrentProgress(){
   a.taskOverrides = state.taskOverrides ? JSON.parse(JSON.stringify(state.taskOverrides)) : {};
   a.mainIssue = state.answers.mainIssue||a.mainIssue||'';
   a.petPhoto = state.petPhoto||null;   // each pet keeps its own photo
+  a.dayInsights = state.dayInsights ? JSON.parse(JSON.stringify(state.dayInsights)) : {};   // per-pet AI insights
 }
 
 function renderAssessmentSwitcher(){
@@ -3207,6 +3237,13 @@ function renderAssessmentSwitcher(){
 // Start a new pet using one available credit (from an empty dropdown slot).
 function addPetFromCredit(){
   if((state.planCredits||0)<=0) return;
+  // Max 6 pets per account.
+  if((state.assessments||[]).length>=6){
+    const dd=document.getElementById('assessDropdown'); if(dd) dd.style.display='none';
+    const ch=document.getElementById('assessChevron'); if(ch) ch.style.transform='rotate(0deg)';
+    showCelebration('🐾',L('Doseženo največje število','Maximum reached'),L('Na enem računu lahko spremljate do 6 živali.','You can track up to 6 pets on one account.'),L('V redu','Got it'),()=>{});
+    return;
+  }
   // close dropdown
   const dd=document.getElementById('assessDropdown'); if(dd) dd.style.display='none';
   const ch=document.getElementById('assessChevron'); if(ch) ch.style.transform='rotate(0deg)';
@@ -3231,6 +3268,7 @@ function switchAssessment(id){
   state.planOverrides = a.planOverrides ? JSON.parse(JSON.stringify(a.planOverrides)) : {};
   state.taskOverrides = a.taskOverrides ? JSON.parse(JSON.stringify(a.taskOverrides)) : {};
   state.petPhoto = a.petPhoto||null;   // load this pet's own photo
+  state.dayInsights = a.dayInsights ? JSON.parse(JSON.stringify(a.dayInsights)) : {};   // this pet's insights
   // load this pet's own plan progress
   const p=a.progress||{};
   state.currentDay=p.currentDay||1;
@@ -3298,6 +3336,11 @@ function updateCreditsHint(){
 }
 
 function buyNewPlan(){
+  // Max 6 pets per account — no point buying more credits beyond that.
+  if((state.assessments||[]).length>=6 && (state.planCredits||0)<=0){
+    showCelebration('🐾',L('Doseženo največje število','Maximum reached'),L('Na enem računu lahko spremljate do 6 živali.','You can track up to 6 pets on one account.'),L('V redu','Got it'),()=>{});
+    return;
+  }
   // Open the package picker modal over a blurred profile.
   const t=document.getElementById('buyPlanTitle'); if(t) t.textContent=L('Kupi nov načrt','Buy a new plan');
   const s=document.getElementById('buyPlanSub'); if(s) s.textContent=L('Izberite paket','Choose your package');
@@ -3334,13 +3377,24 @@ function startNewAssessment(){
   state.planComplete=false; state.extended=false;
   const ei=document.getElementById('entryInput'); if(ei) ei.value='';
   const ec=document.getElementById('entryChar'); if(ec) ec.textContent='0/500';
-  // Existing signed-in user adding another pet: skip the intro entry screen
-  // (they've seen it already) and go straight into the questionnaire.
+  // Existing signed-in user adding another pet: show the entry page (the
+  // description box + instructions) but WITHOUT the login button and the big
+  // marketing headline/subtitle — they're already in, they just need the box.
   if(hasActivePlan){
-    state.currentQ=0;
-    try{ renderQuestion(); }catch(e){ console.warn('renderQuestion',e); }
-    showScreen('screen-assessment');
+    state._addPetMode = true;
+    try{
+      const loginBtn=document.querySelector('#screen-entry .btn-ghost'); if(loginBtn) loginBtn.style.display='none';
+      const hl=document.querySelector('#screen-entry .entry-headline');
+      const sub=document.querySelector('#screen-entry .entry-sub');
+      if(hl){ hl.textContent=L('Dodaj novo žival','Add a new pet'); hl.style.fontSize='1.5rem'; }
+      if(sub){ sub.textContent=L('Opišite vedenje in AI bo izdelal osebni 7-dnevni načrt.','Describe the behaviour and our AI builds a personalized 7-day plan.'); }
+    }catch(e){}
+    showScreen('screen-entry');
   } else {
+    state._addPetMode = false;
+    try{
+      const loginBtn=document.querySelector('#screen-entry .btn-ghost'); if(loginBtn) loginBtn.style.display='';
+    }catch(e){}
     showScreen('screen-entry');
   }
 }
@@ -4067,8 +4121,12 @@ function refreshTodayForDay(){
   if(tasksDay)tasksDay.textContent=L(`Dan ${state.currentDay} od ${state.planLength}`,`Day ${state.currentDay} of ${state.planLength}`);
   // Show the AI's adaptive insight for the current day, if we have one.
   const insightEl=document.getElementById('todayInsightText');
-  if(insightEl && state.dayInsights && state.dayInsights[state.currentDay]){
-    insightEl.textContent = state.dayInsights[state.currentDay];
+  if(insightEl){
+    if(state.dayInsights && state.dayInsights[state.currentDay]){
+      insightEl.textContent = state.dayInsights[state.currentDay];
+    } else {
+      insightEl.textContent = L('Dokončajte današnjo prijavo za AI vpogled.','Complete today\'s check-in to receive your AI insight.');
+    }
   }
   updateCheckinButtonState();
 }
