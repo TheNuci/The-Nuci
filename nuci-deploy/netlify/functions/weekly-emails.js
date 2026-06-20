@@ -1,6 +1,6 @@
 // netlify/functions/weekly-emails.js
 //
-// Scheduled function — runs every hour (see netlify.toml).
+// Scheduled function - runs every hour (see netlify.toml).
 // Sends ONE themed engagement email per day, at the user's LOCAL 13:00:
 //
 //   Monday    → "Did you know?"      (AI, by pet species)        → ALL users
@@ -51,7 +51,10 @@ const SCHEDULE = {
 };
 
 // ── email shell ─────────────────────────────────────────────────────
-function wrapEmail(title, bodyHtml, footerNote) {
+function wrapEmail(title, bodyHtml, footerNote, toEmail) {
+  const unsub = toEmail
+    ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}`
+    : 'https://thenuci.com/';
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;background:#F1F1F1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111111;">
@@ -71,7 +74,10 @@ function wrapEmail(title, bodyHtml, footerNote) {
         ${footerNote || 'You can manage emails anytime in your profile.'}
       </p>
     </div>
-    <p style="text-align:center;font-size:12px;color:#aaa;margin:20px 0 0;">The Nuci &middot; Every behavior has a cause</p>
+    <p style="text-align:center;font-size:12px;color:#aaa;margin:20px 0 0;line-height:1.6;">
+      The Nuci &middot; Every behavior has a cause<br>
+      <a href="${unsub}" style="color:#aaa;text-decoration:underline;">Unsubscribe from these emails</a>
+    </p>
   </div>
 </body></html>`;
 }
@@ -98,7 +104,7 @@ async function aiText(apiKey, system, user, maxTokens) {
 }
 
 // ── build the email for a given theme & user ────────────────────────
-async function buildEmail(theme, profileData, anthropicKey) {
+async function buildEmail(theme, profileData, anthropicKey, toEmail) {
   const data = profileData || {};
   const assessments = Array.isArray(data.assessments) ? data.assessments : [];
   const firstPet = assessments[0] || {};
@@ -112,7 +118,7 @@ async function buildEmail(theme, profileData, anthropicKey) {
     return {
       subject: `🐾 Did you know this about your ${species}?`,
       html: wrapEmail('Did you know?', `<p>${escapeHtml(txt)}</p>`,
-        'A little something to brighten your day.')
+        'A little something to brighten your day.', toEmail)
     };
   }
 
@@ -123,7 +129,7 @@ async function buildEmail(theme, profileData, anthropicKey) {
     return {
       subject: `💡 A quick tip for your ${species} today`,
       html: wrapEmail('Tip of the day', `<p>${escapeHtml(txt)}</p>`,
-        'One small step today.')
+        'One small step today.', toEmail)
     };
   }
 
@@ -133,20 +139,20 @@ async function buildEmail(theme, profileData, anthropicKey) {
     const count = Array.isArray(checkins) ? checkins.length : 0;
     const body =
       `<p>You're building real consistency with <strong>${escapeHtml(petName)}</strong>.</p>` +
-      `<div style="display:flex;gap:12px;margin:18px 0;">
-         <div style="flex:1;background:#fff;border-radius:12px;padding:16px;text-align:center;">
+      `<div style="display:flex;gap:12px;margin:18px 0;justify-content:center;">
+         <div style="width:120px;background:#fff;border-radius:12px;padding:16px;text-align:center;">
            <div style="font-size:1.6rem;font-weight:700;color:#6B8F71;">${streak}</div>
            <div style="font-size:0.78rem;color:#888;">day streak 🔥</div>
          </div>
-         <div style="flex:1;background:#fff;border-radius:12px;padding:16px;text-align:center;">
+         <div style="width:120px;background:#fff;border-radius:12px;padding:16px;text-align:center;">
            <div style="font-size:1.6rem;font-weight:700;color:#6B8F71;">${count}</div>
            <div style="font-size:0.78rem;color:#888;">check-ins</div>
          </div>
        </div>` +
-      `<p>Every check-in sharpens ${escapeHtml(petName)}'s plan. Keep going — consistency is what changes behaviour.</p>`;
+      `<p>Every check-in sharpens ${escapeHtml(petName)}'s plan. Keep going - consistency is what changes behaviour.</p>`;
     return {
       subject: `🔥 Your progress with ${petName}`,
-      html: wrapEmail('Your progress this week', body, 'Keep the momentum going.')
+      html: wrapEmail('Your progress this week', body, 'Keep the momentum going.', toEmail)
     };
   }
 
@@ -159,7 +165,7 @@ async function buildEmail(theme, profileData, anthropicKey) {
     return {
       subject: `✨ A small insight about ${petName}`,
       html: wrapEmail('Your weekly insight', `<p>${escapeHtml(txt)}</p>`,
-        'Based on your recent check-ins.')
+        'Based on your recent check-ins.', toEmail)
     };
   }
 
@@ -168,11 +174,11 @@ async function buildEmail(theme, profileData, anthropicKey) {
     // never bought, or finished a plan and has none active).
     const pet = (data.pet_name_pending || petName || 'your pet');
     const body =
-      `<p>Your pet's behaviour won't sort itself out — but a clear, structured plan makes it manageable.</p>` +
-      `<p>Start a personalized 7-day plan and get the likely causes, what to do, and what to avoid — built specifically for ${escapeHtml(pet)}.</p>`;
+      `<p>Your pet's behaviour won't sort itself out - but a clear, structured plan makes it manageable.</p>` +
+      `<p>Start a personalized 7-day plan and get the likely causes, what to do, and what to avoid - built specifically for ${escapeHtml(pet)}.</p>`;
     return {
       subject: `🐾 Ready to help ${pet === 'your pet' ? 'your pet' : pet}?`,
-      html: wrapEmail('Your pet is waiting', body, 'Start whenever you\'re ready.')
+      html: wrapEmail('Your pet is waiting', body, 'Start whenever you\'re ready.', toEmail)
     };
   }
 
@@ -209,9 +215,9 @@ export default async (req) => {
 
   // Pull profiles with a timezone, not opted out. We need `data` for species/check-ins.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
-    `?select=email,timezone,email_reminders,last_weekly_sent,pet_name_pending,data` +
+    `?select=email,timezone,email_reminders,marketing_opt_out,last_weekly_sent,pet_name_pending,data` +
     `&timezone=not.is.null` +
-    `&email_reminders=not.eq.false`;
+    `&marketing_opt_out=not.eq.true`;
 
   let profiles;
   try {
@@ -248,7 +254,7 @@ export default async (req) => {
 
     try {
       if (slot.theme === 'noplan') data.pet_name_pending = p.pet_name_pending;
-      const email = await buildEmail(slot.theme, data, ANTHROPIC_API_KEY);
+      const email = await buildEmail(slot.theme, data, ANTHROPIC_API_KEY, p.email);
       if (!email) { skipped++; continue; }                         // nothing to send (e.g. no check-ins)
       await sendEmail(RESEND_API_KEY, p.email, email.subject, email.html);
       await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(p.email)}`, {

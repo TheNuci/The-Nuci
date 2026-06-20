@@ -10,7 +10,8 @@
 
 const FROM = 'The Nuci <noreply@thenuci.com>';
 
-function welcomeHtml(name) {
+function welcomeHtml(name, toEmail) {
+  const unsubUrl = toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   const hi = name ? `Welcome, ${name}!` : 'Welcome to The Nuci!';
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -38,7 +39,7 @@ function welcomeHtml(name) {
       </p>
     </div>
     <p style="text-align:center;font-size:12px;color:#aaa;margin:20px 0 0;">
-      The Nuci &middot; Pet Behaviour &amp; Wellbeing &middot; <a href="https://thenuci.com" style="color:#6B8F71;text-decoration:none;">thenuci.com</a>
+      The Nuci &middot; Pet Behaviour &amp; Wellbeing &middot; <a href="https://thenuci.com" style="color:#6B8F71;text-decoration:none;">thenuci.com</a><br><a href="${unsubUrl}" style="color:#aaa;text-decoration:underline;font-size:11px;">Unsubscribe from these emails</a>
     </p>
   </div>
 </body></html>`;
@@ -74,7 +75,7 @@ export default async (req) => {
         from: FROM,
         to: [email],
         subject: 'Welcome to The Nuci 🐾',
-        html: welcomeHtml(name)
+        html: welcomeHtml(name, email)
       })
     });
     if (!res.ok) {

@@ -1,12 +1,12 @@
 // netlify/functions/checkin-reminder.js
 //
-// Scheduled function — runs every hour (see netlify.toml).
+// Scheduled function - runs every hour (see netlify.toml).
 // For each user whose LOCAL time is currently 20:xx, hasn't checked in today,
 // and hasn't already been reminded today, sends a check-in reminder email via Resend.
 //
 // Required Netlify env vars:
 //   SUPABASE_URL                        (your project URL)
-//   THE_NUCI_SUPABASE_SERVICE_ROLE_KEY  (service_role secret — bypasses RLS, server-only)
+//   THE_NUCI_SUPABASE_SERVICE_ROLE_KEY  (service_role secret - bypasses RLS, server-only)
 //   THE_NUCI_RESEND_API_KEY             (re_...)
 //
 // NOTE: this is a backend function. The Resend/Supabase keys live in Netlify
@@ -34,7 +34,8 @@ function localParts(tz) {
   }
 }
 
-function emailHtml() {
+function emailHtml(toEmail) {
+  const unsubUrl = toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;background:#F1F1F1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111111;">
@@ -55,7 +56,9 @@ function emailHtml() {
         You can turn them off anytime in your profile.
       </p>
     </div>
-    <p style="text-align:center;font-size:12px;color:#aaa;margin:20px 0 0;">The Nuci &middot; Pet Behaviour &amp; Wellbeing</p>
+    <p style="text-align:center;font-size:12px;color:#aaa;margin:20px 0 0;line-height:1.6;">The Nuci &middot; Pet Behaviour &amp; Wellbeing<br>
+      <a href="${unsubUrl}" style="color:#aaa;text-decoration:underline;">Unsubscribe from these emails</a>
+    </p>
   </div>
 </body></html>`;
 }
@@ -71,7 +74,7 @@ async function sendEmail(apiKey, to) {
       from: FROM,
       to: [to],
       subject: '🐾 Your daily check-in is waiting',
-      html: emailHtml()
+      html: emailHtml(to)
     })
   });
   if (!res.ok) {
@@ -157,7 +160,7 @@ export default async (req) => {
   return new Response(summary, { status: 200 });
 };
 
-// Netlify scheduled config — runs at minute 0 of every hour.
+// Netlify scheduled config - runs at minute 0 of every hour.
 export const config = {
   schedule: '0 * * * *'
 };
