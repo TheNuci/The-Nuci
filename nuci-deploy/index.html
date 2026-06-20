@@ -160,6 +160,7 @@ select.input-field{background-image:url("data:image/svg+xml,%3Csvg width='12' he
 .day-num{width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:600;flex-shrink:0;font-family:'Inter Tight',sans-serif}
 .day-num.done{background:var(--success);color:white}
 .day-num.current{background:var(--text);color:white}
+.day-num.missed{background:#C9CCce;color:white}
 .task-item{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--border)}
 .task-item:last-child{border-bottom:none}
 .task-check{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
@@ -854,7 +855,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         Back
       </button>
       <div class="progress-dots" id="checkinDots"></div>
-      <button style="background:none;border:none;cursor:pointer;font-size:0.85rem;color:var(--secondary);font-family:'Inter',sans-serif;padding:4px 0;" onclick="closeCheckin()">Shrani in zapri</button>
+      <button style="background:none;border:none;cursor:pointer;font-size:0.85rem;color:var(--secondary);font-family:'Inter',sans-serif;padding:4px 0;" onclick="closeCheckin()">Save and close</button>
     </div>
     <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;" id="checkinBody"></div>
   </div>
@@ -2103,11 +2104,18 @@ function generatePlan(answers){
 function getPlanDays(){
   const base=generatePlan(state.answers);
   const cur=state.currentDay||1; // 1-indexed
+  const checkins=Array.isArray(state.checkins)?state.checkins:[];
+  const checkedDays=new Set(checkins.map(c=>c&&c.day).filter(Boolean));
   return base.map((d,i)=>{
     const dayNum=i+1;
+    const wasCheckedIn=checkedDays.has(dayNum);
+    const isPast=dayNum < cur;
     return {
       ...d,
-      done: dayNum < cur,
+      // A day is "done" ONLY if there's a real check-in for it.
+      done: wasCheckedIn,
+      // Past days with no check-in are "missed" (not completed, no checkmark).
+      missed: isPast && !wasCheckedIn,
       current: dayNum === cur,
       locked: dayNum > cur,
     };
@@ -3138,7 +3146,7 @@ function planActions(pet){
 
 function buildPlanDaysList(){
   const wrap=document.getElementById('planAccordion');if(!wrap)return;wrap.innerHTML='';
-  const days=getPlanDays();const pet=state.answers.petName||'vaš ljubljenček';const actions=planActions(pet);
+  const days=getPlanDays();const pet=state.answers.petName||L('vaš ljubljenček','your pet');const actions=planActions(pet);
   days.forEach((d,i)=>{
     const item=document.createElement('div');
     const isLocked=d.locked;
@@ -3155,12 +3163,22 @@ function buildPlanDaysList(){
           </div>
         </div>`;
     }else{
-      const statusLabel=d.done?L('Dokončano','Completed'):L('Danes','Today');
+      const statusLabel = d.missed ? L('Zamujeno','Missed') : (d.done?L('Dokončano','Completed'):L('Danes','Today'));
+      // Day number badge: green check if done, neutral "missed" mark if missed, else the day number.
+      let badge;
+      if(d.done){
+        badge='<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      } else if(d.missed){
+        badge='<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 3l4 4M7 3l-4 4" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>';
+      } else {
+        badge=String(i+1);
+      }
+      const badgeClass = d.done?'done':(d.missed?'missed':'current');
       item.innerHTML=`
         <div class="acc-head" onclick="toggleAcc(${i})">
-          <div class="day-num ${d.done?'done':'current'}">${d.done?'<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>':i+1}</div>
+          <div class="day-num ${badgeClass}">${badge}</div>
           <div style="flex:1;">
-            <div style="font-size:0.92rem;font-weight:500;">${d.title}</div>
+            <div style="font-size:0.92rem;font-weight:500;${d.missed?'color:var(--secondary);':''}">${d.title}</div>
             <div style="font-size:0.78rem;color:var(--secondary);margin-top:2px;">${L('Dan','Day')} ${i+1} · ${statusLabel}</div>
           </div>
           <svg class="acc-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#999" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -3169,12 +3187,12 @@ function buildPlanDaysList(){
           <div class="acc-body-inner">
             <p style="font-size:0.88rem;line-height:1.6;color:var(--text);margin-bottom:16px;">${planDescFor(i)}</p>
             <div style="margin-bottom:16px;">
-              <div style="font-size:0.78rem;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);">Verjetni vzroki</div>
+              <div style="font-size:0.78rem;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);">${L('Verjetni vzroki','Likely causes')}</div>
               <div style="display:flex;flex-wrap:wrap;gap:6px;">${planCausesFor(i).map(c=>`<span class="tag">${c}</span>`).join('')}</div>
             </div>
             <div>
-              <div style="font-size:0.78rem;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);">Immediate actions</div>
-              ${planActionsFor(actions,i,state.answers.petName||'vaš ljubljenček').map(a=>`<div class="task-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--text);flex-shrink:0;margin-top:7px;"></div><div class="task-text">${a}</div></div>`).join('')}
+              <div style="font-size:0.78rem;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);">${L('Takojšnji ukrepi','Immediate actions')}</div>
+              ${planActionsFor(actions,i,state.answers.petName||L('vaš ljubljenček','your pet')).map(a=>`<div class="task-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--text);flex-shrink:0;margin-top:7px;"></div><div class="task-text">${a}</div></div>`).join('')}
             </div>
           </div>
         </div>`;
@@ -4498,7 +4516,7 @@ function updateCheckinButtonState(){
       btn.onclick=()=>{}; btn.style.opacity='0.75'; btn.style.cursor='default';
     } else if(status==='done'){
       btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary');
-      btn.innerHTML='✓ Opravljeno - se vrne jutri ob 20:00';
+      btn.innerHTML=L('✓ Opravljeno - se vrne jutri ob 20:00','✓ Done - back tomorrow at 20:00');
       btn.onclick=()=>{}; btn.style.opacity='0.75'; btn.style.cursor='default';
     } else if(status==='open'){
       btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary');
@@ -4507,7 +4525,7 @@ function updateCheckinButtonState(){
       btn.onclick=()=>openCheckin();
     } else { // 'before' or 'after' → locked, tappable to show the unlock sheet
       btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary');
-      btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="margin-right:2px;"><rect x="3" y="7" width="10" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7V5.5a3 3 0 016 0V7" stroke="currentColor" stroke-width="1.4"/></svg> Prijava se odpre ob 20:00`;
+      btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="margin-right:2px;"><rect x="3" y="7" width="10" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7V5.5a3 3 0 016 0V7" stroke="currentColor" stroke-width="1.4"/></svg> `+L('Prijava se odpre ob 20:00','Check-in opens at 20:00');
       btn.onclick=()=>showCheckinLockSheet();
       btn.style.cursor='pointer';
     }
