@@ -323,6 +323,9 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <!-- ENTRY -->
 <section class="screen active" id="screen-entry">
   <button class="btn btn-ghost" data-i18n="login" onclick="showScreen('screen-login')" style="position:fixed;top:max(16px,env(safe-area-inset-top));right:16px;z-index:20;background:rgba(250,250,250,0.8);backdrop-filter:blur(8px);border-radius:99px;padding:8px 16px;">Log In</button>
+  <button id="entryBackBtn" onclick="exitAddPet()" style="display:none;position:fixed;top:max(16px,env(safe-area-inset-top));left:16px;z-index:20;background:rgba(250,250,250,0.8);backdrop-filter:blur(8px);border:none;border-radius:99px;padding:8px 14px;cursor:pointer;align-items:center;gap:6px;font-size:0.9rem;color:var(--text);font-family:'Inter',sans-serif;">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4l-4 4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Back
+  </button>
   <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg" aria-label="The Nuci" style="position:fixed;top:max(24px,calc(env(safe-area-inset-top) + 9px));left:50%;transform:translateX(-50%);height:26px;width:auto;z-index:20;">
     <circle cy="20" r="11" fill="#6B8F71">
       <animate attributeName="cx" values="26;38;26" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>
@@ -346,7 +349,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       </button>
     </div>
     <div id="entrySuggestions" style="display:flex;flex-wrap:nowrap;gap:8px;margin-bottom:16px;justify-content:center;overflow:hidden;"></div>
-    <p style="font-size:0.82rem;color:var(--secondary);margin-top:2px;line-height:1.5;">
+    <p id="entryHowWrap" style="font-size:0.82rem;color:var(--secondary);margin-top:2px;line-height:1.5;">
       <a href="#" data-i18n="entry_how" onclick="event.preventDefault();showScreen('screen-about')" style="color:var(--secondary);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.12);transition:color 0.2s;" onmouseenter="this.style.color='var(--text)'" onmouseleave="this.style.color='var(--secondary)'">How this works & what we help with</a>
     </p>
   </div>
@@ -1938,7 +1941,9 @@ function assessNext(){
         // Always enter the app - the user paid with a credit, they must get in.
         try{ showScreen('screen-app'); }catch(e){ console.warn('showScreen',e); }
         try{ showTab('today'); }catch(e){}
-        try{ persistState(); }catch(e){ console.warn('persistState',e); }
+        // Save immediately (not debounced) so a refresh can't load a half-written
+        // state where the new pet flickers between 1 and 2.
+        try{ if(typeof persistStateNow==='function'){ persistStateNow(); } else { persistState(); } }catch(e){ console.warn('persist',e); }
         setTimeout(()=>{ try{ showCelebration('🎉',L('Nov načrt pripravljen!','New plan ready!'),L('Začnimo s to živaljo.','Let\'s get started with this pet.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },300);
       });
       return;
@@ -3508,19 +3513,40 @@ function startNewAssessment(){
     state._addPetMode = true;
     try{
       const loginBtn=document.querySelector('#screen-entry .btn-ghost'); if(loginBtn) loginBtn.style.display='none';
+      const backBtn=document.getElementById('entryBackBtn'); if(backBtn) backBtn.style.display='flex';
       const hl=document.querySelector('#screen-entry .entry-headline');
       const sub=document.querySelector('#screen-entry .entry-sub');
+      const howWrap=document.getElementById('entryHowWrap');
       if(hl){ hl.textContent=L('Dodaj novo žival','Add a new pet'); hl.style.fontSize='1.5rem'; }
-      if(sub){ sub.textContent=L('Opišite vedenje in AI bo izdelal osebni 7-dnevni načrt.','Describe the behaviour and our AI builds a personalized 7-day plan.'); }
+      if(sub){ sub.style.display='none'; }           // hide marketing subtitle
+      if(howWrap){ howWrap.style.display='none'; }    // hide "How this works" link
     }catch(e){}
     showScreen('screen-entry');
   } else {
     state._addPetMode = false;
     try{
       const loginBtn=document.querySelector('#screen-entry .btn-ghost'); if(loginBtn) loginBtn.style.display='';
+      const backBtn=document.getElementById('entryBackBtn'); if(backBtn) backBtn.style.display='none';
+      const sub=document.querySelector('#screen-entry .entry-sub'); if(sub) sub.style.display='';
+      const howWrap=document.getElementById('entryHowWrap'); if(howWrap) howWrap.style.display='';
     }catch(e){}
     showScreen('screen-entry');
   }
+}
+
+// Back out of the "add a pet" entry screen → return to the app (Today).
+function exitAddPet(){
+  state._addPetMode = false;
+  // restore the entry screen to its normal (public) look
+  try{
+    const sub=document.querySelector('#screen-entry .entry-sub'); if(sub) sub.style.display='';
+    const howWrap=document.getElementById('entryHowWrap'); if(howWrap) howWrap.style.display='';
+    const loginBtn=document.querySelector('#screen-entry .btn-ghost'); if(loginBtn) loginBtn.style.display='';
+    const backBtn=document.getElementById('entryBackBtn'); if(backBtn) backBtn.style.display='none';
+  }catch(e){}
+  // If they had consumed a credit when starting, give it back (they bailed out).
+  if(state.usingCredit){ state.usingCredit=false; state.planCredits=(state.planCredits||0)+1; try{ persistState(); }catch(e){} }
+  try{ showScreen('screen-app'); showTab('today'); }catch(e){}
 }
 
 // ═══════════════════════════════════════
