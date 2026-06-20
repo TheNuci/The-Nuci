@@ -826,8 +826,6 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       </div>
       <button class="btn btn-secondary btn-full" style="margin-bottom:8px;" onclick="buyNewPlan()" id="newAssessmentBtn">Buy a new plan</button>
       <div id="creditsHint" style="font-size:0.78rem;color:var(--secondary);text-align:center;margin-bottom:8px;min-height:14px;"></div>
-      <!-- TEST ONLY — remove before launch -->
-      <button class="btn btn-secondary btn-full" style="margin-bottom:8px;opacity:0.7;border:1px dashed var(--secondary);" onclick="testSimulateMissedDays()">🧪 TEST: simulate 3 missed days</button>
       <button class="btn btn-ghost btn-full" style="margin-bottom:4px;" onclick="signOut()">Sign Out</button>
       <button class="btn btn-ghost btn-full" style="color:var(--danger);" onclick="confirmDeleteProfile()">Delete Profile</button>
     </div>
@@ -4430,21 +4428,6 @@ function checkinWindowStatus(){
   return 'open';                                          // 20:00-22:00, not done yet
 }
 // Detect a missed window since last open and reset streak with the angry-pet animation.
-// TEST ONLY — remove before launch. Simulates having started the plan 3 days
-// ago while still on Day 1, then re-runs the missed-day check so you can see
-// the overlay + day advancement immediately, without waiting real days.
-function testSimulateMissedDays(){
-  const d=new Date(); d.setDate(d.getDate()-3);
-  state.planStartDate = todayKey(d);
-  state.currentDay = 1;
-  state.lastCheckinDate = todayKey(d);
-  state.streak = 3;
-  state._missShown = false;
-  try{ saveCurrentProgress(); }catch(e){}
-  showTab('today');
-  setTimeout(()=>{ try{ checkMissedWindow(); }catch(e){ console.warn(e); } }, 100);
-}
-
 function checkMissedWindow(){
   if(!state.streak) state.streak = state.streak||0;
   if(state.planComplete) return;          // finished plan - no advancing
