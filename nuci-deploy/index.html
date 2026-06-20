@@ -572,7 +572,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <div style="margin-bottom:14px;">
       <label class="pay-label">Promo code</label>
       <div style="display:flex;gap:8px;">
-        <input type="text" class="input-field" id="promoCode" placeholder="Vnesite kodo" autocapitalize="characters" style="flex:1;text-transform:uppercase;">
+        <input type="text" class="input-field" id="promoCode" placeholder="Enter code" autocapitalize="characters" style="flex:1;text-transform:uppercase;">
         <button onclick="applyPromo()" class="btn btn-secondary" style="padding:0 18px;white-space:nowrap;">Apply</button>
       </div>
       <div id="promoMsg" style="font-size:0.8rem;margin-top:6px;min-height:16px;"></div>
@@ -706,7 +706,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
           <input id="noteInput" type="text" placeholder="Add an observation…" maxlength="160"
             onkeydown="if(event.key==='Enter'){event.preventDefault();addDailyNote();}"
-            style="flex:1;border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:0.88rem;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);outline:none;">
+            style="flex:1;border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:16px;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);outline:none;">
           <button onclick="addDailyNote()" style="background:var(--text);color:#fff;border:none;border-radius:10px;width:38px;height:38px;font-size:1.2rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">+</button>
         </div>
       </div>
@@ -3518,6 +3518,8 @@ function startNewAssessment(){
   }
   // Save the current pet's progress before starting a fresh one
   try{ saveCurrentProgress(); }catch(e){}
+  // Remember which pet was active, so "Back" can return to it intact.
+  state._prevAssessmentId = state.currentAssessmentId || null;
   // keep existing assessments, start fresh flow
   state.currentAssessmentId=null;
   state.answers={};state.currentQ=0;state.entryText='';
@@ -3566,7 +3568,35 @@ function exitAddPet(){
     const backBtn=document.getElementById('entryBackBtn'); if(backBtn) backBtn.style.display='none';
   }catch(e){}
   // If they had consumed a credit when starting, give it back (they bailed out).
-  if(state.usingCredit){ state.usingCredit=false; state.planCredits=(state.planCredits||0)+1; try{ persistState(); }catch(e){} }
+  if(state.usingCredit){ state.usingCredit=false; state.planCredits=(state.planCredits||0)+1; }
+  // Restore the pet that was active before we entered add-pet mode. Without this,
+  // state.answers is still empty (cleared in startNewAssessment), so the app
+  // would show "your pet" with no real profile.
+  const prevId = state._prevAssessmentId || null;
+  state._prevAssessmentId = null;
+  const target = (state.assessments||[]).find(a=>a && a.id===prevId)
+              || (state.assessments||[]).find(a=>a && a.petName && a.petType)
+              || null;
+  if(target){
+    // Load that pet's full state (answers, plan, progress, photo, notes...).
+    state.currentAssessmentId = target.id;
+    state.answers = {...(target.answers||{})};
+    state.planOverrides = target.planOverrides ? JSON.parse(JSON.stringify(target.planOverrides)) : {};
+    state.taskOverrides = target.taskOverrides ? JSON.parse(JSON.stringify(target.taskOverrides)) : {};
+    state.petPhoto = target.petPhoto||null;
+    state.dayInsights = target.dayInsights ? JSON.parse(JSON.stringify(target.dayInsights)) : {};
+    state.dayNotes = target.dayNotes ? JSON.parse(JSON.stringify(target.dayNotes)) : {};
+    const p=target.progress||{};
+    state.currentDay=p.currentDay||1;
+    state.planStartDate=p.planStartDate||state.planStartDate||null;
+    state.planLength=p.planLength||7;
+    state.checkins=p.checkins?[...p.checkins]:[];
+    state.streak=p.streak||0;
+    state.lastCheckinDate=p.lastCheckinDate||null;
+    state.tasksDone=p.tasksDone?{...p.tasksDone}:{};
+    try{ rebuildForCurrentAssessment(); }catch(e){}
+  }
+  try{ persistState(); }catch(e){}
   try{ showScreen('screen-app'); showTab('today'); }catch(e){}
 }
 
