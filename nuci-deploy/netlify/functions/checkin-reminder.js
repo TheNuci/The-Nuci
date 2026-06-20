@@ -43,9 +43,14 @@ function emailHtml(toEmail) {
     <div style="background:#FAFAFA;border-radius:20px;padding:36px 32px;text-align:center;">
       <img src="https://thenuci.com/email-logo.png" width="50" height="30" alt="The Nuci" style="display:block;margin:0 auto 16px;border:0;">
       <h1 style="font-size:1.35rem;margin:0 0 12px;font-weight:600;letter-spacing:-0.02em;">Time for today's check-in</h1>
-      <p style="font-size:0.95rem;line-height:1.6;color:#555;margin:0 0 28px;">
+      <p style="font-size:0.95rem;line-height:1.6;color:#555;margin:0 0 18px;">
         A quick daily check-in keeps your pet's plan on track and your streak alive. It only takes a minute.
       </p>
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:14px 18px;margin:0 0 24px;">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:#999;margin-bottom:4px;">Your check-in window</div>
+        <div style="font-size:1.15rem;font-weight:700;color:#6B8F71;font-variant-numeric:tabular-nums;">20:00 &rarr; 22:00</div>
+        <div style="font-size:0.8rem;color:#888;margin-top:4px;">You have 2 hours - it closes at 22:00 tonight.</div>
+      </div>
       <a href="https://thenuci.com/"
          style="display:inline-block;background:#111111;color:#fff;text-decoration:none;
                 padding:14px 32px;border-radius:14px;font-size:0.95rem;font-weight:600;">

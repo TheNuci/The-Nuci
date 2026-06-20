@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// AI DAILY ADAPTATION — Netlify serverless function
+// AI DAILY ADAPTATION - Netlify serverless function
 // ═══════════════════════════════════════════════════════════════════
 //
 // WHAT THIS IS:
@@ -8,7 +8,7 @@
 //   often, triggers, severity, notes). It rewrites the next day's tasks and
 //   adds a short personalised insight for the owner.
 //
-//   The browser never sees the API key — it lives only here as an
+//   The browser never sees the API key - it lives only here as an
 //   environment variable on Netlify (ANTHROPIC_API_KEY).
 //
 // ENDPOINT (after deploy):
@@ -25,11 +25,12 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: 'AI key not configured on server' }) };
   }
 
-  let answers, checkins, nextDay, planLength, lang, nextDayPlan;
+  let answers, checkins, nextDay, planLength, lang, nextDayPlan, notes;
   try {
     const body = JSON.parse(event.body || '{}');
     answers      = body.answers || {};
     checkins     = Array.isArray(body.checkins) ? body.checkins : [];
+    notes        = body.notes || {};           // per-day owner observations
     nextDay      = body.nextDay || 2;
     planLength   = body.planLength || 7;
     nextDayPlan  = body.nextDayPlan || null;   // current (template/AI) plan for that day
@@ -58,8 +59,9 @@ exports.handler = async (event) => {
   const userPrompt =
     `Owner intake answers:\n${JSON.stringify(answers, null, 2)}\n\n` +
     `Check-in history so far (most recent last):\n${JSON.stringify(checkins, null, 2)}\n\n` +
+    `Owner's free-text daily notes/observations (keyed by plan day):\n${JSON.stringify(notes, null, 2)}\n\n` +
     `Current planned Day ${nextDay} (may be a generic template):\n${JSON.stringify(nextDayPlan, null, 2)}\n\n` +
-    `Adapt Day ${nextDay} to the pet's real progress.`;
+    `Adapt Day ${nextDay} to the pet's real progress. Pay close attention to the owner's daily notes - they describe what actually happened and should directly shape the tasks and focus for Day ${nextDay}.`;
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
