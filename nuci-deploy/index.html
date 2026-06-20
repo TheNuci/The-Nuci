@@ -695,6 +695,22 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         <div style="font-size:0.84rem;color:var(--secondary);line-height:1.5;" id="todayFocusDesc">Make targeted changes to reduce triggers.</div>
       </div>
 
+      <!-- Daily notes card - jot observations during the day; feeds the plan -->
+      <div class="card" style="padding:16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:500;">Today's Notes</div>
+          <span style="font-size:0.7rem;color:var(--secondary);">Feeds your plan</span>
+        </div>
+        <p style="font-size:0.78rem;color:var(--secondary);line-height:1.45;margin-bottom:10px;">Jot down what you notice through the day - one observation per line. These notes are used to make tomorrow's plan more accurate.</p>
+        <div id="notesList"></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+          <input id="noteInput" type="text" placeholder="Add an observation…" maxlength="160"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addDailyNote();}"
+            style="flex:1;border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:0.88rem;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);outline:none;">
+          <button onclick="addDailyNote()" style="background:var(--text);color:#fff;border:none;border-radius:10px;width:38px;height:38px;font-size:1.2rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">+</button>
+        </div>
+      </div>
+
       <!-- Tasks preview card - taps to tasks page -->
       <div class="card" style="padding:16px;margin-bottom:12px;cursor:pointer;" onclick="showTab('tasks')">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -934,11 +950,11 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <div style="width:60px;height:60px;border-radius:50%;background:rgba(200,161,107,0.14);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="9" rx="2" stroke="#C8A16B" stroke-width="1.6"/><path d="M8 10V7a4 4 0 018 0v3" stroke="#C8A16B" stroke-width="1.6" stroke-linecap="round"/></svg>
     </div>
-    <h3 style="font-size:1.25rem;margin-bottom:8px;">Check-in is closed</h3>
-    <p style="font-size:0.9rem;margin-bottom:24px;line-height:1.5;">Your daily check-in opens at <strong style="color:var(--text);"><span id="lockSheetTime">20:00</span></strong>. Would you like to unlock it and check in now anyway?</p>
+    <h3 style="font-size:1.25rem;margin-bottom:8px;" id="lockSheetTitle">Check-in opens at 20:00</h3>
+    <p style="font-size:0.9rem;margin-bottom:14px;line-height:1.55;" id="lockSheetMsg">Your daily check-in runs from <strong style="color:var(--text);">20:00</strong> to <strong style="color:var(--text);">22:00</strong>.</p>
+    <p style="font-size:0.84rem;margin-bottom:24px;line-height:1.55;color:var(--secondary);">We keep it to the evening on purpose - by the end of the day you've seen how your pet actually behaved, so your check-in (and tomorrow's plan) is based on the full picture.</p>
     <div style="display:flex;gap:10px;">
-      <button class="btn btn-ghost" onclick="closeCheckinLock()" style="flex:1;">No</button>
-      <button class="btn btn-primary" onclick="checkinNowOverride()" style="flex:1;">Yes</button>
+      <button class="btn btn-primary" onclick="closeCheckinLock()" style="flex:1;">Got it</button>
     </div>
   </div>
 </div>
@@ -1457,7 +1473,7 @@ function openLegal(kind){
       `<h1 style="font-size:1.5rem;margin-bottom:6px;">Terms of Service</h1>
        <p style="color:var(--secondary);font-size:0.82rem;margin-bottom:20px;">${updated}</p>
        <p><strong>1. Service provider</strong><br>The Nuci service (the "service"), available at thenuci.com, is provided by ${company}, contact: ${email}.</p>
-       <p><strong>2. Description of the service</strong><br>The Nuci is a digital tool that uses your input to generate a personalized behaviour plan for your pet and lets you track daily progress. The service provides general behavioural guidance only and is <strong>not a substitute for professional veterinary or behavioural care</strong>. For medical or serious behavioural concerns, consult a qualified veterinarian.</p>
+       <p><strong>2. Description of the service</strong><br>The Nuci is a digital tool that uses your input to generate a personalized behaviour plan for your pet and lets you track daily progress. The plan adapts over time based on your daily check-ins and the notes you record, which form part of the service. The service provides general behavioural guidance only and is <strong>not a substitute for professional veterinary or behavioural care</strong>. For medical or serious behavioural concerns, consult a qualified veterinarian.</p>
        <p><strong>3. Eligibility</strong><br>You must be at least 18 years old and able to enter into a binding contract to use the service.</p>
        <p><strong>4. Plans, credits and payment</strong><br>Access to a behaviour plan is a one-time purchase at the price shown at checkout. One purchase provides one plan (one pet); multi-plan packages provide credits to create additional pets, up to a maximum of six pets per account. Payments are processed securely by Stripe; we never see or store your full card details. Prices are shown in euros and include applicable taxes where required.</p>
        <p><strong>5. Right of withdrawal (digital content)</strong><br>The plan is digital content that is supplied immediately. By completing the purchase, you expressly request immediate performance and <strong>acknowledge that you thereby lose your statutory 14-day right of withdrawal</strong> under the Slovenian Consumer Protection Act (ZVPot) and EU Directive 2011/83/EU. Outside this, refunds are provided only where required by law.</p>
@@ -1484,10 +1500,10 @@ function openLegal(kind){
       `<h1 style="font-size:1.5rem;margin-bottom:6px;">Privacy Policy</h1>
        <p style="color:var(--secondary);font-size:0.82rem;margin-bottom:20px;">${updated}</p>
        <p><strong>1. Data controller</strong><br>The controller of your personal data is ${company}, ${email}.</p>
-       <p><strong>2. What data we collect</strong><br>• <strong>Account data:</strong> your email address and password (stored encrypted by our auth provider).<br>• <strong>Pet & behaviour data:</strong> the information you enter about your pet - name, species, breed, age, sex, neutering status, living environment, household, the behaviour issue, its frequency/duration/location, what you've tried, and any warning signs.<br>• <strong>Optional pet photo</strong> you choose to upload.<br>• <strong>Progress data:</strong> your daily check-ins, notes, streaks and plan progress.<br>• <strong>Email & contact data:</strong> we store your email address, your email preferences, your time zone and signup time, and records of which emails we've sent you, so we can send reminders and updates at the right time and respect your opt-out. <br>• <strong>Technical data:</strong> check-in dates and basic analytics.<br>Payment card details are entered directly with Stripe - <strong>we never receive or store your card number</strong>.</p>
+       <p><strong>2. What data we collect</strong><br>• <strong>Account data:</strong> your email address and password (stored encrypted by our auth provider).<br>• <strong>Pet & behaviour data:</strong> the information you enter about your pet - name, species, breed, age, sex, neutering status, living environment, household, the behaviour issue, its frequency/duration/location, what you've tried, and any warning signs.<br>• <strong>Optional pet photo</strong> you choose to upload.<br>• <strong>Progress & notes data:</strong> your daily check-ins, the free-text daily notes/observations you write, streaks and plan progress. Your notes are used as an input to generate and adapt your plan.<br>• <strong>Email & contact data:</strong> we store your email address, your email preferences, your time zone and signup time, and records of which emails we've sent you, so we can send reminders and updates at the right time and respect your opt-out. <br>• <strong>Technical data:</strong> check-in dates and basic analytics.<br>Payment card details are entered directly with Stripe - <strong>we never receive or store your card number</strong>.</p>
        <p><strong>3. Purposes and legal bases</strong><br>• To provide the service, create and adapt your plan, and store progress - <em>performance of a contract</em> (Art. 6(1)(b) GDPR).<br>• To send transactional emails (account, password reset, check-in reminders) - <em>contract / legitimate interest</em>.<br>• To send occasional helpful or promotional emails - <em>your consent or legitimate interest</em>; you can opt out anytime.<br>• To understand and improve the service via analytics - <em>your consent</em> (cookie banner).</p>
        <p><strong>4. Processors we use</strong><br>We rely on trusted providers who process data on our behalf under GDPR-compliant data processing agreements:<br>• <strong>Supabase</strong> - database and authentication (data hosting).<br>• <strong>Stripe</strong> - payment processing.<br>• <strong>Resend</strong> - sending emails.<br>• <strong>Anthropic</strong> - AI generation of your plan and insights.<br>• <strong>Netlify</strong> - website hosting.<br>• <strong>Google Analytics</strong> - usage analytics (only with your consent).<br>Some providers may process data outside the EU/EEA; where they do, transfers are covered by appropriate safeguards such as the EU Standard Contractual Clauses.</p>
-       <p><strong>5. Use of artificial intelligence</strong><br>We use AI (Anthropic) to generate your behaviour plan and daily insights. Only the pet and behaviour information you enter is sent to the AI - <strong>we do not send identifying personal data such as your name, email or payment details</strong>. Your inputs are not used to train third-party models and are used solely to create your content.</p>
+       <p><strong>5. Use of artificial intelligence</strong><br>We use AI (Anthropic) to generate your behaviour plan and daily insights, and to adapt each upcoming day based on your check-ins and the daily notes you write. Only the pet and behaviour information you enter (including your notes) is sent to the AI - <strong>we do not send identifying personal data such as your name, email or payment details</strong>. Your inputs are not used to train third-party models and are used solely to create your content.</p>
        <p><strong>6. Retention</strong><br>We keep your data for as long as you have an account or as needed to provide the service and meet legal obligations (e.g. tax records for purchases). When you request account deletion, your personal and pet data are removed; purchase records may be retained where law requires.</p>
        <p><strong>7. Your rights</strong><br>You have the right to access, rectify, erase, restrict, and port your data, and to object to processing or withdraw consent at any time. To exercise these rights, email ${email}. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski pooblaščenec, ip-rs.si).</p>
        <p><strong>8. Cookies</strong><br>We use strictly necessary cookies to operate the service and, only with your consent, analytics cookies to improve it. You can give or withdraw consent via the cookie banner at any time.</p>
@@ -2903,6 +2919,7 @@ function setupApp(){
   state.taskOverrides={}; state.planOverrides={}; state.selectedPeriod=null;
   state.petPhoto=null;   // new pet starts with no photo (species emoji)
   state.dayInsights={};  // new pet starts with no AI insights
+  state.dayNotes={};     // new pet starts with no notes
 
   document.getElementById('todayPetName').textContent=petName;
   document.getElementById('todayAvatarPh').textContent=emoji;
@@ -3303,6 +3320,7 @@ function buildAssessmentSwitcher(){
       mainIssue:state.answers.mainIssue||'',
       petPhoto: state.petPhoto||null,
       dayInsights: state.dayInsights ? JSON.parse(JSON.stringify(state.dayInsights)) : {},
+      dayNotes: state.dayNotes ? JSON.parse(JSON.stringify(state.dayNotes)) : {},
       // per-pet AI plan + task overrides
       planOverrides: state.planOverrides ? JSON.parse(JSON.stringify(state.planOverrides)) : {},
       taskOverrides: state.taskOverrides ? JSON.parse(JSON.stringify(state.taskOverrides)) : {},
@@ -3332,6 +3350,7 @@ function saveCurrentProgress(){
   a.mainIssue = state.answers.mainIssue||a.mainIssue||'';
   a.petPhoto = state.petPhoto||null;   // each pet keeps its own photo
   a.dayInsights = state.dayInsights ? JSON.parse(JSON.stringify(state.dayInsights)) : {};   // per-pet AI insights
+  a.dayNotes = state.dayNotes ? JSON.parse(JSON.stringify(state.dayNotes)) : {};   // per-pet daily notes
 }
 
 function renderAssessmentSwitcher(){
@@ -3397,6 +3416,7 @@ function switchAssessment(id){
   state.taskOverrides = a.taskOverrides ? JSON.parse(JSON.stringify(a.taskOverrides)) : {};
   state.petPhoto = a.petPhoto||null;   // load this pet's own photo
   state.dayInsights = a.dayInsights ? JSON.parse(JSON.stringify(a.dayInsights)) : {};   // this pet's insights
+  state.dayNotes = a.dayNotes ? JSON.parse(JSON.stringify(a.dayNotes)) : {};   // this pet's notes
   // load this pet's own plan progress
   const p=a.progress||{};
   state.currentDay=p.currentDay||1;
@@ -3442,6 +3462,7 @@ function rebuildForCurrentAssessment(){
   try{ recomputeStats(); }catch(e){}
   try{ refreshTodayForDay(); }catch(e){}
   try{ generatePetImage(); }catch(e){}
+  try{ updateCheckinButtonState(); }catch(e){}   // sync the check-in button to this pet (no flicker)
 }
 
 function updateCreditsHint(){
@@ -4079,15 +4100,19 @@ function completeCheckinDay(){
     // Reached the end of the current plan -> decide end-state
     handlePlanEnd();
   } else {
+    // NOTE: we do NOT advance currentDay here. The plan day is driven by the
+    // real calendar date (see planStartDate + checkMissedWindow), so the next
+    // day unlocks at 00:00, not the moment you check in. Checking in only
+    // records that today's check-in is done.
     const justFinished = state.currentDay;
-    state.currentDay++;             // unlock next day
-    state.tasks=getDayTasks(state.currentDay); // fresh, day-specific tasks
+    state.tasks=getDayTasks(state.currentDay);
     renderTaskPreview(); renderAllTasks();
     buildPlanDaysList();
     refreshTodayForDay();
     recomputeStats();
-    // AI: adapt the newly-unlocked day to the pet's real progress (non-blocking)
-    adaptNextDay(state.currentDay);
+    // AI: adapt the NEXT day to the pet's real progress (non-blocking), so it's
+    // ready when the new day unlocks at midnight.
+    adaptNextDay(state.currentDay + 1);
   }
   persistState();
 }
@@ -4106,6 +4131,7 @@ async function adaptNextDay(dayNum){
       body: JSON.stringify({
         answers: state.answers,
         checkins: state.checkins||[],
+        notes: state.dayNotes||{},
         nextDay: dayNum,
         planLength: state.planLength||7,
         nextDayPlan: cur ? {title:cur.title, sub:cur.sub, desc:cur.desc, tasks:cur.tasks} : null,
@@ -4259,6 +4285,7 @@ function cancelSubscription(){
 }
 
 function refreshTodayForDay(){
+  try{ renderDailyNotes(); }catch(e){}
   const days=getPlanDays();
   const cur=days[state.currentDay-1]||days[0];
   const focusEl=document.getElementById('todayFocus');
@@ -4492,8 +4519,17 @@ function checkMissedWindow(){
     if(daysElapsed >= 0) expectedDay = Math.min(maxDay, daysElapsed + 1);
   }
 
-  // How many days did we skip? (current day vs where we should be)
-  const missedDays = Math.max(0, expectedDay - (state.currentDay || 1));
+  // How many calendar days are we behind where we should be?
+  const behind = Math.max(0, expectedDay - (state.currentDay || 1));
+
+  // Count how many of the days we're leaving behind had NO check-in. Those are
+  // the genuinely "missed" days (vs. days you completed and simply moved on from).
+  const checkins = Array.isArray(state.checkins) ? state.checkins : [];
+  const checkedDays = new Set(checkins.map(c=>c&&c.day).filter(Boolean));
+  let missedDays = 0;
+  for(let d=(state.currentDay||1); d<expectedDay; d++){
+    if(!checkedDays.has(d)) missedDays++;
+  }
 
   // ── Streak: broken if a full day passed since last check-in ────────
   const last = state.lastCheckinDate;
@@ -4503,31 +4539,42 @@ function checkMissedWindow(){
     else if(last===yesterdayKey() && today.getHours()>=CHECKIN_CLOSE_HOUR) broken=true;
   }
 
-  // ── Advance the plan if we're behind ───────────────────────────────
-  if(missedDays > 0){
+  // ── Advance the plan to today's expected day (calendar-driven) ──────
+  if(behind > 0){
     const movedToDay = expectedDay;
     state.currentDay = expectedDay;
     try{ state.tasks = getDayTasks(state.currentDay); }catch(e){}
-    if(!state._missShown){
+    const alreadyShownToday = (state.lastMissShownDate === todayKey());
+    // Only show the "you missed it" overlay if a day actually went unchecked,
+    // and only once ever for this missed transition (persisted by date).
+    if(missedDays > 0 && !alreadyShownToday){
+      state.lastMissShownDate = todayKey();   // persisted - never shows again for this day
       state._missShown = true;
       const lostFrom = state.streak;
       if(broken) state.streak = 0;
       persistState();
       try{ rebuildForCurrentAssessment(); }catch(e){}
-      // Use the branded "pet is not impressed" overlay, with extra context
-      // that the plan has moved forward so the user isn't stuck on the old day.
       showStreakLost(lostFrom, { missedDays, movedToDay });
+    } else {
+      // Normal progression (yesterday was checked in) - just save & refresh.
+      if(broken) state.streak = 0;
+      persistState();
+      try{ rebuildForCurrentAssessment(); }catch(e){}
     }
     return;
   }
 
   // No days missed, but streak may still have just broken.
-  if(broken && !state._missShown){
-    state._missShown = true;
-    const lostFrom = state.streak;
-    state.streak = 0;
-    persistState();
-    showStreakLost(lostFrom);
+  if(broken){
+    const alreadyShownToday = (state.lastMissShownDate === todayKey());
+    if(!alreadyShownToday){
+      state.lastMissShownDate = todayKey();
+      state._missShown = true;
+      const lostFrom = state.streak;
+      state.streak = 0;
+      persistState();
+      showStreakLost(lostFrom);
+    }
   }
 }
 
@@ -4546,9 +4593,11 @@ function updateCheckinButtonState(){
       btn.onclick=()=>{}; btn.style.opacity='0.75'; btn.style.cursor='default';
     } else if(status==='open'){
       btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary');
-      btn.innerHTML=L('Začni današnjo prijavo','Start today\'s check-in')+' <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const cd=checkinTimeLeft();
+      btn.innerHTML=L('Začni današnjo prijavo','Start today\'s check-in')+' <span style="opacity:0.85;font-variant-numeric:tabular-nums;">'+cd+'</span> <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       btn.style.animation='ciPulse 2s ease-out infinite';
       btn.onclick=()=>openCheckin();
+      startCheckinCountdown();
     } else { // 'before' or 'after' → locked, tappable to show the unlock sheet
       btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary');
       btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="margin-right:2px;"><rect x="3" y="7" width="10" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7V5.5a3 3 0 016 0V7" stroke="currentColor" stroke-width="1.4"/></svg> `+L('Prijava se odpre ob 20:00','Check-in opens at 20:00');
@@ -4556,6 +4605,64 @@ function updateCheckinButtonState(){
       btn.style.cursor='pointer';
     }
   });
+}
+
+// ── Daily notes ──────────────────────────────────────────────────────
+// Stored per-pet, per-day in state.dayNotes[day] = [string,...]. These are
+// passed to the AI when adapting the next day, so observations shape the plan.
+function addDailyNote(){
+  const inp=document.getElementById('noteInput'); if(!inp) return;
+  const txt=(inp.value||'').trim(); if(!txt) return;
+  if(!state.dayNotes || typeof state.dayNotes!=='object' || Array.isArray(state.dayNotes)) state.dayNotes={};
+  const day=state.currentDay||1;
+  if(!Array.isArray(state.dayNotes[day])) state.dayNotes[day]=[];
+  state.dayNotes[day].push(txt);
+  inp.value='';
+  renderDailyNotes();
+  persistState();
+}
+function deleteDailyNote(i){
+  const day=state.currentDay||1;
+  if(state.dayNotes && Array.isArray(state.dayNotes[day])){
+    state.dayNotes[day].splice(i,1);
+    renderDailyNotes();
+    persistState();
+  }
+}
+function renderDailyNotes(){
+  const wrap=document.getElementById('notesList'); if(!wrap) return;
+  const day=state.currentDay||1;
+  const notes=(state.dayNotes && Array.isArray(state.dayNotes[day]))?state.dayNotes[day]:[];
+  if(!notes.length){ wrap.innerHTML=''; return; }
+  wrap.innerHTML=notes.map((n,i)=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+    <div style="width:5px;height:5px;border-radius:50%;background:var(--accent,#6B8F71);flex-shrink:0;margin-top:8px;"></div>
+    <div style="flex:1;font-size:0.86rem;line-height:1.45;color:var(--text);">${escapeHtmlNote(n)}</div>
+    <button onclick="deleteDailyNote(${i})" style="background:none;border:none;color:var(--secondary);cursor:pointer;font-size:1rem;line-height:1;padding:2px 4px;flex-shrink:0;">×</button>
+  </div>`).join('');
+}
+function escapeHtmlNote(s){ return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+// Time left until the check-in window closes (22:00), as "M:SS" or "MM:SS".
+function checkinTimeLeft(){
+  const now=new Date();
+  const close=new Date(now); close.setHours(CHECKIN_CLOSE_HOUR,0,0,0);
+  let ms=close-now; if(ms<0) ms=0;
+  const totalMin=Math.floor(ms/60000);
+  const h=Math.floor(totalMin/60);
+  const m=totalMin%60;
+  const s=Math.floor((ms%60000)/1000);
+  if(h>0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+let _ciCountdownTimer=null;
+function startCheckinCountdown(){
+  if(_ciCountdownTimer) return;     // already ticking
+  _ciCountdownTimer=setInterval(()=>{
+    const status=checkinWindowStatus();
+    if(status!=='open'){ clearInterval(_ciCountdownTimer); _ciCountdownTimer=null; updateCheckinButtonState(); return; }
+    const t=checkinTimeLeft();
+    document.querySelectorAll('.checkin-cta span').forEach(sp=>{ sp.textContent=t; });
+  },1000);
 }
 
 // Tap on the check-in button.
@@ -4569,11 +4676,19 @@ function attemptCheckin(){
 
 function showCheckinLockSheet(){
   const sheet=document.getElementById('checkinLockSheet');
-  const t=document.getElementById('lockSheetTime'); if(t) t.textContent='20:00';
+  const status=checkinWindowStatus();
+  const title=document.getElementById('lockSheetTitle');
+  const msg=document.getElementById('lockSheetMsg');
+  if(status==='after'){
+    if(title) title.textContent=L('Prijava je zaprta','Check-in is closed');
+    if(msg) msg.innerHTML=L('Današnje okno za prijavo (20:00-22:00) je zaprto. Vrne se jutri ob 20:00.','Today\'s check-in window (20:00-22:00) has closed. It returns tomorrow at 20:00.');
+  } else {
+    if(title) title.textContent=L('Prijava se odpre ob 20:00','Check-in opens at 20:00');
+    if(msg) msg.innerHTML=L('Dnevna prijava poteka od <strong style="color:var(--text);">20:00</strong> do <strong style="color:var(--text);">22:00</strong>.','Your daily check-in runs from <strong style="color:var(--text);">20:00</strong> to <strong style="color:var(--text);">22:00</strong>.');
+  }
   sheet.style.display='flex';
 }
 function closeCheckinLock(){document.getElementById('checkinLockSheet').style.display='none';}
-function checkinNowOverride(){closeCheckinLock();openCheckin();}
 
 // ═══════════════════════════════════════════════════════════════════
 // PERSISTENCE (Supabase)
@@ -4598,6 +4713,8 @@ function serializeState(){
     aiCauses: state.aiCauses||null,
     aiWhatNotToDo: state.aiWhatNotToDo||null,
     dayInsights: state.dayInsights||null,
+    dayNotes: state.dayNotes||null,
+    lastMissShownDate: state.lastMissShownDate||null,
     checkinHour: state.checkinHour,
     cardLast4: state.cardLast4,
     assessments: state.assessments,
@@ -4636,6 +4753,8 @@ function restoreState(data){
     aiCauses: data.aiCauses||null,
     aiWhatNotToDo: data.aiWhatNotToDo||null,
     dayInsights: data.dayInsights||null,
+    dayNotes: data.dayNotes||null,
+    lastMissShownDate: data.lastMissShownDate||null,
     checkinHour: data.checkinHour!=null?data.checkinHour:null,
     cardLast4: data.cardLast4||null,
     assessments: data.assessments||[],
