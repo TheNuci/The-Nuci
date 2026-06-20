@@ -311,7 +311,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <p class="entry-sub" data-i18n="entry_sub">Describe the behaviour and our AI builds a personalized 7-day plan for your pet.</p>
     <div class="entry-field-wrap" id="entryFieldWrap" style="margin-bottom:14px;">
       <textarea class="entry-textarea" id="entryInput" maxlength="500" data-i18n-ph="entry_placeholder"
-        placeholder="Moj pes se je začel vesti drugače…" rows="3"
+        placeholder="My dog has started behaving differently…" rows="3"
         oninput="onEntryInput(this)" style="min-height:96px;padding-bottom:52px;"></textarea>
       <span style="position:absolute;bottom:16px;left:20px;font-size:0.75rem;color:var(--secondary);opacity:0.5;" id="entryChar">0/500</span>
       <button onclick="startAssessment()" aria-label="Continue" id="entryArrowBtn" style="position:absolute;bottom:12px;right:12px;width:40px;height:40px;border-radius:50%;border:none;background:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;" onmousedown="event.preventDefault()">
@@ -800,6 +800,8 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       </div>
       <button class="btn btn-secondary btn-full" style="margin-bottom:8px;" onclick="buyNewPlan()" id="newAssessmentBtn">Buy a new plan</button>
       <div id="creditsHint" style="font-size:0.78rem;color:var(--secondary);text-align:center;margin-bottom:8px;min-height:14px;"></div>
+      <!-- TEST ONLY — remove before launch -->
+      <button class="btn btn-secondary btn-full" style="margin-bottom:8px;opacity:0.7;border:1px dashed var(--secondary);" onclick="testSimulateMissedDays()">🧪 TEST: simulate 3 missed days</button>
       <button class="btn btn-ghost btn-full" style="margin-bottom:4px;" onclick="signOut()">Sign Out</button>
       <button class="btn btn-ghost btn-full" style="color:var(--danger);" onclick="confirmDeleteProfile()">Delete Profile</button>
     </div>
@@ -959,10 +961,10 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 // ═══════════════════════════════════════
 // ════════════ ACCESS GATE ════════════
 // ═══════════════════════════════════════════════════════════════════
-// i18n — internationalization
+// i18n - internationalization
 // ═══════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
-// i18n — the app is authored in Slovenian; for English we translate the
+// i18n - the app is authored in Slovenian; for English we translate the
 // DOM text nodes + placeholders via this SL->EN map after every render.
 // ═══════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
@@ -972,6 +974,19 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 // ═══════════════════════════════════════════════════════════════════
 const DICT_ML = {};
 const SL_EN = {
+"Takojšnji ukrepi in ponastavitev okolja":"Immediate steps and environment reset",
+  "Spremljaj kdaj in kako se dogaja":"Track when and how it happens",
+  "Naredi ciljne spremembe za zmanjšanje sprožilcev":"Make targeted changes to reduce triggers",
+  "Nagradi kar deluje, zmanjšaj trenja":"Reward what works, reduce friction",
+  "Oceni spremembe in podatke":"Review the changes and data",
+  "Utrdi prvi teden":"Consolidate the first week",
+  "Podvoji rutine, ki so pomagale":"Double down on routines that helped",
+  "Okrepi novo vedenje pod blagim stresom":"Strengthen the new behaviour under mild stress",
+  "Prepoznaj vzorec":"Identify the pattern",
+  "Preglej trend":"Review the trend",
+  "Poglobi kar deluje":"Deepen what works",
+  "Gradi odpornost":"Build resilience",
+
   // gate / language
   "Zasebni predogled":"Private preview",
   "Vnesite dostopno kodo za nadaljevanje.":"Enter the access code to continue.",
@@ -1298,11 +1313,13 @@ function trFor(slKey){
   if(currentLang==='en' && SL_EN[slKey]!=null) return SL_EN[slKey];
   return null;
 }
-function tr(slText){
+function tr(slText, enText){
   if(currentLang==='sl') return slText;
   const k=(slText||'').trim();
   const t=trFor(k);
-  return t!=null ? t : slText;
+  if(t!=null) return t;
+  if(enText!=null) return enText;   // explicit English fallback
+  return slText;
 }
 // Walk the #app DOM and translate text nodes + placeholders into currentLang.
 function translatePage(){
@@ -1411,14 +1428,16 @@ function openLegal(kind){
        <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">Za vprašanja nas kontaktirajte na ${email}.</p>`,
       `<h1 style="font-size:1.5rem;margin-bottom:6px;">Terms of Service</h1>
        <p style="color:var(--secondary);font-size:0.82rem;margin-bottom:20px;">${updated}</p>
-       <p><strong>1. Service provider</strong><br>The Nuci service (the "service") is provided by ${company}, contact: ${email}.</p>
-       <p><strong>2. Description of the service</strong><br>Nuci is a digital tool that creates a personalized behaviour plan for your pet based on your input and enables daily tracking. The service provides general behavioural guidance and is <strong>not a substitute for professional veterinary care</strong>. For medical concerns, consult a veterinarian.</p>
-       <p><strong>3. Payment</strong><br>Access to the plan is a one-time purchase at the price shown at checkout. Payments are processed securely by Stripe. The price includes applicable taxes where required.</p>
-       <p><strong>4. Right of withdrawal and refunds</strong><br>The service is digital content with immediate performance. By purchasing, you expressly consent to immediate performance and <strong>acknowledge that you thereby lose the 14-day right of withdrawal</strong> under consumer protection law. Refunds are therefore not available, except where required by law.</p>
-       <p><strong>5. Liability</strong><br>The service is provided "as is". We do not guarantee specific outcomes in animal behaviour. To the maximum extent permitted by law, we are not liable for indirect or consequential damages.</p>
-       <p><strong>6. Use</strong><br>You may not resell or redistribute the content without permission. Your account is personal.</p>
-       <p><strong>7. Changes</strong><br>We may update these terms from time to time. Changes apply from the date of publication.</p>
-       <p><strong>8. Governing law</strong><br>The laws of the Republic of Slovenia apply.</p>
+       <p><strong>1. Service provider</strong><br>The Nuci service (the "service"), available at thenuci.com, is provided by ${company}, contact: ${email}.</p>
+       <p><strong>2. Description of the service</strong><br>The Nuci is a digital tool that uses your input to generate a personalized behaviour plan for your pet and lets you track daily progress. The service provides general behavioural guidance only and is <strong>not a substitute for professional veterinary or behavioural care</strong>. For medical or serious behavioural concerns, consult a qualified veterinarian.</p>
+       <p><strong>3. Eligibility</strong><br>You must be at least 18 years old and able to enter into a binding contract to use the service.</p>
+       <p><strong>4. Plans, credits and payment</strong><br>Access to a behaviour plan is a one-time purchase at the price shown at checkout. One purchase provides one plan (one pet); multi-plan packages provide credits to create additional pets, up to a maximum of six pets per account. Payments are processed securely by Stripe; we never see or store your full card details. Prices are shown in euros and include applicable taxes where required.</p>
+       <p><strong>5. Right of withdrawal (digital content)</strong><br>The plan is digital content that is supplied immediately. By completing the purchase, you expressly request immediate performance and <strong>acknowledge that you thereby lose your statutory 14-day right of withdrawal</strong> under the Slovenian Consumer Protection Act (ZVPot) and EU Directive 2011/83/EU. Outside this, refunds are provided only where required by law.</p>
+       <p><strong>6. Emails</strong><br>As part of the service we send transactional emails (e.g. account, password reset, daily check-in reminders) and, based on your consent or our legitimate interest, occasional helpful or promotional emails. You can opt out of non-essential emails at any time in your profile or via the unsubscribe option.</p>
+       <p><strong>7. Acceptable use</strong><br>Your account is personal. You may not resell, redistribute, or publicly republish the generated content without permission, nor misuse the service or attempt to disrupt it.</p>
+       <p><strong>8. Liability</strong><br>The service is provided "as is". We do not guarantee specific outcomes in animal behaviour. To the maximum extent permitted by law, we are not liable for indirect or consequential damages. Nothing in these terms limits liability that cannot be limited by law.</p>
+       <p><strong>9. Changes</strong><br>We may update these terms from time to time. Material changes will be reflected by the "last updated" date. Continued use after changes constitutes acceptance.</p>
+       <p><strong>10. Governing law and disputes</strong><br>These terms are governed by the laws of the Republic of Slovenia. Mandatory consumer rights in your country of residence remain unaffected. Consumers may also use the EU Online Dispute Resolution platform at ec.europa.eu/consumers/odr.</p>
        <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">For questions, contact us at ${email}.</p>`
     );
   } else {
@@ -1436,14 +1455,15 @@ function openLegal(kind){
        <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">Za vprašanja o zasebnosti nas kontaktirajte na ${email}.</p>`,
       `<h1 style="font-size:1.5rem;margin-bottom:6px;">Privacy Policy</h1>
        <p style="color:var(--secondary);font-size:0.82rem;margin-bottom:20px;">${updated}</p>
-       <p><strong>1. Data controller</strong><br>The data controller is ${company}, ${email}.</p>
-       <p><strong>2. What data we collect</strong><br>We collect: your email address and account details; the information you enter about your pet (species, name, behaviour, observations); and your check-in and progress data. Payment details (card) are handled directly by Stripe – we do not store them.</p>
-       <p><strong>3. Purpose of processing</strong><br>We use your data to operate the service, create your plan, store your progress, and provide support. The legal basis is performance of a contract (your use of the service).</p>
-       <p><strong>4. Processors</strong><br>We use trusted providers: <strong>Supabase</strong> (data storage), <strong>Stripe</strong> (payments), <strong>Google</strong> (sign-in and analytics). They process data on our behalf in line with the GDPR.</p>
-       <p><strong>5. Use of artificial intelligence</strong><br>We use artificial intelligence to generate your behaviour plan and insights. Only the pet and behaviour information you enter (species, observations, answers and check-ins) is sent to the AI – <strong>we do not send personal data such as your name, email or payment details</strong>. Your inputs are used solely to create your content.</p>
-       <p><strong>6. Retention</strong><br>We keep your data for as long as you have an account or as needed to provide the service. When you delete your account, your data is removed.</p>
-       <p><strong>7. Your rights</strong><br>You have the right to access, rectify, erase, and port your data, and to object to processing. To exercise these, email ${email}. You may also lodge a complaint with the Slovenian Information Commissioner.</p>
-       <p><strong>8. Cookies</strong><br>We use essential cookies to operate the service and, with your consent, analytics cookies to improve it. You can withdraw consent at any time.</p>
+       <p><strong>1. Data controller</strong><br>The controller of your personal data is ${company}, ${email}.</p>
+       <p><strong>2. What data we collect</strong><br>• <strong>Account data:</strong> your email address and password (stored encrypted by our auth provider).<br>• <strong>Pet & behaviour data:</strong> the information you enter about your pet - name, species, breed, age, sex, neutering status, living environment, household, the behaviour issue, its frequency/duration/location, what you've tried, and any warning signs.<br>• <strong>Optional pet photo</strong> you choose to upload.<br>• <strong>Progress data:</strong> your daily check-ins, notes, streaks and plan progress.<br>• <strong>Email & contact data:</strong> we store your email address, your email preferences, your time zone and signup time, and records of which emails we've sent you, so we can send reminders and updates at the right time and respect your opt-out. <br>• <strong>Technical data:</strong> check-in dates and basic analytics.<br>Payment card details are entered directly with Stripe - <strong>we never receive or store your card number</strong>.</p>
+       <p><strong>3. Purposes and legal bases</strong><br>• To provide the service, create and adapt your plan, and store progress - <em>performance of a contract</em> (Art. 6(1)(b) GDPR).<br>• To send transactional emails (account, password reset, check-in reminders) - <em>contract / legitimate interest</em>.<br>• To send occasional helpful or promotional emails - <em>your consent or legitimate interest</em>; you can opt out anytime.<br>• To understand and improve the service via analytics - <em>your consent</em> (cookie banner).</p>
+       <p><strong>4. Processors we use</strong><br>We rely on trusted providers who process data on our behalf under GDPR-compliant data processing agreements:<br>• <strong>Supabase</strong> - database and authentication (data hosting).<br>• <strong>Stripe</strong> - payment processing.<br>• <strong>Resend</strong> - sending emails.<br>• <strong>Anthropic</strong> - AI generation of your plan and insights.<br>• <strong>Netlify</strong> - website hosting.<br>• <strong>Google Analytics</strong> - usage analytics (only with your consent).<br>Some providers may process data outside the EU/EEA; where they do, transfers are covered by appropriate safeguards such as the EU Standard Contractual Clauses.</p>
+       <p><strong>5. Use of artificial intelligence</strong><br>We use AI (Anthropic) to generate your behaviour plan and daily insights. Only the pet and behaviour information you enter is sent to the AI - <strong>we do not send identifying personal data such as your name, email or payment details</strong>. Your inputs are not used to train third-party models and are used solely to create your content.</p>
+       <p><strong>6. Retention</strong><br>We keep your data for as long as you have an account or as needed to provide the service and meet legal obligations (e.g. tax records for purchases). When you request account deletion, your personal and pet data are removed; purchase records may be retained where law requires.</p>
+       <p><strong>7. Your rights</strong><br>You have the right to access, rectify, erase, restrict, and port your data, and to object to processing or withdraw consent at any time. To exercise these rights, email ${email}. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski pooblaščenec, ip-rs.si).</p>
+       <p><strong>8. Cookies</strong><br>We use strictly necessary cookies to operate the service and, only with your consent, analytics cookies to improve it. You can give or withdraw consent via the cookie banner at any time.</p>
+       <p><strong>9. Children</strong><br>The service is not directed at children under 18 and we do not knowingly collect their data.</p>
        <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">For privacy questions, contact us at ${email}.</p>`
     );
   }
@@ -1456,7 +1476,7 @@ function openLegal(kind){
 }
 function t(key){ return key; }   // legacy no-op
 // Central bilingual helper, now multilingual.
-// L('slovensko','english') — for FR/DE/IT/ES it looks up the SL string in
+// L('slovensko','english') - for FR/DE/IT/ES it looks up the SL string in
 // DICT_ML; if a translation exists it's used, otherwise English is shown.
 function L(sl,en){
   if(currentLang==='sl') return sl;
@@ -1494,8 +1514,49 @@ function stopLangRotation(){ if(langRotTimer){ clearInterval(langRotTimer); lang
 // Capture the landing URL immediately, before any handler cleans it.
 window.__landingURL = window.location.href;
 
+// ── Email unsubscribe ───────────────────────────────────────────────
+// If the user arrives via an "Unsubscribe" link in an email
+// (thenuci.com/?unsubscribe=<email>), turn off their email reminders and
+// show a confirmation. This satisfies the legal requirement for a working
+// one-click opt-out in every marketing email.
+(function(){
+  try{
+    const params = new URLSearchParams(window.location.search);
+    const unsubEmail = params.get('unsubscribe');
+    if(unsubEmail){
+      window.__unsubscribeEmail = unsubEmail.trim().toLowerCase();
+      const apply=()=>{ try{ processUnsubscribe(window.__unsubscribeEmail); }catch(e){ console.warn('unsub',e); } };
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(apply,300));
+      else setTimeout(apply,300);
+    }
+  }catch(e){}
+})();
+
+async function processUnsubscribe(email){
+  // Set the marketing opt-out flag. This stops ALL emails EXCEPT the daily
+  // check-in reminder (which is part of the service and controlled by the
+  // reminder toggle in the profile). Works even if not logged in.
+  try{
+    if(typeof supa!=='undefined' && supa && email){
+      await supa.from('profiles').update({ marketing_opt_out:true }).eq('email', email);
+    }
+  }catch(e){ console.warn('unsubscribe update failed', e); }
+  // Show a simple confirmation overlay.
+  try{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:#F1F1F1;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
+    ov.innerHTML='<div style="max-width:380px;text-align:center;background:#FAFAFA;border-radius:20px;padding:36px 32px;">'
+      +'<div style="font-size:1.25rem;font-weight:600;margin-bottom:10px;color:#111;">You\'re unsubscribed</div>'
+      +'<p style="font-size:0.92rem;color:#555;line-height:1.55;margin:0 0 22px;">You will no longer receive marketing or update emails from The Nuci. Essential daily check-in reminders can still be managed in your profile settings.</p>'
+      +'<a href="https://thenuci.com/" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 28px;border-radius:14px;font-size:0.9rem;font-weight:600;">Go to The Nuci</a>'
+      +'</div>';
+    document.body.appendChild(ov);
+  }catch(e){}
+}
+
+
 // Show the app directly on load (access gate removed)
-// Language selection is disabled for now — the whole app runs in English.
+// Language selection is disabled for now - the whole app runs in English.
 (function(){
   currentLang = 'en';
   try{ localStorage.setItem('lang','en'); }catch(e){}
@@ -1813,7 +1874,7 @@ function checkWarning(q){
 
 function assessNext(){
   const qs=getQuestions();const q=qs[state.currentQ];
-  // Every question is required — the plan quality depends on complete answers.
+  // Every question is required - the plan quality depends on complete answers.
   const ans=state.answers[q.id];
   let missing=false;
   if(['text','textarea'].includes(q.type)){
@@ -1849,7 +1910,7 @@ function assessNext(){
         try{ state.tasks=getDayTasks(1); renderTaskPreview(); renderAllTasks(); refreshTodayForDay(); }catch(e){ console.warn('task render',e); }
         // Persist the freshly generated plan INTO this pet's assessment record.
         try{ saveCurrentProgress(); }catch(e){ console.warn('saveCurrentProgress',e); }
-        // Always enter the app — the user paid with a credit, they must get in.
+        // Always enter the app - the user paid with a credit, they must get in.
         try{ showScreen('screen-app'); }catch(e){ console.warn('showScreen',e); }
         try{ showTab('today'); }catch(e){}
         try{ persistState(); }catch(e){ console.warn('persistState',e); }
@@ -2061,7 +2122,7 @@ async function signInWithGoogle(){
 async function doAuth(method){
   // method: 'apple' | 'google' | undefined(email)
   if(method==='apple'||method==='google'){
-    // OAuth not configured yet — guide to email signup
+    // OAuth not configured yet - guide to email signup
     const msg=document.getElementById('authMsg');
     if(msg){msg.style.color='var(--secondary)';msg.textContent=L('Za zdaj se prosimo registrirajte z e-pošto.','For now, please sign up with email.');}
     showScreen('screen-auth-email');
@@ -2124,7 +2185,7 @@ async function doAuth(method){
         }catch(e){}
       }
     }catch(e){
-      // Network unreachable (preview/offline) — continue in local mode.
+      // Network unreachable (preview/offline) - continue in local mode.
       console.warn('Supabase unreachable, continuing locally:', e);
     }
   }
@@ -2164,7 +2225,7 @@ async function saveNewPassword(){
   if(p1.length<6){ if(msg){msg.style.color='var(--danger)';msg.textContent='Password must be at least 6 characters.';} return; }
   if(p1!==p2){ if(msg){msg.style.color='var(--danger)';msg.textContent='Passwords do not match.';} return; }
   if(!supa){ if(msg){msg.style.color='var(--danger)';msg.textContent='Unable to update password right now.';} return; }
-  if(window.__passwordUpdated){ return; }   // already done — ignore extra taps
+  if(window.__passwordUpdated){ return; }   // already done - ignore extra taps
   if(btn){ btn.disabled=true; btn.style.opacity='0.6'; }
   if(msg){msg.style.color='var(--secondary)';msg.textContent='Saving…';}
   try{
@@ -2174,7 +2235,7 @@ async function saveNewPassword(){
       if(msg){msg.style.color='var(--danger)';msg.textContent='Could not update password. Request a new reset link.';}
       console.warn('updateUser',error); return;
     }
-    // Success — lock against re-submission (the recovery token is now spent).
+    // Success - lock against re-submission (the recovery token is now spent).
     window.__passwordUpdated = true;
     window.__isPasswordRecovery = false;
     if(msg){msg.style.color='var(--success)';msg.textContent='Password updated! You can now log in.';}
@@ -2272,7 +2333,7 @@ async function doLogin(method){
         state.userId=data.user?data.user.id:null;
       }
     }catch(e){
-      // Network unreachable or timeout — continue locally for testing.
+      // Network unreachable or timeout - continue locally for testing.
       console.warn('Supabase login issue, continuing:', e);
       if(/timeout/.test(e.message||'')){
         if(msg){msg.style.color='var(--danger)';msg.textContent='Connection timed out. Please try again.';}
@@ -2535,7 +2596,7 @@ function completePayment(){
     window.location.href = link;
     return;
   }
-  // Demo flow (no Stripe link set) — also used when 3-pack link not yet configured
+  // Demo flow (no Stripe link set) - also used when 3-pack link not yet configured
   state.pricePaid = currentPrice();
   state.promoUsed = appliedPromo ? appliedPromo.code : null;
   state.planCredits = credits;
@@ -2553,7 +2614,7 @@ function completePayment(){
     const params=new URLSearchParams(window.location.search);
     if(params.get('paid')!=='true'){
       // Not a real return from Stripe. Any stashed pendingState is stale
-      // (user abandoned checkout) — discard it so nobody gets a plan for free.
+      // (user abandoned checkout) - discard it so nobody gets a plan for free.
       try{ localStorage.removeItem('pendingState'); }catch(e){}
       return;
     }
@@ -2575,7 +2636,7 @@ function completePayment(){
     //           plan/pets untouched, stay in profile.
     // ───────────────────────────────────────────────────────────────
     const openAppAfter=()=>{
-      // NOTE: do NOT call setupApp() here — it resets state.planOverrides={},
+      // NOTE: do NOT call setupApp() here - it resets state.planOverrides={},
       // which would wipe the AI plan we just generated. Render directly instead.
       try{
         const petType=state.answers.petType||'other';
@@ -2614,6 +2675,7 @@ function completePayment(){
       // Fresh start for this first pet (Day 1, no check-ins) BEFORE generating,
       // so we don't inherit stale plan state. generatePlanAI then fills planOverrides.
       state.currentDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
+      state.planStartDate = todayKey();   // anchor day-1 to today for missed-day math
       state.lastCheckinDate=null; state.tasksDone={}; state.planComplete=false;
       state.taskOverrides={}; state.planOverrides={};
       if(state.answers && state.answers.petType){
@@ -2776,8 +2838,8 @@ function completePayment(){
   // and prevent us from bouncing the user into the app instead of the reset screen.
   const looksLikeReturn = /[?#&](code|access_token|error|type=recovery)=/.test(window.location.href) || /type=recovery/.test(window.location.href);
   setTimeout(()=>{
-    if(window.__isPasswordRecovery) return;   // recovery in progress — don't sign in
-    if(window.__handlingPaidReturn) return;    // a purchase is being applied — don't overwrite
+    if(window.__isPasswordRecovery) return;   // recovery in progress - don't sign in
+    if(window.__handlingPaidReturn) return;    // a purchase is being applied - don't overwrite
     supa.auth.getSession().then(({data})=>{
       if(window.__isPasswordRecovery || window.__handlingPaidReturn) return;
       if(data && data.session){ finishSignIn(data.session); }
@@ -2797,6 +2859,7 @@ function setupApp(){
 
   // Fresh plan: Day 1, nothing done, zero everything
   state.currentDay=1; state.planLength=7; state.checkins=[];
+  state.planStartDate=todayKey();   // anchor day-1 to today
   state.checkinDoneForDay=0; state.lastCheckinDay=0;
   state.streak=0; state.lastCheckinDate=null; state._missShown=false;
   state.planComplete=false; state.extended=false; state.subscribed=false; state.askedContinue=false;
@@ -3197,7 +3260,7 @@ function buildAssessmentSwitcher(){
       planOverrides: state.planOverrides ? JSON.parse(JSON.stringify(state.planOverrides)) : {},
       taskOverrides: state.taskOverrides ? JSON.parse(JSON.stringify(state.taskOverrides)) : {},
       // per-pet plan progress
-      progress:{ currentDay:state.currentDay||1, planLength:state.planLength||7,
+      progress:{ currentDay:state.currentDay||1, planLength:state.planLength||7, planStartDate:state.planStartDate||null,
                  checkins:state.checkins?[...state.checkins]:[], streak:state.streak||0,
                  lastCheckinDate:state.lastCheckinDate||null, tasksDone:state.tasksDone?{...state.tasksDone}:{} }
     });
@@ -3213,7 +3276,7 @@ function saveCurrentProgress(){
   a.petName=state.answers.petName||a.petName;
   a.petType=state.answers.petType||a.petType;
   a.emoji=EMOJIS[a.petType]||'🐾';
-  a.progress={ currentDay:state.currentDay||1, planLength:state.planLength||7,
+  a.progress={ currentDay:state.currentDay||1, planLength:state.planLength||7, planStartDate:state.planStartDate||null,
                checkins:state.checkins?[...state.checkins]:[], streak:state.streak||0,
                lastCheckinDate:state.lastCheckinDate||null, tasksDone:state.tasksDone?{...state.tasksDone}:{} };
   // Each pet keeps its OWN AI-generated plan + task overrides.
@@ -3290,6 +3353,7 @@ function switchAssessment(id){
   // load this pet's own plan progress
   const p=a.progress||{};
   state.currentDay=p.currentDay||1;
+  state.planStartDate=p.planStartDate||state.planStartDate||null;
   state.planLength=p.planLength||7;
   state.checkins=p.checkins?[...p.checkins]:[];
   state.streak=p.streak||0;
@@ -3354,7 +3418,7 @@ function updateCreditsHint(){
 }
 
 function buyNewPlan(){
-  // Max 6 pets per account — no point buying more credits beyond that.
+  // Max 6 pets per account - no point buying more credits beyond that.
   if((state.assessments||[]).length>=6 && (state.planCredits||0)<=0){
     showCelebration('🐾',L('Doseženo največje število','Maximum reached'),L('Na enem računu lahko spremljate do 6 živali.','You can track up to 6 pets on one account.'),L('V redu','Got it'),()=>{});
     return;
@@ -3397,7 +3461,7 @@ function startNewAssessment(){
   const ec=document.getElementById('entryChar'); if(ec) ec.textContent='0/500';
   // Existing signed-in user adding another pet: show the entry page (the
   // description box + instructions) but WITHOUT the login button and the big
-  // marketing headline/subtitle — they're already in, they just need the box.
+  // marketing headline/subtitle - they're already in, they just need the box.
   if(hasActivePlan){
     state._addPetMode = true;
     try{
@@ -3452,7 +3516,7 @@ function openArchiveDetail(id){
   const d=new Date(p.completedDate);
   const dateStr=isNaN(d)?'':d.toLocaleDateString(currentLang==='sl'?'sl-SI':'en-GB',{day:'numeric',month:'long',year:'numeric'});
   const s=p.stats||{};
-  const impTxt = (p.improvement!=null && p.improvement<0) ? `−${Math.abs(p.improvement)}%` : (p.incidentCount===0?'✓':'—');
+  const impTxt = (p.improvement!=null && p.improvement<0) ? `−${Math.abs(p.improvement)}%` : (p.incidentCount===0?'✓':'-');
   const stat=(label,val)=>`<div style="flex:1;text-align:center;padding:14px 6px;"><div style="font-family:'Inter Tight',sans-serif;font-size:1.5rem;font-weight:600;">${val}</div><div style="font-size:0.72rem;color:var(--secondary);margin-top:2px;">${label}</div></div>`;
   // mini bar chart of incidents per check-in
   const chk=p.checkins||[];
@@ -3474,7 +3538,7 @@ function openArchiveDetail(id){
     <div class="card" style="display:flex;margin:18px 0;padding:4px;">
       ${stat(L('Izboljšanje','Improvement'),impTxt)}
       ${stat(L('Prijave','Check-ins'),p.checkinCount||0)}
-      ${stat(L('Incidenti','Incidents'),p.incidentCount!=null?p.incidentCount:'—')}
+      ${stat(L('Incidenti','Incidents'),p.incidentCount!=null?p.incidentCount:'-')}
     </div>
     ${chart?`<div class="card" style="padding:8px 16px;margin-bottom:18px;"><div style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);margin-bottom:4px;">${L('Incidenti skozi čas','Incidents over time')}</div>${chart}</div>`:''}
     ${s.commonTime?`<div style="font-size:0.85rem;color:var(--secondary);margin-bottom:8px;">${L('Najpogostejši čas','Most common time')}: <strong style="color:var(--text);">${s.commonTime}</strong></div>`:''}
@@ -3537,7 +3601,7 @@ function generatePlanPDF(p){
       }
       const tr=(slT,enT)=>sl?slT:enT;
 
-      // ════ PAGE 1 — COVER ════
+      // ════ PAGE 1 - COVER ════
       header('');
       let y=150;
       doc.setFont('helvetica','bold'); doc.setFontSize(30); doc.setTextColor(...dark);
@@ -3546,7 +3610,7 @@ function generatePlanPDF(p){
       doc.text(`${p.petName}  ·  ${p.issue||tr('Vedenjski načrt','Behaviour plan')}`, M, y); y+=20;
       doc.text(`${p.planLength}-${tr('dnevni vedenjski načrt','day behaviour plan')}  ·  ${dateStr}`, M, y); y+=46;
       // big stat row
-      const impTxt=(p.improvement!=null&&p.improvement<0)?`-${Math.abs(p.improvement)}%`:(p.incidentCount===0?'100%':'—');
+      const impTxt=(p.improvement!=null&&p.improvement<0)?`-${Math.abs(p.improvement)}%`:(p.incidentCount===0?'100%':'-');
       const totalInc = chk.reduce((a,c)=>a+(+c.freq||+c.count||0),0);
       const clearDays = chk.filter(c=>(c.occurred==='Ne'||c.occurred==='No'||(+c.freq||+c.count||0)===0)).length;
       const stats=[
@@ -3589,9 +3653,9 @@ function generatePlanPDF(p){
       const s=p.stats||{};
       y=sectionLabel(tr('Ključni vzorci','Key patterns'), y); y+=2;
       const patterns=[
-        [tr('Najpogostejši čas','Most common time'), s.commonTime||'—'],
-        [tr('Najpogostejši kraj','Most common location'), s.commonLoc||'—'],
-        [tr('Glavni sprožilec','Top trigger'), s.commonTrig||'—']
+        [tr('Najpogostejši čas','Most common time'), s.commonTime||'-'],
+        [tr('Najpogostejši kraj','Most common location'), s.commonLoc||'-'],
+        [tr('Glavni sprožilec','Top trigger'), s.commonTrig||'-']
       ];
       doc.setFontSize(11);
       patterns.forEach(pt=>{
@@ -3606,17 +3670,17 @@ function generatePlanPDF(p){
       if(chk.length){
         let y2=header(tr('Dnevnik po dnevih','Day-by-day log'));
         const fieldRows=(c)=>{
-          const occ = (c.occurred==='Da'||c.occurred==='Yes') ? tr('Da','Yes') : (c.occurred? tr('Ne','No') : '—');
+          const occ = (c.occurred==='Da'||c.occurred==='Yes') ? tr('Da','Yes') : (c.occurred? tr('Ne','No') : '-');
           return [
             [tr('Vedenje se je pojavilo','Behaviour occurred'), occ],
-            [tr('Število','Times'), (c.freq!=null?String(c.freq):(c.count!=null?String(c.count):'—'))],
-            [tr('Resnost (1-10)','Severity (1-10)'), c.severity!=null?String(c.severity):'—'],
-            [tr('Kraj','Location'), c.loc||'—'],
-            [tr('Čas','Time'), c.time||'—'],
-            [tr('Sprožilec','Trigger'), c.trigger||'—'],
-            [tr('Energija','Energy'), c.energy||'—'],
-            [tr('Spremembe','Changes'), c.changes||'—'],
-            [tr('Opombe','Notes'), c.notes||'—']
+            [tr('Število','Times'), (c.freq!=null?String(c.freq):(c.count!=null?String(c.count):'-'))],
+            [tr('Resnost (1-10)','Severity (1-10)'), c.severity!=null?String(c.severity):'-'],
+            [tr('Kraj','Location'), c.loc||'-'],
+            [tr('Čas','Time'), c.time||'-'],
+            [tr('Sprožilec','Trigger'), c.trigger||'-'],
+            [tr('Energija','Energy'), c.energy||'-'],
+            [tr('Spremembe','Changes'), c.changes||'-'],
+            [tr('Opombe','Notes'), c.notes||'-']
           ];
         };
         chk.forEach((c,i)=>{
@@ -3842,7 +3906,7 @@ function renderCI(){
   }
   body.appendChild(wrap);
   // Put the Next/round arrow button right below the content (centered),
-  // not pinned to the bottom — same feel as the questionnaire.
+  // not pinned to the bottom - same feel as the questionnaire.
   const isLast = ciStep===CI_STEPS.length-1;
   const btnRow=document.createElement('div');
   btnRow.style.cssText='display:flex;justify-content:center;margin-top:20px;';
@@ -4068,7 +4132,7 @@ function handlePlanEnd(){
 }
 
 // Archive the finished plan, remove it from the active dropdown, then either
-// move to another active pet or — if none remain — offer to buy a new plan.
+// move to another active pet or - if none remain - offer to buy a new plan.
 function finalizeCompletedPlan(kind){
   try{ archivePlan(); }catch(e){}
   // remove the completed assessment from the active list (it's now archived)
@@ -4166,10 +4230,10 @@ function recomputeStats(){
 
   const total=checkins.length;
 
-  // Streak (lifetime — not windowed): consecutive completed days
+  // Streak (lifetime - not windowed): consecutive completed days
   const streakVal=state.streak||0;
 
-  // Plan completion (always lifetime — % of whole plan)
+  // Plan completion (always lifetime - % of whole plan)
   const completedDays=state.planComplete?planLen:(state.currentDay-1);
   const planPct=Math.round((completedDays/planLen)*100);
 
@@ -4340,19 +4404,71 @@ function checkinWindowStatus(){
   return 'open';                                          // 20:00-22:00, not done yet
 }
 // Detect a missed window since last open and reset streak with the angry-pet animation.
+// TEST ONLY — remove before launch. Simulates having started the plan 3 days
+// ago while still on Day 1, then re-runs the missed-day check so you can see
+// the overlay + day advancement immediately, without waiting real days.
+function testSimulateMissedDays(){
+  const d=new Date(); d.setDate(d.getDate()-3);
+  state.planStartDate = todayKey(d);
+  state.currentDay = 1;
+  state.lastCheckinDate = todayKey(d);
+  state.streak = 3;
+  state._missShown = false;
+  try{ saveCurrentProgress(); }catch(e){}
+  showTab('today');
+  setTimeout(()=>{ try{ checkMissedWindow(); }catch(e){ console.warn(e); } }, 100);
+}
+
 function checkMissedWindow(){
   if(!state.streak) state.streak = state.streak||0;
+  if(state.planComplete) return;          // finished plan - no advancing
+
+  const today = new Date();
+  const dayMs = 86400000;
+  const todayDate = new Date(todayKey() + 'T00:00:00');
+  const maxDay = state.planLength || 7;
+
+  // ── Where SHOULD the plan be today? ────────────────────────────────
+  // The expected day is based on the plan's start date: day 1 on the start
+  // date, day 2 the next calendar day, etc. This makes the plan move forward
+  // with real time even if the user never checked in.
+  let expectedDay = state.currentDay || 1;
+  if(state.planStartDate){
+    const startDate = new Date(state.planStartDate + 'T00:00:00');
+    const daysElapsed = Math.round((todayDate - startDate) / dayMs);
+    if(daysElapsed >= 0) expectedDay = Math.min(maxDay, daysElapsed + 1);
+  }
+
+  // How many days did we skip? (current day vs where we should be)
+  const missedDays = Math.max(0, expectedDay - (state.currentDay || 1));
+
+  // ── Streak: broken if a full day passed since last check-in ────────
   const last = state.lastCheckinDate;
-  if(!last) return;                       // never checked in yet - nothing to lose
-  if(state.streak<=0) return;             // nothing to lose
-  const now=new Date();
-  // The streak is "alive" only if the last check-in was today, or it's still
-  // possible to check in for the gap. If a full day passed with no check-in
-  // (i.e. last < yesterday, OR last===yesterday but today's window already closed),
-  // the streak is broken.
   let broken=false;
-  if(last < yesterdayKey()) broken=true;  // missed at least one full day
-  else if(last===yesterdayKey() && now.getHours()>=CHECKIN_CLOSE_HOUR) broken=true; // missed today's window too
+  if(state.streak>0 && last){
+    if(last < yesterdayKey()) broken=true;
+    else if(last===yesterdayKey() && today.getHours()>=CHECKIN_CLOSE_HOUR) broken=true;
+  }
+
+  // ── Advance the plan if we're behind ───────────────────────────────
+  if(missedDays > 0){
+    const movedToDay = expectedDay;
+    state.currentDay = expectedDay;
+    try{ state.tasks = getDayTasks(state.currentDay); }catch(e){}
+    if(!state._missShown){
+      state._missShown = true;
+      const lostFrom = state.streak;
+      if(broken) state.streak = 0;
+      persistState();
+      try{ rebuildForCurrentAssessment(); }catch(e){}
+      // Use the branded "pet is not impressed" overlay, with extra context
+      // that the plan has moved forward so the user isn't stuck on the old day.
+      showStreakLost(lostFrom, { missedDays, movedToDay });
+    }
+    return;
+  }
+
+  // No days missed, but streak may still have just broken.
   if(broken && !state._missShown){
     state._missShown = true;
     const lostFrom = state.streak;
@@ -4419,6 +4535,7 @@ function serializeState(){
     checkinDoneForDay: state.checkinDoneForDay,
     lastCheckinDay: state.lastCheckinDay,
     planComplete: state.planComplete,
+    planStartDate: state.planStartDate||null,
     extended: state.extended,
     subscribed: state.subscribed,
     askedContinue: state.askedContinue,
@@ -4456,6 +4573,7 @@ function restoreState(data){
     checkinDoneForDay: data.checkinDoneForDay||0,
     lastCheckinDay: data.lastCheckinDay||0,
     planComplete: !!data.planComplete,
+    planStartDate: data.planStartDate||null,
     extended: !!data.extended,
     subscribed: !!data.subscribed,
     askedContinue: !!data.askedContinue,
@@ -4504,7 +4622,7 @@ function persistState(){
   }, 600);
 }
 
-// Immediate, awaitable save — use for critical moments (purchases) where we
+// Immediate, awaitable save - use for critical moments (purchases) where we
 // must not lose data to the debounce or a race.
 async function persistStateNow(){
   try{ saveCurrentProgress(); }catch(e){}
@@ -4652,12 +4770,20 @@ function maybeAskContinue(){
 // STREAK LOST (angry pet, count-down animation)
 // ═══════════════════════════════════════
 const ANGRY_EMOJIS={dog:'🐕',cat:'😾',rabbit:'🐇',bird:'🦜',hamster:'🐹',reptile:'🦎',fish:'🐠',other:'😾'};
-function showStreakLost(lostFrom){
-  const pet=state.answers.petName||'tvoj ljubljenček';
+function showStreakLost(lostFrom, context){
+  const pet=state.answers.petName||L('tvoj ljubljenček','your pet');
   const petType=state.answers.petType||'other';
   const emoji=ANGRY_EMOJIS[petType]||'😾';
   document.getElementById('streakLostEmoji').textContent=emoji;
-  document.getElementById('streakLostSub').textContent=L(`Zamudil si svoje okno za prijavo in ${pet} ni navdušen.`,`You missed your check-in window and ${pet} is not impressed.`);
+  let subText = L(`Zamudil si svoje okno za prijavo in ${pet} ni navdušen.`,`You missed your check-in window and ${pet} is not impressed.`);
+  if(context && context.missedDays>0){
+    const dw = context.missedDays===1 ? L('dan','day') : L('dni','days');
+    subText = L(
+      `Zamudil si ${context.missedDays} ${dw} prijav in ${pet} ni navdušen. Tvoj načrt se je premaknil na dan ${context.movedToDay} - nadaljuj danes.`,
+      `You missed ${context.missedDays} ${dw} of check-ins and ${pet} is not impressed. Your plan moved to day ${context.movedToDay} - pick up today.`
+    );
+  }
+  document.getElementById('streakLostSub').textContent=subText;
   const numEl=document.getElementById('streakLostNumber');
   const ov=document.getElementById('streakLostOverlay');
   ov.style.display='flex';
