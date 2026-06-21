@@ -1941,6 +1941,7 @@ function assessNext(){
     // If this pet is covered by a prepaid credit, go straight into the app.
     if(state.usingCredit){
       state.usingCredit=false;
+      state._creditConsumedThisAdd=false;  // credit legitimately spent on a real pet now
       state.paid=true;
       // Reset & build the app shell FIRST (this clears planOverrides for the new pet)...
       try{ setupApp(); }catch(e){ console.warn('setupApp',e); }
@@ -3508,7 +3509,8 @@ function startNewAssessment(){
     if(credits>0){
       state.planCredits = credits - 1;   // consume one
       state.usingCredit = true;          // this pet is already paid for
-      try{ persistState(); }catch(e){}
+      state._creditConsumedThisAdd = true;  // explicit: a credit was spent entering add-pet
+      try{ if(typeof persistStateNow==='function'){ persistStateNow(); } else { persistState(); } }catch(e){}
     } else {
       // out of credits -> send to package choice to buy more
       try{ buildRoadmap(); }catch(e){}
@@ -3567,8 +3569,14 @@ function exitAddPet(){
     const loginBtn=document.querySelector('#screen-entry .btn-ghost'); if(loginBtn) loginBtn.style.display='';
     const backBtn=document.getElementById('entryBackBtn'); if(backBtn) backBtn.style.display='none';
   }catch(e){}
-  // If they had consumed a credit when starting, give it back (they bailed out).
-  if(state.usingCredit){ state.usingCredit=false; state.planCredits=(state.planCredits||0)+1; }
+  // If a credit was consumed when starting this add-pet flow, give it back
+  // (the user bailed out before creating the pet). Use an explicit flag so the
+  // refund is reliable even if usingCredit was cleared elsewhere.
+  if(state._creditConsumedThisAdd){
+    state.planCredits = (state.planCredits||0) + 1;
+    state._creditConsumedThisAdd = false;
+  }
+  state.usingCredit = false;
   // Restore the pet that was active before we entered add-pet mode. Without this,
   // state.answers is still empty (cleared in startNewAssessment), so the app
   // would show "your pet" with no real profile.
@@ -3596,7 +3604,7 @@ function exitAddPet(){
     state.tasksDone=p.tasksDone?{...p.tasksDone}:{};
     try{ rebuildForCurrentAssessment(); }catch(e){}
   }
-  try{ persistState(); }catch(e){}
+  try{ if(typeof persistStateNow==='function'){ persistStateNow(); } else { persistState(); } }catch(e){}
   try{ showScreen('screen-app'); showTab('today'); }catch(e){}
 }
 
@@ -4756,6 +4764,7 @@ function serializeState(){
     lastCheckinDate: state.lastCheckinDate||null,
     petPhoto: state.petPhoto||null,
     planCredits: state.planCredits||0,
+    _creditConsumedThisAdd: state._creditConsumedThisAdd||false,
     archive: state.archive||[],
     pricePaid: state.pricePaid!=null?state.pricePaid:null,
     packageId: state.packageId||null,
@@ -4795,6 +4804,7 @@ function restoreState(data){
     lastCheckinDate: data.lastCheckinDate||null,
     petPhoto: data.petPhoto||null,
     planCredits: data.planCredits||0,
+    _creditConsumedThisAdd: data._creditConsumedThisAdd||false,
     archive: data.archive||[],
     pricePaid: data.pricePaid!=null?data.pricePaid:null,
     packageId: data.packageId||null,
