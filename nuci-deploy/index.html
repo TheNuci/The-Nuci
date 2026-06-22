@@ -304,22 +304,6 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <div id="app" role="main" style="display:none;">
 
 <!-- LANGUAGE SELECT (first screen) -->
-<section class="screen" id="screen-language" style="overflow:hidden;">
-  <div style="max-width:380px;margin:0 auto;width:100%;padding:24px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;height:100%;">
-    <div style="margin-bottom:24px;"><div class="globe-wrap"><div class="globe-sphere"></div><div class="globe-gloss"></div></div></div>
-    <h1 id="langRotatingTitle" style="font-family:'Inter Tight',sans-serif;font-size:clamp(1.4rem,4.5vw,1.8rem);font-weight:600;letter-spacing:-0.02em;margin-bottom:26px;height:1.3em;line-height:1.3em;overflow:hidden;position:relative;width:100%;"><span class="lang-title-text" style="display:block;transition:opacity 0.5s ease;">Select your language</span></h1>
-    <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:260px;">
-      <button class="lang-btn" onclick="setLanguage('en')">🇬🇧 &nbsp;English</button>
-      <button class="lang-btn" onclick="setLanguage('fr')">🇫🇷 &nbsp;Français</button>
-      <button class="lang-btn" onclick="setLanguage('de')">🇩🇪 &nbsp;Deutsch</button>
-      <button class="lang-btn" onclick="setLanguage('it')">🇮🇹 &nbsp;Italiano</button>
-      <button class="lang-btn" onclick="setLanguage('es')">🇪🇸 &nbsp;Español</button>
-      <button class="lang-btn" onclick="setLanguage('sl')">🇸🇮 &nbsp;Slovenščina</button>
-    </div>
-  </div>
-</section>
-
-
 <!-- ENTRY -->
 <section class="screen active" id="screen-entry">
   <button class="btn btn-ghost" data-i18n="login" onclick="showScreen('screen-login')" style="position:fixed;top:max(16px,env(safe-area-inset-top));right:16px;z-index:20;background:rgba(250,250,250,0.8);backdrop-filter:blur(8px);border-radius:99px;padding:8px 16px;">Log In</button>
@@ -964,11 +948,11 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <div id="cookieBanner" style="position:fixed;bottom:0;left:0;right:0;z-index:9800;display:none;padding:16px;">
   <div style="max-width:520px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,0.18);padding:18px 20px;">
     <div style="font-size:0.9rem;line-height:1.5;color:var(--text);margin-bottom:14px;" id="cookieText">
-      Uporabljamo nujne piškotke za delovanje strani in – z vašo privolitvijo – analitične piškotke za izboljšanje storitve.
+      We use essential cookies to run the site and, with your consent, analytics cookies to improve the service.
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-primary" style="flex:1;min-width:130px;" onclick="acceptCookies(true)" id="cookieAcceptBtn">Sprejmi vse</button>
-      <button class="btn btn-secondary" style="flex:1;min-width:130px;" onclick="acceptCookies(false)" id="cookieRejectBtn">Samo nujni</button>
+      <button class="btn btn-primary" style="flex:1;min-width:130px;" onclick="acceptCookies(true)" id="cookieAcceptBtn">Accept all</button>
+      <button class="btn btn-secondary" style="flex:1;min-width:130px;" onclick="acceptCookies(false)" id="cookieRejectBtn">Essential only</button>
     </div>
     <div style="text-align:center;margin-top:10px;">
       <a href="#" onclick="openLegal('privacy');return false;" style="font-size:0.78rem;color:var(--secondary);" id="cookieMoreLink">Learn more about privacy</a>
@@ -1012,380 +996,20 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 // DOM text nodes + placeholders via this SL->EN map after every render.
 // ═══════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
-// MULTILINGUAL DICTIONARY  DICT_ML[slovenian] = {en, fr, de, it, es}
 // Filled in batches below (buildDictML). Any missing language falls back
 // to English automatically.
 // ═══════════════════════════════════════════════════════════════════
-const DICT_ML = {};
-const SL_EN = {
-"Takojšnji ukrepi in ponastavitev okolja":"Immediate steps and environment reset",
-  "Spremljaj kdaj in kako se dogaja":"Track when and how it happens",
-  "Naredi ciljne spremembe za zmanjšanje sprožilcev":"Make targeted changes to reduce triggers",
-  "Nagradi kar deluje, zmanjšaj trenja":"Reward what works, reduce friction",
-  "Oceni spremembe in podatke":"Review the changes and data",
-  "Utrdi prvi teden":"Consolidate the first week",
-  "Podvoji rutine, ki so pomagale":"Double down on routines that helped",
-  "Okrepi novo vedenje pod blagim stresom":"Strengthen the new behaviour under mild stress",
-  "Prepoznaj vzorec":"Identify the pattern",
-  "Preglej trend":"Review the trend",
-  "Poglobi kar deluje":"Deepen what works",
-  "Gradi odpornost":"Build resilience",
-
-  // gate / language
-  "Zasebni predogled":"Private preview",
-  "Vnesite dostopno kodo za nadaljevanje.":"Enter the access code to continue.",
-  "Vstopi":"Enter",
-  "Izberite svoj jezik":"Select your language",
-  // entry
-  "Naučite se pomagati svojemu ljubljenčku v 7 dneh":"Learn how to help your pet in 7 days",
-  "Opišite vedenje, skrb ali težavo.":"Describe the behavior, concern or issue.",
-  "Kako deluje in pri čem pomagamo":"How this works & what we help with",
-  "Prijava":"Log In",
-  // about
-  "Kako deluje":"How this works",
-  "Miren, strukturiran način za razumevanje in izboljšanje vedenja vašega ljubljenčka.":"A calm, structured way to understand and improve your pet's behavior.",
-  "Opišite težavo":"Describe the issue",
-  "Povejte nam, kaj se dogaja - nekaj vprašanj, prilagojenih vaši živali.":"Tell us what's happening - a few questions tailored to your specific animal.",
-  "Pridobite prilagojen načrt":"Get a personalized plan",
-  "7-dnevni načrt z verjetnimi vzroki, kaj storiti in čemu se izogniti.":"A 7-day roadmap with likely causes, what to do, and what to avoid.",
-  "Spremljajte in izboljšujte":"Track daily & improve",
-  "Hitre dnevne prijave ustvarijo vpoglede in prikažejo vaš napredek skozi čas.":"Quick daily check-ins generate insights and show your progress over time.",
-  "Razumem":"Got it",
-  "Pogoji":"Terms",
-  "Zasebnost":"Privacy",
-  // roadmap
-  "7-dnevni načrt":"7-day plan",
-  "Enkratno · Brez naročnine":"One-time · No subscription",
-  "Odkleni moj načrt":"Unlock My Plan",
-  "Varno plačilo · 30-dnevna garancija":"Secure payment · 30-day guarantee",
-  // auth
-  "Ustvarite svoj račun":"Create your account",
-  "Shranite napredek in dostopajte do svojega prilagojenega načrta.":"Save your progress and access your personalized plan.",
-  "Nadaljuj z Google":"Continue with Google",
-  "Nadaljuj z e-pošto":"Continue with email",
-  "Vaših podatkov ne bomo nikoli delili.":"We'll never share your data.",
-  "Vaši podatki":"Your details",
-  "Te bomo uporabili za shranjevanje vašega načrta.":"We'll use these to save your plan.",
-  "Naprej":"Continue",
-  "Nazaj":"Back",
-  // payment
-  "Načrt vašega ljubljenčka":"Your pet's plan",
-  "7-dnevni prilagojen vedenjski načrt":"7-day personalised behaviour plan",
-  "Enkratno · Brez naročnine · Brez podaljšanja":"One-time · No subscription · No renewal",
-  "Ime":"First name",
-  "Priimek":"Last name",
-  "E-pošta":"Email",
-  "Številka kartice":"Card number",
-  "Veljavnost":"Expiry",
-  "Promo koda":"Promo code",
-  "Vnesite kodo":"Enter code",
-  "Uporabi":"Apply",
-  "Varno · Šifrirano · 30-dnevna garancija":"Secure · Encrypted · 30-day guarantee",
-  // login
-  "Dobrodošli nazaj":"Welcome back",
-  "Prijavite se za dostop do načrta.":"Sign in to access your plan.",
-  "Prijava ":"Sign In",
-  // nav
-  "Danes":"Today","Načrt":"Plan","Napredek":"Progress","Profil":"Profile",
-  // today
-  "Vaš ljubljenček":"Your Pet",
-  "Današnji fokus":"Today's Focus",
-  "Današnje naloge":"Today's Tasks",
-  "Dokončajte prvo prijavo za prvi AI vpogled.":"Complete your first check-in to receive your first AI insight.",
-  "Vaš napredek":"Your Progress",
-  "Prikaži vse naloge":"View all tasks",
-  "AI vpogled":"AI Insight",
-  "Dni zapored 🔥":"Day streak 🔥",
-  "Prijave":"Check-ins",
-  "Dokončanost načrta":"Plan completion",
-  "Začni današnjo prijavo":"Start Today's Check-In",
-  "Ocena":"Assessment",
-  // plan / progress
-  "Pregled":"Overview","Razlaga vedenja":"Behavior Explanation","Česa ne početi":"What Not To Do",
-  "Trend pogostosti":"Frequency Trend","Pogosti vzorci":"Common Patterns",
-  "Najpogostejši čas":"Most Common Time","Najpogostejša lokacija":"Most Common Location","Glavni sprožilec":"Top Trigger",
-  "Posodobljeno po vsaki prijavi":"Updated after each check-in",
-  "Dokončajte prvo prijavo za vpogled v napredek.":"Complete your first check-in to see your progress insights.",
-  "AI povzetek":"AI Summary","Še ni podatkov":"No data yet",
-  "AI dnevni vpogled":"AI Daily Insight",
-  "Vedenjski rezultat":"Behaviour Score","Izboljšanje":"Improvement","Stopnja prijav":"Check-in Rate",
-  "Blago":"Mild","Resno":"Severe",
-  "Prijava shranjena!":"Check-in saved!","Tukaj je, kaj opažamo.":"Here's what we're seeing.",
-  // profile
-  "Mejniki":"Milestones","Prvo izboljšanje":"First Improvement","Pogostost vedenja se je zmanjšala":"Behavior frequency decreased",
-  "Načrt dokončan":"Plan Complete","Dokončajte vseh 7 dni":"Complete all 7 days",
-  "Vrsta · Pasma":"Species · Breed","Začni novo oceno":"Start New Assessment","Odjava":"Sign Out","Izbriši profil":"Delete Profile",
-  "Zgodovina ocen":"Assessment History","Prejšnji načrti":"Previous Plans","Nastavitve računa":"Account Settings","Obračun":"Billing",
-  "Nastavitve":"Settings",
-  "Dnevna prijava":"Daily check-in","Imetnik računa":"Account holder","Geslo":"Password","Spremeni":"Change",
-  "Verjetni vzroki":"Likely Causes","Takojšnji ukrepi":"Immediate Actions","Aktivno":"Active",
-  "Plačano":"Paid","Način plačila":"Payment method","Račun":"Receipt","Prenesi":"Download","Potrebujete pomoč?":"Need help?","Kontaktiraj podporo":"Contact support",
-  // misc
-  "ali":"or",
-  // assessment questions (no-variable ones) + options
-  "Kako je ime vašemu ljubljenčku?":"What's your pet's name?",
-  "To bomo uporabljali skozi ves vaš načrt.":"We'll use this throughout your plan.",
-  "Vnesite ime…":"Enter name…",
-  "Kakšnega ljubljenčka imate?":"What kind of pet do you have?",
-  "Vse prilagodimo vaši specifični živali.":"We tailor everything to your specific animal.",
-  "Pes":"Dog","Mačka":"Cat","Drugo":"Other",
-  "Manj kot 1 leto":"Under 1 year","1-3 leta":"1-3 years","3-7 let":"3-7 years","7-10 let":"7-10 years","Več kot 10 let":"Over 10 years",
-  "Samec":"Male","Samica":"Female","Neznano":"Unknown",
-  "Kastriran":"Neutered","Steriliziran":"Spayed","Nisem prepričan":"Not sure",
-  "Izberite možnost, ki velja.":"Select the option that applies.",
-  "Notri":"Indoor","Zunaj":"Outdoor","Oboje":"Both",
-  "Stays mostly inside":"Stays mostly inside",
-  "Kdo živi doma z vašim ljubljenčkom?":"Who lives at home with your pet?",
-  "Izberite vse, kar velja.":"Select all that apply.",
-  "Samo jaz":"Just me","Partner/zakonec":"Partner/spouse","Otroci":"Children","Drugi ljubljenčki":"Other pets","Drugi odrasli":"Other adults",
-  "Katera je glavna težava, ki jo opažate?":"What is the main issue you're noticing?",
-  "Opišite s svojimi besedami.":"Describe in your own words.",
-  "Kako dolgo se to dogaja?":"How long has this been happening?",
-  "Pravkar se je začelo":"Just started","Nekaj dni":"A few days","1-2 tedna":"1-2 weeks","1-3 mesece":"1-3 months","Več kot 3 mesece":"Over 3 months",
-  "Kako pogosto se to dogaja?":"How often does it happen?",
-  "Večkrat na dan":"Multiple times daily","Enkrat na dan":"Once a day","Nekajkrat na teden":"A few times a week","Enkrat na teden":"Once a week","Občasno":"Occasionally",
-  "Kje se to običajno dogaja?":"Where does it usually happen?",
-  "Dnevna soba":"Living room","Spalnica":"Bedroom","Kuhinja":"Kitchen","Hodnik":"Hallway","Povsod":"Everywhere","Ob določenih časih":"At specific times",
-  "Je bilo doma kaj nedavnih sprememb?":"Have there been any recent changes at home?",
-  "Tudi majhne spremembe lahko vplivajo na vedenje.":"Even small changes can affect behaviour.",
-  "Nov ljubljenček":"New pet","Nova oseba":"New person","Selitev ali potovanje":"Move or travel","Sprememba urnika":"Schedule change","Sprememba prehrane":"Diet change","Nič nenavadnega":"Nothing unusual",
-  "Kaj ste že poskusili?":"What have you already tried?",
-  "Ignoriral sem":"Ignored it","Okaral / rekel ne":"Scolded / said no","Nagrajevanje pri treningu":"Reward-based training","Odvračanje pozornosti":"Distraction","Obisk veterinarja":"Vet visit","Še nič":"Nothing yet",
-  "Opažate katerega od teh opozorilnih znakov?":"Are you noticing any of these warning signs?",
-  "Bodite iskreni - to nam pomaga dati pravo usmeritev.":"Be honest - this helps us give the right guidance.",
-  "Agresija ali grizenje":"Aggression or biting","Ne je ali ne pije":"Not eating or drinking","Letargija ali šibkost":"Lethargy or weakness","Bruhanje ali driska":"Vomiting or diarrhea","Nenehno skrivanje":"Hiding constantly","Nič od tega":"None of these",
-  // check-in steps
-  "Se je vedenje danes pojavilo?":"Did the behavior occur today?",
-  "Bodite iskreni - vsak podatek pomaga.":"Be honest - every data point helps.",
-  "Da":"Yes","Ne":"No",
-  "Kolikokrat se je zgodilo?":"How many times did it happen?",
-  "Kako resno je bilo?":"How severe was it?",
-  "1 = zelo blago, 10 = zelo resno":"1 = very mild, 10 = very severe",
-  "Kje se je zgodilo?":"Where did it happen?",
-  "Več krajev":"Multiple places",
-  "Ob katerem času se je zgodilo?":"What time did it happen?",
-  "Jutro (6-12h)":"Morning (6am-12pm)","Popoldne (12-18h)":"Afternoon (12pm-6pm)","Večer (18-24h)":"Evening (6pm-12am)","Noč (0-6h)":"Night (12am-6am)","Ves dan":"All day",
-  "Kaj se je zgodilo tik pred tem?":"What happened right before?",
-  "Kaj je bil sprožilec, če sploh?":"What was the trigger, if any?",
-  "Raven energije danes?":"Energy level today?",
-  "Nizka":"Low","Normalna":"Normal","Visoka":"High",
-  "Kakšne nenavadne spremembe danes?":"Any unusual changes today?",
-  "Obiski doma":"Visitors at home","Motnja urnika":"Schedule disruption","Nova hrana ali priboljšek":"New food or treat","Sprememba aktivnosti zunaj":"Outdoor activity change",
-  "Kakšne opombe?":"Any notes?",
-  "Neobvezno, a koristno.":"Optional but useful.",
-  // plan day titles
-  "Stabiliziraj situacijo":"Stabilize the situation",
-  "Takojšnji ukrepi in ponastavitev okolja":"Immediate actions and environment reset",
-  "Prepoznaj vzorec":"Identify the pattern",
-  "Spremljaj kdaj in kako se dogaja":"Track when and how it happens",
-  "Prilagodi okolje":"Adjust the environment",
-  "Naredi ciljne spremembe za zmanjšanje sprožilcev":"Make targeted changes to reduce triggers",
-  "Uvedi novo vedenje":"Introduce new behavior",
-  "Okrepi napredek":"Reinforce progress",
-  "Preglej trend":"Review the trend",
-  "Oceni spremembe in podatke":"Evaluate the changes and the data",
-  "Določi naslednje korake":"Decide next steps",
-  "Utrdi prvi teden":"Consolidate the first week",
-  // streak lost
-  "Niz prekinjen":"Streak broken",
-  "Zamudil si svoje okno za prijavo.":"You missed your check-in window.",
-  "Začni znova nocoj ob 20:00":"Start again tonight at 20:00",
-  // lock sheet
-  "Prijava je zaprta":"Check-in is closed",
-  // question labels (the small uppercase label above each question)
-  "Začetek":"Getting started",
-  "O vašem ljubljenčku":"About your pet",
-  "Zdravje":"Health",
-  "Bivalne razmere":"Living situation",
-  "Težava":"The problem",
-  "Kontekst":"Context",
-  "Kaj ste poskusili":"What you've done",
-  "Varnost":"Safety",
-  // environment sub-options
-  "Večinoma ostaja znotraj":"Stays mostly inside",
-  "Preživlja čas zunaj":"Spends time outside",
-  "Mešanica notri in zunaj":"Mix of indoor and outdoor",
-  // breed question
-  "Vnesite pasmo ali napišite \"mešanec\" ali \"neznano\".":"Enter the breed, or write \"mixed\" or \"unknown\".",
-  // entry suggestion chips
-  "Ne je":"Not eating",
-  "Tesnoba ali strah":"Anxiety or fear",
-  "Sprememba vedenja":"Behaviour change",
-  "Agresija":"Aggression",
-  "Pretiran hrup":"Excessive noise",
-  "Skrivanje":"Hiding away",
-  "Nemiren":"Restless",
-  "Nizka energija":"Low energy",
-  "Težave z odvajanjem":"Toileting issues",
-  "Pretirano lizanje":"Over-grooming",
-  "Umaknjen":"Withdrawn",
-  "Spremembe spanja":"Sleep changes",
-  "Grizenje":"Biting",
-  "Oglašanje":"Vocalising",
-  "Hoja sem ter tja":"Pacing",
-  // assessment options not yet covered
-  "1-3 leta":"1-3 years",
-  "Partner/zakonec":"Partner/spouse",
-  "Okaral / rekel ne":"Scolded / said no",
-  "Ne je ali ne pije":"Not eating or drinking",
-  // streak / today
-  "Opravljeno - se vrne jutri ob 20:00":"Done - back tomorrow at 20:00",
-  "Prijava se odpre ob 20:00":"Check-in opens at 20:00",
-  "Usmerite ljubljenčka k boljšim odločitvam":"Guide your pet toward better choices",
-  "Prepoznavanje natančnega vzorca - kdaj, kje, kako pogosto - nam da podatke, potrebne za prave ukrepe.":"Identifying the exact pattern - when, where, how often - gives us the data needed for the right actions.",
-  "Intermitentni sprožilci":"Intermittent triggers",
-  "npr. Ravno smo nameravali oditi…":"e.g. We were just about to leave…",
-  "npr. Po sprehodu je bil bolj sproščen…":"e.g. He was calmer after the walk…",
-  "npr. ${name} je nenadoma začel…":"e.g. ${name} suddenly started…",
-  "Vaše ime":"Your name",
-  "E-poštni naslov":"Email address",
-  "Ustvarite geslo":"Create a password",
-  "Kaj vključuje":"What's included",
-  "Izberite svoj paket":"Choose your package",
-  "1 načrt":"1 plan",
-  "3 načrti":"3 plans",
-  "Za eno žival ali eno težavo":"For one pet or one issue",
-  "Za več živali ali prihodnje težave":"For multiple pets or future issues",
-  "Najboljša vrednost":"Best value",
-  "Uporabite jih za različne živali ali težave":"Use them for different pets or issues",
-  "Prihranite €10 v primerjavi s posameznimi":"Save €10 versus buying separately",
-  "Prilagojen 7-dnevni vedenjski načrt":"A personalized 7-day behaviour plan",
-  "Verjetni vzroki in česa ne početi":"Likely causes and what not to do",
-  "Dnevne prijave z AI vpogledi":"Daily check-ins with AI insights",
-  "Spremljanje napredka skozi čas":"Progress tracking over time",
-  "Varno plačilo prek Stripe · 30-dnevna garancija":"Secure payment via Stripe · 30-day guarantee",
-  "Moj pes se je začel vesti drugače…":"My dog started acting differently…",
-  "✓ Ocena dokončana":"✓ Assessment complete",
-  "Ocena dokončana":"Assessment complete",
-  "⚠ Morda je potrebna veterinarska pomoč.":"⚠ Veterinary attention may be needed.",
-  "Ta platforma pomaga organizirati opažanja in nudi vedenjske usmeritve, ni pa nadomestilo za strokovno veterinarsko oskrbo.":"This platform helps organize observations and provides behavioral guidance, but it is not a substitute for professional veterinary care.",
-  "Niz":"Streak",
-  // check-in yes/no pills (exact match - safe alongside "Ne je")
-  "Da":"Yes",
-  "Ne":"No",
-  // billing
-  "Vedenjski načrt":"Behaviour plan",
-  "Pojdi na Danes":"Go to Today",
-  "Vaš 7-dnevni načrt je pripravljen. Začnimo.":"Your 7-day plan is ready. Let's begin.",
-  "Odlično!":"Great!",
-  // more screens
-  "Prilagojeno vašemu ljubljenčku":"Personalized for your pet",
-  "Naredite ciljne spremembe za zmanjšanje sprožilcev.":"Make targeted changes to reduce triggers.",
-  "E-poštne nastavitve":"Email Preferences",
-  "Odlično!":"Amazing!",
-  "Odličen napredek danes.":"Great progress today.",
-  "Vaš prilagojen":"Your personalized",
-  "načrt je pripravljen.":"plan is ready.",
-  "Vaša dnevna prijava se odpre ob":"Your daily check-in opens at",
-  ". Jo želite vseeno odkleniti in se prijaviti zdaj?":". Would you like to unlock it and check in now anyway?",
-  "Ta platforma nudi vedenjske usmeritve in pomaga organizirati opažanja. Ni":"This platform provides behavioral guidance and helps organize observations. It is",
-  "nadomestilo za strokovno veterinarsko oskrbo":"not a substitute for professional veterinary care",
-  ". Pri zdravstvenih skrbeh se vedno posvetujte z veterinarjem.":". For medical concerns, always consult a vet.",
-  // celebrations / toasts
-  "Načrt odklenjen!":"Plan unlocked!",
-  "Vaš 7-dnevni načrt je pripravljen. Začnimo.":"Your 7-day plan is ready. Let's get started.",
-  "Plačilo uspešno!":"Payment successful!",
-  "Vaš 7-dnevni načrt je pripravljen.":"Your 7-day plan is ready.",
-  "Vse naloge dokončane!":"All tasks complete!",
-  "Opravili ste polovico današnjih nalog. Kar tako naprej.":"You've completed half of today's tasks. Keep going.",
-  "Na pol poti!":"Halfway there!",
-  "Nadaljuj":"Keep going",
-  "Danes brez incidentov!":"No incidents today!",
-  "Cel dan brez incidentov je pravi napredek. Jutri nadaljujte z rutino.":"A full day with zero incidents is real progress. Keep the routine going tomorrow.",
-  "Prijava dokončana!":"Check-in complete!",
-  "Vaši podatki so zabeleženi. Gradite dragocen vzorec.":"Your data has been logged. You're building a valuable pattern.",
-  "Kar tako naprej":"Keep it up",
-  "Naročnina aktivna":"Subscription active",
-  "Vaš načrt se zdaj nadaljuje z novimi tedenskimi koraki in polnim spremljanjem.":"Your plan now continues with fresh weekly steps and full tracking.",
-  "Vaš načrt je bil prilagojen na podlagi vsega doslej - brezplačno.":"Your plan has been adapted based on everything so far - free of charge.",
-  "Odklenjeni 4 dodatni dnevi":"4 extra days unlocked",
-  // plan descriptions
-  "Prva prioriteta je stabilizirati situacijo in preprečiti, da bi vedenje eskaliralo.":"The first priority is to stabilize the situation and prevent the behavior from escalating.",
-  "Ustvarjanje pravega okolja je pogosto najhitrejša pot do izboljšanja. Majhne dosledne spremembe se hitro seštevajo.":"Creating the right environment is often the fastest path to improvement. Small consistent changes compound quickly.",
-  "Zdaj ko so sprožilci zmanjšani, lahko uvedemo vedenja, ki jih želimo krepiti.":"Now that triggers are reduced, we can introduce behaviors we want to reinforce.",
-  "Doslednost je močnejša od intenzivnosti. Danes gre za utrjevanje tega, kar deluje.":"Consistency is more powerful than intensity. Today is about locking in what's working.",
-  "Stopite korak nazaj in ocenite podatke. Kaj se izboljšuje? Kaj je treba prilagoditi?":"Step back and evaluate the data. What's improving? What needs adjustment?",
-  "To je temelj vašega dolgoročnega načrta. Gradite na vsem, kar ste se naučili.":"This is the foundation for your long-term plan. Build on everything you've learned.",
-  // causes
-  "Okoljski stres":"Environmental stress","Motnja rutine":"Routine disruption","Naučeno vedenje":"Learned behaviour",
-  "Nedosleden odziv":"Inconsistent response","Okoljski sprožilci":"Environmental triggers","Visoka stimulacija":"High stimulation",
-  "Pomanjkanje nadomestnega vedenja":"Lack of alternative behaviour","Vzorci krepitve":"Reinforcement patterns","Nedoslednost":"Inconsistency",
-  "Konkurenčni dražljaji":"Competing stimuli","Ponovitev vzorca":"Pattern relapse","Utrujenost":"Fatigue",
-  "Nerazrešen temeljni vzrok":"Unresolved root cause","Tesnoba ob prehodu":"Transition anxiety",
-  "Odmik rutine":"Routine drift","Sprememba okolja":"Environment change","Nepopolno oblikovanje navade":"Incomplete habit formation",
-  "Prenos stresa":"Stress carryover","Nedosledna krepitev":"Inconsistent reinforcement","Sezonski ali situacijski dejavniki":"Seasonal or situational factors","Preostala tesnoba":"Residual anxiety",
-  // what-not-to-do
-  "Kaznovanje ali graja za nazaj":"Punish or reprimand after the fact",
-  "Pretirana pozornost takoj po incidentu":"Give excessive attention immediately after an incident",
-  "Nenadne velike spremembe rutine":"Make sudden large changes to routine",
-  "Izpuščanje prijav tudi na dobre dni - doslednost je vse":"Skip check-ins even on good days - consistency is everything",
-  // status labels
-  "Dokončano":"Completed",
-  // plan day subs (no-variable)
-  "Nagradi kar deluje, zmanjšaj trenja":"Reward what's working, reduce friction",
-  "Tedenska ponastavitev":"Weekly reset","Nasloví nove sprožilce":"Address new triggers","Uvedi raznolikost":"Introduce variation","Utrdi napredek":"Consolidate gains","Preglej tedenske podatke":"Review weekly data","Načrtuj prihodnji teden":"Plan the week ahead","Ohranjaj napredek":"Maintain progress",
-  "Poglobi kar deluje":"Deepen what works","Podvoji rutine, ki so pomagale":"Double down on the routines that helped",
-  "Nasloví preostale težave":"Target the holdouts","Gradi odpornost":"Build resilience","Okrepi novo vedenje pod blagim stresom":"Strengthen the new behaviour under mild stress","Ponovno oceni":"Re-evaluate","Preveri, ali se je težava razrešila":"Check whether the issue has resolved",
-  // billing detail
-  "Plačila varno obdeluje Stripe. To je bil enkratni nakup - ponovno vam ne bo zaračunano.":"Payments are processed securely by Stripe. This was a one-time purchase - you will not be charged again.",
-  "€9.95 · Enkratni nakup · Brez naročnine":"€9.95 · One-time purchase · No subscription",
-  // toasts
-  "Prijava z Google trenutno ni mogoča.":"Google sign-in is not available right now.",
-  "Za zdaj se prosimo registrirajte z e-pošto.":"For now, please sign up with email.",
-  // today focus variants
-  "Prepoznaj sprožilec":"Identify the trigger",
-  "Skrbno spremljaj hranjenje":"Monitor feeding closely",
-  "Zmanjšaj stresne sprožilce":"Reduce stress triggers",
-  "Majhne spremembe okolja imajo lahko velik vpliv. Doslednost je ključna.":"Small changes to the environment can have a significant impact. Consistency is key.",
-  "Agresija je običajno odziv na določen sprožilec. Iskanje vzorca je prvi korak.":"Aggression is usually a response to a specific trigger. Finding the pattern is the first step.",
-  "Spremembe apetita zahtevajo skrbno spremljanje. Doslednost rutine je pomembna.":"Changes in appetite need careful monitoring. Routine consistency matters.",
-  "Ustvarjanje mirnega, predvidljivega okolja pomaga tesnobnim živalim, da se počutijo varno.":"Creating a calm, predictable environment helps anxious animals feel safe.",
-};
-// Seed DICT_ML with English from SL_EN, then layer in FR/DE/IT/ES below.
-Object.keys(SL_EN).forEach(sl=>{ DICT_ML[sl]={en:SL_EN[sl]}; });
 let currentLang = 'en';
 // Look up a Slovenian source string for the current language.
-// DICT_ML[sl] = {en,fr,de,it,es}. Falls back to EN then the original SL.
-function trFor(slKey){
-  if(currentLang==='sl') return null;            // app authored in SL
-  const entry = DICT_ML[slKey];
-  if(entry){
-    if(entry[currentLang]!=null) return entry[currentLang];
-    if(entry.en!=null) return entry.en;          // fallback EN
-  }
-  // legacy SL_EN (English only) as a secondary source
-  if(currentLang==='en' && SL_EN[slKey]!=null) return SL_EN[slKey];
-  return null;
-}
+// Returns English text (app is English-only).
 function tr(slText, enText){
-  if(currentLang==='sl') return slText;
-  const k=(slText||'').trim();
-  const t=trFor(k);
-  if(t!=null) return t;
-  if(enText!=null) return enText;   // explicit English fallback
+  if(enText!=null) return enText;
   return slText;
 }
 // Walk the #app DOM and translate text nodes + placeholders into currentLang.
 function translatePage(){
-  if(currentLang==='sl') return;
-  const app=document.getElementById('app'); if(!app) return;
-  const walker=document.createTreeWalker(app, NodeFilter.SHOW_TEXT, null);
-  const nodes=[];
-  while(walker.nextNode()) nodes.push(walker.currentNode);
-  nodes.forEach(n=>{
-    const raw=n.nodeValue; if(!raw) return;
-    const key=raw.trim(); if(!key) return;
-    const t=trFor(key);
-    if(t!=null){
-      const lead=raw.match(/^\s*/)[0], tail=raw.match(/\s*$/)[0];
-      n.nodeValue = lead + t + tail;
-    }
-  });
-  app.querySelectorAll('[placeholder]').forEach(el=>{
-    const key=(el.placeholder||'').trim();
-    const t=trFor(key);
-    if(t!=null) el.placeholder=t;
-  });
+  // App is English-only. No DOM translation is performed.
+  return;
 }
 function applyTranslations(){ translatePage(); }
 // Auto-translate any dynamically rendered content without manual calls.
@@ -1430,10 +1054,10 @@ function showCookieBannerIfNeeded(){
   if(b){
     // bilingual text
     const txt=document.getElementById('cookieText');
-    if(txt) txt.textContent = L('Uporabljamo nujne piškotke za delovanje strani in – z vašo privolitvijo – analitične piškotke za izboljšanje storitve.','We use essential cookies to run the site and, with your consent, analytics cookies to improve the service.');
-    const a=document.getElementById('cookieAcceptBtn'); if(a) a.textContent=L('Sprejmi vse','Accept all');
-    const r=document.getElementById('cookieRejectBtn'); if(r) r.textContent=L('Samo nujni','Essential only');
-    const m=document.getElementById('cookieMoreLink'); if(m) m.textContent=L('Learn more about privacy','More about privacy');
+    if(txt) txt.textContent = 'We use essential cookies to run the site and, with your consent, analytics cookies to improve the service.';
+    const a=document.getElementById('cookieAcceptBtn'); if(a) a.textContent='Accept all';
+    const r=document.getElementById('cookieRejectBtn'); if(r) r.textContent='Essential only';
+    const m=document.getElementById('cookieMoreLink'); if(m) m.textContent='More about privacy';
     b.style.display='block';
   }
 }
@@ -1453,24 +1077,12 @@ function backToLanguage(){
 
 // Legal documents (Terms / Privacy), bilingual.
 function openLegal(kind){
-  const updated = L('Zadnja posodobitev: junij 2026','Last updated: June 2026');
+  const updated = 'Last updated: June 2026';
   const company = 'Spletne storitve, Urban Rus s.p.';
   const email = 'hello@thenuci.com';
   let html='';
   if(kind==='terms'){
-    html = L(
-      `<h1 style="font-size:1.5rem;margin-bottom:6px;">Pogoji uporabe</h1>
-       <p style="color:var(--secondary);font-size:0.82rem;margin-bottom:20px;">${updated}</p>
-       <p><strong>1. Ponudnik storitve</strong><br>Storitev Nuci (»storitev«) zagotavlja ${company}, kontakt: ${email}.</p>
-       <p><strong>2. Opis storitve</strong><br>Nuci je digitalno orodje, ki na podlagi vaših vnosov ustvari prilagojen vedenjski načrt za vašega hišnega ljubljenčka ter omogoča dnevno spremljanje. Storitev nudi splošne vedenjske usmeritve in <strong>ni nadomestilo za strokovno veterinarsko oskrbo</strong>. Pri zdravstvenih težavah se posvetujte z veterinarjem.</p>
-       <p><strong>3. Plačilo</strong><br>Dostop do načrta je enkratni nakup po ceni, navedeni ob nakupu. Plačila varno obdeluje Stripe. Cena vključuje vse veljavne dajatve, kjer je to določeno.</p>
-       <p><strong>4. Pravica do odstopa in vračila</strong><br>Storitev je digitalna vsebina z začetkom takojšnjega izvajanja. Z nakupom izrecno soglašate, da se izvajanje začne takoj, in <strong>potrjujete, da s tem izgubite pravico do 14-dnevnega odstopa</strong> v skladu z zakonodajo o varstvu potrošnikov. Vračila zato niso mogoča, razen kjer to zahteva zakon.</p>
-       <p><strong>5. Odgovornost</strong><br>Storitev je na voljo »kakršna je«. Ne jamčimo za določene rezultate pri vedenju živali. V največjem zakonsko dovoljenem obsegu ne odgovarjamo za posredno ali posledično škodo.</p>
-       <p><strong>6. Uporaba</strong><br>Vsebine ne smete preprodajati ali razširjati brez dovoljenja. Račun je oseben.</p>
-       <p><strong>7. Spremembe</strong><br>Pogoje lahko občasno posodobimo. Spremembe veljajo od objave.</p>
-       <p><strong>8. Pravo</strong><br>Veljavno je pravo Republike Slovenije.</p>
-       <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">Za vprašanja nas kontaktirajte na ${email}.</p>`,
-      `<h1 style="font-size:1.5rem;margin-bottom:6px;">Terms of Service</h1>
+    html = `<h1 style="font-size:1.5rem;margin-bottom:6px;">Terms of Service</h1>
        <p style="color:var(--secondary);font-size:0.82rem;margin-bottom:20px;">${updated}</p>
        <p><strong>1. Service provider</strong><br>The Nuci service (the "service"), available at thenuci.com, is provided by ${company}, contact: ${email}.</p>
        <p><strong>2. Description of the service</strong><br>The Nuci is a digital tool that uses your input to generate a personalized behaviour plan for your pet and lets you track daily progress. The plan adapts over time based on your daily check-ins and the notes you record, which form part of the service. The service provides general behavioural guidance only and is <strong>not a substitute for professional veterinary or behavioural care</strong>. For medical or serious behavioural concerns, consult a qualified veterinarian.</p>
@@ -1482,22 +1094,9 @@ function openLegal(kind){
        <p><strong>8. Liability</strong><br>The service is provided "as is". We do not guarantee specific outcomes in animal behaviour. To the maximum extent permitted by law, we are not liable for indirect or consequential damages. Nothing in these terms limits liability that cannot be limited by law.</p>
        <p><strong>9. Changes</strong><br>We may update these terms from time to time. Material changes will be reflected by the "last updated" date. Continued use after changes constitutes acceptance.</p>
        <p><strong>10. Governing law and disputes</strong><br>These terms are governed by the laws of the Republic of Slovenia. Mandatory consumer rights in your country of residence remain unaffected. Consumers may also use the EU Online Dispute Resolution platform at ec.europa.eu/consumers/odr.</p>
-       <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">For questions, contact us at ${email}.</p>`
-    );
+       <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">For questions, contact us at ${email}.</p>`;
   } else {
-    html = L(
-      `<h1 style="font-size:1.5rem;margin-bottom:6px;">Politika zasebnosti</h1>
-       <p style="color:var(--secondary);font-size:0.82rem;margin-bottom:20px;">${updated}</p>
-       <p><strong>1. Upravljavec</strong><br>Upravljavec osebnih podatkov je ${company}, ${email}.</p>
-       <p><strong>2. Kateri podatki se zbirajo</strong><br>Zbiramo: vaš e-poštni naslov in podatke računa; podatke, ki jih vnesete o svojem ljubljenčku (vrsta, ime, vedenje, opažanja); podatke o prijavah in napredku. Plačilne podatke (kartica) obdeluje neposredno Stripe – mi jih ne shranjujemo.</p>
-       <p><strong>3. Namen obdelave</strong><br>Podatke uporabljamo za delovanje storitve, ustvarjanje vašega načrta, shranjevanje napredka in podporo. Pravna podlaga je izvajanje pogodbe (vaša uporaba storitve).</p>
-       <p><strong>4. Obdelovalci</strong><br>Uporabljamo zaupanja vredne ponudnike: <strong>Supabase</strong> (shranjevanje podatkov), <strong>Stripe</strong> (plačila), <strong>Google</strong> (prijava in analitika). Ti obdelujejo podatke v našem imenu skladno z GDPR.</p>
-       <p><strong>5. Uporaba umetne inteligence</strong><br>Za pripravo vašega vedenjskega načrta in vpogledov uporabljamo umetno inteligenco. V AI se posredujejo le podatki o ljubljenčku in vedenju, ki jih vnesete (vrsta, opažanja, odgovori in prijave) – <strong>ne posredujemo osebnih podatkov, kot so vaše ime, e-pošta ali plačilni podatki</strong>. Vnosi se uporabljajo izključno za ustvarjanje vaše vsebine.</p>
-       <p><strong>6. Hramba</strong><br>Podatke hranimo, dokler imate račun oziroma dokler so potrebni za storitev. Ob izbrisu računa se vaši podatki odstranijo.</p>
-       <p><strong>7. Vaše pravice</strong><br>Imate pravico do dostopa, popravka, izbrisa in prenosljivosti svojih podatkov ter do ugovora obdelavi. Za uveljavljanje pišite na ${email}. Pritožbo lahko vložite pri Informacijskem pooblaščencu RS.</p>
-       <p><strong>8. Piškotki</strong><br>Uporabljamo nujne piškotke za delovanje in – z vašo privolitvijo – analitične piškotke za izboljšanje storitve. Privolitev lahko kadar koli prekličete.</p>
-       <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">Za vprašanja o zasebnosti nas kontaktirajte na ${email}.</p>`,
-      `<h1 style="font-size:1.5rem;margin-bottom:6px;">Privacy Policy</h1>
+    html = `<h1 style="font-size:1.5rem;margin-bottom:6px;">Privacy Policy</h1>
        <p style="color:var(--secondary);font-size:0.82rem;margin-bottom:20px;">${updated}</p>
        <p><strong>1. Data controller</strong><br>The controller of your personal data is ${company}, ${email}.</p>
        <p><strong>2. What data we collect</strong><br>• <strong>Account data:</strong> your email address and password (stored encrypted by our auth provider).<br>• <strong>Pet & behaviour data:</strong> the information you enter about your pet - name, species, breed, age, sex, neutering status, living environment, household, the behaviour issue, its frequency/duration/location, what you've tried, and any warning signs.<br>• <strong>Optional pet photo</strong> you choose to upload.<br>• <strong>Progress & notes data:</strong> your daily check-ins, the free-text daily notes/observations you write, streaks and plan progress. Your notes are used as an input to generate and adapt your plan.<br>• <strong>Email & contact data:</strong> we store your email address, your email preferences, your time zone and signup time, and records of which emails we've sent you, so we can send reminders and updates at the right time and respect your opt-out. <br>• <strong>Technical data:</strong> check-in dates and basic analytics.<br>Payment card details are entered directly with Stripe - <strong>we never receive or store your card number</strong>.</p>
@@ -1508,8 +1107,7 @@ function openLegal(kind){
        <p><strong>7. Your rights</strong><br>You have the right to access, rectify, erase, restrict, and port your data, and to object to processing or withdraw consent at any time. To exercise these rights, email ${email}. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski pooblaščenec, ip-rs.si).</p>
        <p><strong>8. Cookies</strong><br>We use strictly necessary cookies to operate the service and, only with your consent, analytics cookies to improve it. You can give or withdraw consent via the cookie banner at any time.</p>
        <p><strong>9. Children</strong><br>The service is not directed at children under 18 and we do not knowingly collect their data.</p>
-       <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">For privacy questions, contact us at ${email}.</p>`
-    );
+       <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">For privacy questions, contact us at ${email}.</p>`;
   }
   const el=document.getElementById('legalContent');
   if(el){
@@ -1520,14 +1118,10 @@ function openLegal(kind){
 }
 function t(key){ return key; }   // legacy no-op
 // Central bilingual helper, now multilingual.
-// L('slovensko','english') - for FR/DE/IT/ES it looks up the SL string in
-// DICT_ML; if a translation exists it's used, otherwise English is shown.
-function L(sl,en){
-  if(currentLang==='sl') return sl;
-  if(currentLang==='en') return en;
-  const entry=DICT_ML[sl];
-  if(entry && entry[currentLang]!=null) return entry[currentLang];
-  return en;   // fallback to English for any missing translation
+// 'english' - for FR/DE/IT/ES it looks up the SL string in
+function L(sl, en){
+  // App is English-only. Always return the English text.
+  return (en!=null) ? en : sl;
 }
 
 // Rotating animated title on the language screen
@@ -1680,8 +1274,7 @@ function breedPlaceholder(){
   return map[t]||map.other;
 }
 function getQuestions(){
-  const name=state.answers.petName|| (currentLang==='en'?'your pet':'vaš ljubljenček');
-  if(currentLang==='en'){
+  const name=state.answers.petName || 'your pet';
     return[
       {id:'petName',label:'Getting started',title:"What's your pet's name?",sub:"We'll use this throughout your plan.",type:'text',placeholder:'Enter name…'},
       {id:'petType',label:'About your pet',title:'What kind of pet do you have?',sub:'We tailor everything to your specific animal.',type:'pet-type'},
@@ -1699,24 +1292,6 @@ function getQuestions(){
       {id:'tried',label:"What you've done",title:'What have you already tried?',type:'multi',options:['Ignored it','Scolded / said no','Reward-based training','Distraction','Vet visit','Nothing yet']},
       {id:'warningSigns',label:'Safety',title:'Are you noticing any of these warning signs?',sub:'Be honest - this helps us give the right guidance.',type:'multi',options:['Aggression or biting','Not eating or drinking','Lethargy or weakness','Vomiting or diarrhea','Hiding constantly','None of these'],warning:['Aggression or biting','Not eating or drinking','Lethargy or weakness','Vomiting or diarrhea']}
     ];
-  }
-  return[
-    {id:'petName',label:'Začetek',title:"Kako je ime vašemu ljubljenčku?",sub:"To bomo uporabljali skozi ves vaš načrt.",type:'text',placeholder:'Vnesite ime…'},
-    {id:'petType',label:'O vašem ljubljenčku',title:'Kakšnega ljubljenčka imate?',sub:'Vse prilagodimo vaši specifični živali.',type:'pet-type'},
-    {id:'breed',label:'O vašem ljubljenčku',title:`Katere pasme je ${name}?`,sub:'Vnesite pasmo ali napišite "mešanec" ali "neznano".',type:'text',placeholder:breedPlaceholder()},
-    {id:'age',label:'O vašem ljubljenčku',title:`Koliko je ${name} star?`,type:'pills',options:['Manj kot 1 leto','1-3 leta','3-7 let','7-10 let','Več kot 10 let']},
-    {id:'sex',label:'O vašem ljubljenčku',title:`Kateri spol je ${name}?`,type:'pills',options:['Samec','Samica','Neznano']},
-    {id:'neutered',label:'Zdravje',title:`Je ${name} kastriran ali steriliziran?`,sub:'Izberite možnost, ki velja.',type:'pills',options:['Kastriran','Steriliziran','Nisem prepričan']},
-    {id:'environment',label:'Bivalne razmere',title:`Je ${name} večinoma v zaprtih prostorih ali zunaj?`,type:'options',options:[{icon:'🏠',label:'Notri',sub:'Večinoma ostaja znotraj'},{icon:'🌳',label:'Zunaj',sub:'Preživlja čas zunaj'},{icon:'↔️',label:'Oboje',sub:'Mešanica notri in zunaj'}]},
-    {id:'household',label:'Bivalne razmere',title:'Kdo živi doma z vašim ljubljenčkom?',sub:'Izberite vse, kar velja.',type:'multi',options:['Samo jaz','Partner/zakonec','Otroci','Drugi ljubljenčki','Drugi odrasli']},
-    {id:'mainIssue',label:'Težava',title:"Katera je glavna težava, ki jo opažate?",sub:'Opišite s svojimi besedami.',type:'textarea',placeholder:`npr. ${name} je nenadoma začel…`},
-    {id:'duration',label:'Težava',title:'Kako dolgo se to dogaja?',type:'pills',options:['Pravkar se je začelo','Nekaj dni','1-2 tedna','1-3 mesece','Več kot 3 mesece']},
-    {id:'frequency',label:'Težava',title:'Kako pogosto se to dogaja?',type:'pills',options:['Večkrat na dan','Enkrat na dan','Nekajkrat na teden','Enkrat na teden','Občasno']},
-    {id:'location',label:'Kontekst',title:'Kje se to običajno dogaja?',type:'multi',options:['Dnevna soba','Spalnica','Kuhinja','Hodnik','Zunaj','Povsod','Ob določenih časih']},
-    {id:'recentChanges',label:'Kontekst',title:'Je bilo doma kaj nedavnih sprememb?',sub:'Tudi majhne spremembe lahko vplivajo na vedenje.',type:'multi',options:['Nov ljubljenček','Nova oseba','Selitev ali potovanje','Sprememba urnika','Sprememba prehrane','Nič nenavadnega']},
-    {id:'tried',label:"Kaj ste poskusili",title:'Kaj ste že poskusili?',type:'multi',options:['Ignoriral sem','Okaral / rekel ne','Nagrajevanje pri treningu','Odvračanje pozornosti','Obisk veterinarja','Še nič']},
-    {id:'warningSigns',label:'Varnost',title:'Opažate katerega od teh opozorilnih znakov?',sub:'Bodite iskreni - to nam pomaga dati pravo usmeritev.',type:'multi',options:['Agresija ali grizenje','Ne je ali ne pije','Letargija ali šibkost','Bruhanje ali driska','Nenehno skrivanje','Nič od tega'],warning:['Agresija ali grizenje','Ne je ali ne pije','Letargija ali šibkost','Bruhanje ali driska']}
-  ];
 }
 
 // ═══════════════════════════════════════
@@ -1735,9 +1310,9 @@ function showScreen(id){
 // ═══════════════════════════════════════
 // ════════════ ENTRY SUGGESTIONS ════════════
 const ENTRY_SUGGESTIONS=[
-  'Ne je','Tesnoba ali strah','Sprememba vedenja','Agresija','Pretiran hrup',
-  'Skrivanje','Nemiren','Nizka energija','Težave z odvajanjem','Pretirano lizanje',
-  'Umaknjen','Spremembe spanja','Grizenje','Oglašanje','Hoja sem ter tja'
+  'Not eating','Anxiety or fear','Behaviour change','Aggression','Excessive noise',
+  'Hiding','Restless','Low energy','Toileting issues','Excessive licking',
+  'Withdrawn','Sleep changes','Biting','Vocalizing','Pacing'
 ];
 let _suggTimer=null;
 function pickTwoSuggestions(){
@@ -1755,7 +1330,7 @@ function renderEntrySuggestions(){
   const wrap=document.getElementById('entrySuggestions');if(!wrap)return;
   const two=pickTwoSuggestions();
   wrap.innerHTML=two.map(s=>{
-    const label = (currentLang==='en' && SL_EN[s]) ? SL_EN[s] : s;
+    const label = s;
     return `<button class="sugg-chip" onmousedown="event.preventDefault()" onclick="addSuggestion('${s.replace(/'/g,"\\'")}')">${label}</button>`;
   }).join('');
   // rotate every few seconds while on the entry screen and field is empty
@@ -1768,8 +1343,7 @@ function renderEntrySuggestions(){
   }
 }
 function addSuggestion(text){
-  // text is the Slovenian source; insert the English version when in EN mode
-  const label = (currentLang==='en' && SL_EN[text]) ? SL_EN[text] : text;
+  const label = text;
   const ta=document.getElementById('entryInput');
   const cur=ta.value.trim();
   ta.value=cur?(cur.replace(/[.\s]+$/,'')+'. '+label):label;
@@ -1794,7 +1368,7 @@ function startAssessment(){
       hint.style.cssText='font-size:0.8rem;color:var(--danger);margin-top:-8px;margin-bottom:12px;text-align:left;';
       ta.parentElement.after(hint);
     }
-    hint.textContent=L('Prosimo, opišite, kaj se dogaja - na tem temelji vaš načrt.','Please describe what is happening - your plan is built on this.');
+    hint.textContent='Please describe what is happening - your plan is built on this.';
     ta.focus();
     setTimeout(()=>{ta.style.borderColor='';},2000);
     return;
@@ -1841,7 +1415,7 @@ function renderQuestion(){
     fieldWrap.appendChild(makeArrowBtn('corner'));
     wrap.appendChild(fieldWrap);
   }else if(q.type==='pet-type'){
-    const items=[{id:'dog',label:L('Pes','Dog'),icon:'🐕'},{id:'cat',label:L('Mačka','Cat'),icon:'🐈'},{id:'rabbit',label:L('Zajec','Rabbit'),icon:'🐇'},{id:'bird',label:L('Ptica','Bird'),icon:'🐦'},{id:'hamster',label:L('Hrček','Hamster'),icon:'🐹'},{id:'reptile',label:L('Plazilec','Reptile'),icon:'🦎'},{id:'fish',label:L('Riba','Fish'),icon:'🐠'},{id:'other',label:L('Drugo','Other'),icon:'🐾'}];
+    const items=[{id:'dog',label:'Dog',icon:'🐕'},{id:'cat',label:'Cat',icon:'🐈'},{id:'rabbit',label:'Rabbit',icon:'🐇'},{id:'bird',label:'Bird',icon:'🐦'},{id:'hamster',label:'Hamster',icon:'🐹'},{id:'reptile',label:'Reptile',icon:'🦎'},{id:'fish',label:'Fish',icon:'🐠'},{id:'other',label:'Other',icon:'🐾'}];
     const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;';
     items.forEach(item=>{
       const btn=document.createElement('button');btn.className='option-card'+(state.answers.petType===item.id?' selected':'');
@@ -1912,7 +1486,7 @@ function checkWarning(q){
   const hasW=Array.isArray(sel)?q.warning.some(w=>sel.includes(w)):q.warning.includes(sel);
   let wa=document.getElementById('warningAreaBody');
   if(!wa)return;
-  if(hasW){wa.style.display='block';wa.innerHTML='<div class="warning-box"><strong style="color:var(--danger);">⚠ Morda je potrebna veterinarska pomoč.</strong> Ta platforma pomaga organizirati opažanja in nudi vedenjske usmeritve, ni pa nadomestilo za strokovno veterinarsko oskrbo.</div>';}
+  if(hasW){wa.style.display='block';wa.innerHTML='<div class="warning-box"><strong style="color:var(--danger);">⚠ Veterinary attention may be needed.</strong> This platform helps you organize observations and offers behavioural guidance, but it is not a substitute for professional veterinary care.</div>';}
   else wa.style.display='none';
 }
 
@@ -1961,7 +1535,7 @@ function assessNext(){
         // Save immediately (not debounced) so a refresh can't load a half-written
         // state where the new pet flickers between 1 and 2.
         try{ if(typeof persistStateNow==='function'){ persistStateNow(); } else { persistState(); } }catch(e){ console.warn('persist',e); }
-        setTimeout(()=>{ try{ showCelebration('🎉',L('Nov načrt pripravljen!','New plan ready!'),L('Začnimo s to živaljo.','Let\'s get started with this pet.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },300);
+        setTimeout(()=>{ try{ showCelebration('🎉','New plan ready!','Let\'s get started with this pet.','Go to Today',()=>{}); }catch(e){} },300);
       });
       return;
     }
@@ -1987,11 +1561,9 @@ function assessBack(){
 // ROADMAP
 // ═══════════════════════════════════════
 function buildRoadmap(){
-  const petName=state.answers.petName||(currentLang==='en'?'your pet':'vaš ljubljenček');
+  const petName=state.answers.petName||'your pet';
   const subEl=document.getElementById('roadmapSub');
-  if(subEl) subEl.textContent = currentLang==='en'
-    ? `A personalized 7-day plan for ${petName}.`
-    : `Prilagojen 7-dnevni načrt za ${petName}.`;
+  if(subEl) subEl.textContent = `A personalized 7-day plan for ${petName}.`;
   // The 7-day table was removed from this screen; the day-by-day plan now
   // lives only inside the profile after purchase.
   // If a loyalty discount is active, reflect −10% on the carousel prices
@@ -2081,24 +1653,24 @@ async function generatePlanAI(answers){
 }
 
 function generatePlan(answers){
-  const pet=answers.petName||'vaš ljubljenček';
+  const pet=answers.petName||'your pet';
   const len=state.planLength||7;
   // Base 7-day plan
   const week1=[
-    {title:'Stabiliziraj situacijo', sub:'Takojšnji ukrepi in ponastavitev okolja'},
-    {title:'Prepoznaj vzorec',    sub:'Spremljaj kdaj in kako se dogaja'},
-    {title:'Prilagodi okolje',  sub:'Naredi ciljne spremembe za zmanjšanje sprožilcev'},
-    {title:'Uvedi novo vedenje',  sub:`Usmerite ljubljenčka k boljšim odločitvam`},
-    {title:'Okrepi napredek',      sub:"Nagradi kar deluje, zmanjšaj trenja"},
-    {title:'Preglej trend',        sub:'Oceni spremembe in podatke'},
-    {title:'Določi naslednje korake',       sub:'Utrdi prvi teden'},
+    {title:'Stabilize the situation', sub:'Immediate steps and environment reset'},
+    {title:'Identify the pattern',    sub:'Track when and how it happens'},
+    {title:'Adjust the environment',  sub:'Make targeted changes to reduce triggers'},
+    {title:'Introduce new behaviour',  sub:`Guide your pet toward better choices`},
+    {title:'Reinforce progress',      sub:"Reward what works, reduce friction"},
+    {title:'Review the trend',        sub:'Assess the changes and data'},
+    {title:'Set next steps',       sub:'Consolidate the first week'},
   ];
   // Extension days 8-11 (free 4-day adaptive block)
   const ext=[
-    {title:'Poglobi kar deluje',       sub:'Podvoji rutine, ki so pomagale'},
-    {title:'Nasloví preostale težave',     sub:L(`Osredotoči se na situacije, kjer ima ${pet} še težave`,`Focus on the situations where ${pet} still struggles`)},
-    {title:'Gradi odpornost',       sub:'Okrepi novo vedenje pod blagim stresom'},
-    {title:'Ponovno oceni',             sub:'Preveri, ali se je težava razrešila'},
+    {title:'Deepen what works',       sub:'Double down on routines that helped'},
+    {title:'Address remaining issues',     sub:`Focus on the situations where ${pet} still struggles`},
+    {title:'Build resilience',       sub:'Strengthen the new behaviour under mild stress'},
+    {title:'Re-assess',             sub:'Check whether the issue has resolved'},
   ];
   const days=[...week1, ...ext];
   let week=1;
@@ -2106,12 +1678,12 @@ function generatePlan(answers){
     week++;
     const dayInWeek=(days.length % 7);
     const cycleTitles=[
-      'Tedenska ponastavitev',L(`Okrepi rutino za ${pet}`,`Reinforce ${pet}'s routine`),'Nasloví nove sprožilce',
-      'Uvedi raznolikost','Utrdi napredek','Preglej tedenske podatke','Načrtuj prihodnji teden'
+      'Weekly reset',`Reinforce ${pet}'s routine`,'Address new triggers',
+      'Introduce variety','Consolidate progress','Review weekly data','Plan the week ahead'
     ];
     days.push({
-      title: cycleTitles[dayInWeek]||'Ohranjaj napredek',
-      sub: L(`Teden ${week} - prilagajanje najnovejšim prijavam za ${pet}`,`Week ${week} - adapting to ${pet}'s latest check-ins`)
+      title: cycleTitles[dayInWeek]||'Maintain progress',
+      sub: `Week ${week} - adapting to ${pet}'s latest check-ins`
     });
   }
   // apply any AI per-day overrides
@@ -2151,7 +1723,7 @@ function getPlanDays(){
 // Works once Google is enabled in Supabase Auth -> Providers.
 // Redirects to Google, then back to this page; handleOAuthReturn() finishes it.
 async function signInWithGoogle(){
-  if(!supa){ alert(L('Prijava trenutno ni na voljo.','Sign-in is not available right now.')); return; }
+  if(!supa){ alert('Sign-in is not available right now.'); return; }
   try{
     // The OAuth redirect reloads the page and wipes in-memory state.
     // Stash the current assessment/plan locally so we can restore it on return.
@@ -2169,8 +1741,8 @@ async function signInWithGoogle(){
       provider:'google',
       options:{ redirectTo: window.location.origin + window.location.pathname }
     });
-    if(error){ console.warn('Google OAuth error', error); alert(L('Prijava z Google trenutno ni mogoča.','Google sign-in is not available right now.')); }
-  }catch(e){ console.warn('OAuth exception', e); alert(L('Prijava z Google trenutno ni mogoča.','Google sign-in is not available right now.')); }
+    if(error){ console.warn('Google OAuth error', error); alert('Google sign-in is not available right now.'); }
+  }catch(e){ console.warn('OAuth exception', e); alert('Google sign-in is not available right now.'); }
 }
 
 async function doAuth(method){
@@ -2178,7 +1750,7 @@ async function doAuth(method){
   if(method==='apple'||method==='google'){
     // OAuth not configured yet - guide to email signup
     const msg=document.getElementById('authMsg');
-    if(msg){msg.style.color='var(--secondary)';msg.textContent=L('Za zdaj se prosimo registrirajte z e-pošto.','For now, please sign up with email.');}
+    if(msg){msg.style.color='var(--secondary)';msg.textContent='For now, please sign up with email.';}
     showScreen('screen-auth-email');
     return;
   }
@@ -2187,10 +1759,10 @@ async function doAuth(method){
   const pass=(document.getElementById('authPass')||{}).value||'';
   const msg=document.getElementById('authMsg');
   if(!name.trim()||!email.trim()||!pass.trim()){
-    if(msg){msg.style.color='var(--danger)';msg.textContent=L('Prosimo, izpolnite ime, e-pošto in geslo.','Please fill in your name, email and password.');}
+    if(msg){msg.style.color='var(--danger)';msg.textContent='Please fill in your name, email and password.';}
     return;
   }
-  if(!email.includes('@')){ if(msg){msg.style.color='var(--danger)';msg.textContent=L('Prosimo, vnesite veljaven e-poštni naslov.','Please enter a valid email address.');} return; }
+  if(!email.includes('@')){ if(msg){msg.style.color='var(--danger)';msg.textContent='Please enter a valid email address.';} return; }
   if(pass.length<6){ if(msg){msg.style.color='var(--danger)';msg.textContent='Geslo mora imeti vsaj 6 znakov.';} return; }
 
   state.userName=name.trim();
@@ -2198,7 +1770,7 @@ async function doAuth(method){
 
   // Create the account in Supabase Auth
   if(supa){
-    if(msg){msg.style.color='var(--secondary)';msg.textContent=L('Ustvarjanje vašega računa…','Creating your account…');}
+    if(msg){msg.style.color='var(--secondary)';msg.textContent='Creating your account…';}
     try{
       const { data, error } = await supa.auth.signUp({
         email: state.userEmail,
@@ -2207,7 +1779,7 @@ async function doAuth(method){
       });
       if(error){
         if(error.message&&/already/i.test(error.message)){
-          if(msg){msg.style.color='var(--danger)';msg.textContent=L('Račun s tem e-poštnim naslovom že obstaja. Prosimo, prijavite se.','An account with this email already exists. Please log in.');}
+          if(msg){msg.style.color='var(--danger)';msg.textContent='An account with this email already exists. Please log in.';}
           return;
         } else {
           // Non-fatal: log it but continue in local mode (e.g. preview env
@@ -2244,9 +1816,9 @@ async function doAuth(method){
     }
   }
   if(msg)msg.textContent='';
-  const petName=state.answers.petName||'vaš ljubljenček';const petType=state.answers.petType||'other';
+  const petName=state.answers.petName||'your pet';const petType=state.answers.petType||'other';
   document.getElementById('paymentAvatar').textContent=EMOJIS[petType]||'🐾';
-  document.getElementById('paymentPetLabel').textContent=`Načrt za ${petName}`;
+  document.getElementById('paymentPetLabel').textContent=`Plan for ${petName}`;
   // Registered -> now show the plan + package choice (roadmap).
   buildRoadmap();
   showScreen('screen-roadmap');
@@ -2601,11 +2173,11 @@ function refreshPriceDisplay(){
   const disp=document.getElementById('payAmountDisplay');
   if(disp) disp.innerHTML=`<sup>€</sup>${euros}<span style="opacity:0.45;">.${cents}</span>`;
   const btn=document.getElementById('payBtn');
-  if(btn) btn.textContent=`${L('Plačaj','Pay')} ${fmtPrice(p)}`;
+  if(btn) btn.textContent=`${'Pay'} ${fmtPrice(p)}`;
   // Update the payment-screen package summary
   const pk=selectedPackage||PACKAGES[0];
   const nm=document.getElementById('payPkgName');
-  if(nm) nm.textContent = pk.id==='triple' ? L('3 načrti','3 plans') : L('1 načrt','1 plan');
+  if(nm) nm.textContent = pk.id==='triple' ? '3 plans' : '1 plan';
   const an=document.getElementById('payPkgAnchor');
   if(an) an.textContent = fmtPrice(pk.anchor);
   const pr=document.getElementById('payPkgPrice');
@@ -2624,8 +2196,8 @@ function refreshPriceDisplay(){
   const feat=document.getElementById('payPkgFeatures');
   if(feat){
     const items = pk.id==='triple'
-      ? [L('<strong>Trije</strong> 7-dnevni vedenjski načrti','<strong>Three</strong> 7-day behaviour plans'),L('Uporabite jih za različne živali ali težave','Use them for different pets or issues'),L('Dnevne prijave z AI vpogledi','Daily check-ins with AI insights'),L('Prihranite €10 v primerjavi s posameznimi','Save €10 versus buying individually')]
-      : [L('Prilagojen 7-dnevni vedenjski načrt','A personalized 7-day behaviour plan'),L('Verjetni vzroki in česa ne početi','Likely causes and what not to do'),L('Dnevne prijave z AI vpogledi','Daily check-ins with AI insights'),L('Spremljanje napredka skozi čas','Progress tracking over time')];
+      ? ['<strong>Three</strong> 7-day behaviour plans','Use them for different pets or issues','Daily check-ins with AI insights','Save €10 versus buying individually']
+      : ['A personalized 7-day behaviour plan','Likely causes and what not to do','Daily check-ins with AI insights','Progress tracking over time'];
     feat.innerHTML = items.map(t=>`<div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">${t}</span></div>`).join('');
   }
 }
@@ -2658,7 +2230,7 @@ function completePayment(){
   state.fromUpsell = false;
   setupApp();showScreen('screen-app');
   persistState();   // save the new profile to Supabase
-  setTimeout(()=>showCelebration('🎉',L('Načrt odklenjen!','Plan unlocked!'),L('Vaš 7-dnevni načrt je pripravljen. Začnimo.','Your 7-day plan is ready. Let\'s get started.'),L('Pojdi na Danes','Go to Today'),()=>{}),400);
+  setTimeout(()=>showCelebration('🎉','Plan unlocked!','Your 7-day plan is ready. Let\'s get started.','Go to Today',()=>{}),400);
 }
 
 // On load: if returning from Stripe with success, restore the assessment
@@ -2709,7 +2281,7 @@ function completePayment(){
       try{ saveCurrentProgress(); }catch(e){}   // store this pet's plan in its record
       try{ showScreen('screen-app'); showTab('today'); }catch(e){}
       persistStateNow().finally(()=>{ setTimeout(()=>{ window.__handlingPaidReturn=false; }, 1500); });
-      setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Vaš načrt je pripravljen.','Your plan is ready.'),L('Pojdi na Danes','Go to Today'),()=>{}); }catch(e){} },500);
+      setTimeout(()=>{ try{ showCelebration('🎉','Payment successful!','Your plan is ready.','Go to Today',()=>{}); }catch(e){} },500);
     };
 
     const doFirstPurchase=()=>{
@@ -2752,7 +2324,7 @@ function completePayment(){
       try{ buildAssessmentSwitcher(); }catch(e){}
       try{ showScreen('screen-app'); showTab('profile'); }catch(e){}
       persistStateNow().finally(()=>{ setTimeout(()=>{ window.__handlingPaidReturn=false; }, 1500); });
-      setTimeout(()=>{ try{ showCelebration('🎉',L('Plačilo uspešno!','Payment successful!'),L('Krediti so dodani.','Credits added.'),L('V redu','Got it'),()=>{}); }catch(e){} },400);
+      setTimeout(()=>{ try{ showCelebration('🎉','Payment successful!','Credits added.','Got it',()=>{}); }catch(e){} },400);
     };
 
     // Decide using the CLOUD profile as the single source of truth.
@@ -2839,7 +2411,7 @@ function completePayment(){
       // returning user with a saved, paid plan -> straight into the app (do NOT reset state)
       state.paid=true;
       const petType=state.answers.petType||'other';
-      const nm=state.answers.petName||L('vaš ljubljenček','your pet');
+      const nm=state.answers.petName||'your pet';
       const tl=petType.charAt(0).toUpperCase()+petType.slice(1);
       const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
       set('todayPetName',nm); set('todayAvatarPh',EMOJIS[petType]||'🐾');
@@ -2905,7 +2477,7 @@ function completePayment(){
   }
 })();
 function setupApp(){
-  const petName=state.answers.petName||'Vaš ljubljenček';
+  const petName=state.answers.petName||'your pet';
   const petType=state.answers.petType||'pet';
   const emoji=EMOJIS[petType]||'🐾';
   const typeLabel=petType.charAt(0).toUpperCase()+petType.slice(1);
@@ -2927,14 +2499,14 @@ function setupApp(){
   document.getElementById('profileAvatarPh').textContent=emoji;
   document.getElementById('profilePetName').textContent=petName;
   document.getElementById('profilePetMeta').textContent=`${typeLabel} · ${breed}`;
-  document.getElementById('todayDayLabel').textContent=L(`Dan 1 od ${state.planLength} · Vedenjski načrt`,`Day 1 of ${state.planLength} · Behaviour plan`);
+  document.getElementById('todayDayLabel').textContent=`Day 1 of ${state.planLength} · Behaviour plan`;
 
   const pt=getPersonalizedTasks(petType,state.answers.mainIssue||state.entryText||'');
   document.getElementById('todayFocus').textContent=getPlanDays()[0].title;
   document.getElementById('todayFocusDesc').textContent=pt.focusDesc;
-  document.getElementById('todayInsightText').textContent=L('Dokončajte prvo prijavo za prvi AI vpogled.','Complete your first check-in to receive your first AI insight.');
+  document.getElementById('todayInsightText').textContent='Complete your first check-in to receive your first AI insight.';
   document.getElementById('tasksFocusTitle').textContent=getPlanDays()[0].title;
-  document.getElementById('planSub').textContent=L(`Prilagojeno za ${petName}`,`Personalized for ${petName}`);
+  document.getElementById('planSub').textContent=`Personalized for ${petName}`;
 
   state.tasks=getDayTasks(1);            // day-specific tasks
   renderTaskPreview();renderAllTasks();
@@ -3032,25 +2604,25 @@ function selectPeriod(btn,days){
 
 function getPersonalizedTasks(petType,issue){
   const l=(issue||'').toLowerCase();
-  const d=currentLang==='en'?{focus:'Adjust the environment',focusDesc:'Small changes to the environment can have a significant impact. Consistency is key.',insight:"Patterns suggest the behavior is most frequent in the evenings. The changes you're making are starting to show results."}:{focus:'Prilagodi okolje',focusDesc:'Majhne spremembe okolja imajo lahko velik vpliv. Doslednost je ključna.',insight:"Vzorci kažejo, da je vedenje najpogostejše zvečer. Spremembe, ki jih uvajate, začenjajo kazati rezultate."};
-  if(l.includes('aggress')||l.includes('bit'))return{...d,focus:L('Prepoznaj sprožilec','Identify the trigger'),focusDesc:L('Agresija je običajno odziv na določen sprožilec. Iskanje vzorca je prvi korak.','Aggression is usually a response to a specific trigger. Finding the pattern is the first step.')};
-  if(l.includes('eat')||l.includes('food')||l.includes('appetite'))return{...d,focus:L('Skrbno spremljaj hranjenje','Monitor feeding closely'),focusDesc:L('Spremembe apetita zahtevajo skrbno spremljanje. Doslednost rutine je pomembna.','Changes in appetite need careful monitoring. Routine consistency matters.')};
-  if(l.includes('anxi')||l.includes('stress')||l.includes('fear'))return{...d,focus:L('Zmanjšaj stresne sprožilce','Reduce stress triggers'),focusDesc:L('Ustvarjanje mirnega, predvidljivega okolja pomaga tesnobnim živalim, da se počutijo varno.','Creating a calm, predictable environment helps anxious animals feel safe.')};
+  const d={focus:'Adjust the environment',focusDesc:'Small changes to the environment can have a significant impact. Consistency is key.',insight:"Patterns suggest the behavior is most frequent in the evenings. The changes you're making are starting to show results."};
+  if(l.includes('aggress')||l.includes('bit'))return{...d,focus:'Identify the trigger',focusDesc:'Aggression is usually a response to a specific trigger. Finding the pattern is the first step.'};
+  if(l.includes('eat')||l.includes('food')||l.includes('appetite'))return{...d,focus:'Monitor feeding closely',focusDesc:'Changes in appetite need careful monitoring. Routine consistency matters.'};
+  if(l.includes('anxi')||l.includes('stress')||l.includes('fear'))return{...d,focus:'Reduce stress triggers',focusDesc:'Creating a calm, predictable environment helps anxious animals feel safe.'};
   return d;
 }
 
 function guessTrigger(c){
-  if(!c||!c.length)return L('Sprememba rutine','Routine change');
-  if(c.includes('Nov ljubljenček'))return L('Prihod novega ljubljenčka','New pet arrival');
-  if(c.includes('Nova oseba'))return L('Nov član gospodinjstva','New household member');
-  if(c.includes('Sprememba urnika'))return L('Sprememba urnika','Schedule change');
-  if(c.includes('Selitev ali potovanje'))return L('Sprememba okolja','Environment change');
-  return L('Sprememba rutine','Routine change');
+  if(!c||!c.length)return 'Routine change';
+  if(c.includes('New pet'))return 'New pet arrival';
+  if(c.includes('New person'))return 'New household member';
+  if(c.includes('Schedule change'))return 'Schedule change';
+  if(c.includes('Move or travel'))return 'Environment change';
+  return 'Routine change';
 }
 
 function getAllTasks(){
-  const pet=state.answers.petName||L('vaš ljubljenček','your pet');
-  if(currentLang==='en') return[
+  const pet=state.answers.petName||'your pet';
+  return[
     {text:`Observe ${pet} for 10 minutes and note when the behavior occurs`},
     {text:'Identify and remove the most obvious trigger from the environment today'},
     {text:`Create a calm, quiet safe space ${pet} can retreat to`},
@@ -3059,16 +2631,6 @@ function getAllTasks(){
     {text:'Adjust the feeding or water spot if it might be a stressor'},
     {text:'Log the time and location of any incidents in the check-in'},
     {text:'End the day with a consistent, predictable wind-down routine'},
-  ];
-  return[
-    {text:`Opazujte ${pet} 10 minut in zabeležite, kdaj se vedenje pojavi`},
-    {text:'Danes prepoznajte in odstranite najbolj očiten sprožilec iz okolja'},
-    {text:`Ustvarite mirno, tiho varno mesto, kamor se ${pet} lahko umakne`},
-    {text:'Poskrbite, da se vsi člani gospodinjstva na vedenje odzivajo enako'},
-    {text:`Opravite 15-minutno mirno interakcijo z ${pet} z malo dražljaji`},
-    {text:'Prilagodite mesto hranjenja ali vode, če je morda stresni dejavnik'},
-    {text:'V prijavi zabeležite čas in lokacijo morebitnih incidentov'},
-    {text:'Dan zaključite z dosledno, predvidljivo umirjevalno rutino'},
   ];
 }
 
@@ -3086,7 +2648,7 @@ function renderTaskPreview(){
     </div>`).join('');
   const done=state.tasks.filter(t=>t.done).length;
   const lbl=document.getElementById('taskCountLabel');if(lbl)lbl.textContent=`${done} / ${state.tasks.length}`;
-  const lbl2=document.getElementById('tasksCompleteLabel');if(lbl2)lbl2.textContent=`${done} od ${state.tasks.length} nalog dokončanih`;
+  const lbl2=document.getElementById('tasksCompleteLabel');if(lbl2)lbl2.textContent=`${done} of ${state.tasks.length} tasks done`;
 }
 
 function renderAllTasks(){
@@ -3109,9 +2671,9 @@ function toggleTask(i){
   const total=state.tasks.length;
   renderAllTasks();renderTaskPreview();persistState();
   if(doneCount===total){
-    setTimeout(()=>showCelebration('🌟',L('Vse naloge dokončane!','All tasks done!'),L('Danes ste opravili vse naloge. Neverjetna doslednost.','You completed everything today. Amazing consistency.'),L('Odlično!','Great!'),()=>{}),200);
+    setTimeout(()=>showCelebration('🌟','All tasks done!','You completed everything today. Amazing consistency.','Great!',()=>{}),200);
   }else if(doneCount===Math.ceil(total/2)&&state.tasks[i].done){
-    setTimeout(()=>showCelebration('💪',L('Na pol poti!','Halfway there!'),L('Opravili ste polovico današnjih nalog. Kar tako naprej.','You finished half of today\'s tasks. Keep it up.'),L('Nadaljuj','Continue'),()=>{}),200);
+    setTimeout(()=>showCelebration('💪','Halfway there!','You finished half of today\'s tasks. Keep it up.','Continue',()=>{}),200);
   }
 }
 
@@ -3120,43 +2682,32 @@ function toggleTask(i){
 // ═══════════════════════════════════════
 function planDescFor(i){
   if(PLAN_DESCS[i])return PLAN_DESCS[i];
-  const pet=state.answers.petName||L('vaš ljubljenček','your pet');
-  const extra = currentLang==='en' ? [
+  const pet=state.answers.petName||'your pet';
+  const extra = [
     `This phase builds on what's working for ${pet} and targets anything still unresolved.`,
     `Consistency is doing the heavy lifting now. Keep reinforcing ${pet}'s progress.`,
     `We're adapting the plan to ${pet}'s latest check-ins so improvements continue.`,
     `Maintenance matters as much as change. Lock in the routine that works for ${pet}.`,
-  ] : [
-    `Ta faza gradi na tem, kar deluje za ${pet}, in cilja na vse še nerazrešeno.`,
-    `Doslednost zdaj opravlja glavno delo. Še naprej krepite napredek za ${pet}.`,
-    `Načrt prilagajamo najnovejšim prijavam za ${pet}, da se izboljšave nadaljujejo.`,
-    `Vzdrževanje je enako pomembno kot sprememba. Utrdite rutino, ki deluje za ${pet}.`,
   ];
   return extra[i%extra.length];
 }
 function planCausesFor(i){
   if(PLAN_CAUSES[i])return PLAN_CAUSES[i];
-  const pool = currentLang==='en'
-    ? [['Routine drift','Environment change'],['Incomplete habit formation','Intermittent triggers'],['Stress carryover','Inconsistent reinforcement'],['Seasonal or situational factors','Residual anxiety']]
-    : [['Odmik rutine','Sprememba okolja'],['Nepopolno oblikovanje navade','Intermitentni sprožilci'],['Prenos stresa','Nedosledna krepitev'],['Sezonski ali situacijski dejavniki','Preostala tesnoba']];
+  const pool = [['Routine drift','Environment change'],['Incomplete habit formation','Intermittent triggers'],['Stress carryover','Inconsistent reinforcement'],['Seasonal or situational factors','Residual anxiety']];
   return pool[i%pool.length];
 }
 function planActionsFor(actions,i,pet){
   if(actions[i])return actions[i];
-  return currentLang==='en' ? [
+  return [
     `Continue the routine that reduced incidents for ${pet}`,
     'Reinforce calm behavior with timely rewards',
     "Log any new or returning triggers in today's check-in"
-  ] : [
-    `Nadaljujte rutino, ki je zmanjšala incidente za ${pet}`,
-    'Krepite mirno vedenje s pravočasnimi nagradami',
-    'V današnji prijavi zabeležite morebitne nove ali vračajoče se sprožilce'
   ];
 }
-const PLAN_DESCS=['Prva prioriteta je stabilizirati situacijo in preprečiti, da bi vedenje eskaliralo.',`Prepoznavanje natančnega vzorca - kdaj, kje, kako pogosto - nam da podatke, potrebne za prave ukrepe.`,`Ustvarjanje pravega okolja je pogosto najhitrejša pot do izboljšanja. Majhne dosledne spremembe se hitro seštevajo.`,`Zdaj ko so sprožilci zmanjšani, lahko uvedemo vedenja, ki jih želimo krepiti.`,'Doslednost je močnejša od intenzivnosti. Danes gre za utrjevanje tega, kar deluje.','Stopite korak nazaj in ocenite podatke. Kaj se izboljšuje? Kaj je treba prilagoditi?','To je temelj vašega dolgoročnega načrta. Gradite na vsem, kar ste se naučili.'];
-const PLAN_CAUSES=[['Okoljski stres','Motnja rutine'],['Naučeno vedenje','Nedosleden odziv'],['Okoljski sprožilci','Visoka stimulacija'],['Pomanjkanje nadomestnega vedenja','Vzorci krepitve'],['Nedoslednost','Konkurenčni dražljaji'],['Ponovitev vzorca','Utrujenost'],['Nerazrešen temeljni vzrok','Tesnoba ob prehodu']];
+const PLAN_DESCS=['The first priority is to stabilize the situation and stop the behaviour from escalating.',`Identifying the exact pattern - when, where, how often - gives us the data needed for the right actions.`,`Creating the right environment is often the fastest path to improvement. Small consistent changes add up quickly.`,`Now that triggers are reduced, we can introduce the behaviours we want to reinforce.`,'Consistency is stronger than intensity. Today is about consolidating what works.','Step back and assess the data. What is improving? What needs adjusting?','This is the foundation of your long-term plan. Build on everything you have learned.'];
+const PLAN_CAUSES=[['Environmental stress','Routine disruption'],['Learned behaviour','Inconsistent response'],['Environmental triggers','High stimulation'],['Lack of replacement behaviour','Reinforcement patterns'],['Inconsistency','Competing stimuli'],['Pattern repetition','Fatigue'],['Unresolved root cause','Transition anxiety']];
 function planActions(pet){
-  if(currentLang==='en') return[
+  return[
     ['Remove the most obvious triggers from the environment','Keep a calm, predictable routine',`Don't punish ${pet} - redirect instead`],
     ['Keep a log of every incident, including time, location and trigger',`Note ${pet}'s body language before and after`,'Identify 1-2 patterns from your observations'],
     ['Make one environmental change that targets the trigger','Introduce a calming zone or safe space','Keep all household members consistent in their responses'],
@@ -3165,11 +2716,11 @@ function planActions(pet){
     ['Compare incident frequency with day 1','Identify which changes had the biggest impact','Adjust the approaches that did not work'],
     ['Document everything that improved','Create a simple maintenance routine','Plan the next 30-day approach based on the data']
   ];
-  return[['Odstranite najbolj očitne sprožilce v okolju','Ohranjajte mirno, predvidljivo rutino',`Ne kaznujte ${pet} - raje preusmerite`],['Vodite dnevnik vsakega incidenta, vključno s časom, lokacijo in sprožilcem',`Zabeležite govorico telesa ${pet} pred in po`,'Prepoznajte 1-2 vzorca iz svojih opažanj'],['Naredite eno spremembo okolja, ki cilja na sprožilec','Uvedite pomirjujoče območje ali varno mesto','Naj bodo vsi člani gospodinjstva dosledni v odzivih'],[`Izberite eno pozitivno vedenje za krepitev z nagradami`,'Uporabite dragocene nagrade takoj po želenem vedenju','Naj bodo treningi kratki - pod 5 minut'],['Preglejte dnevnik sprožilcev','Povečajte doslednost pozitivne krepitve','Proslavite majhne zmage - napredek ni linearen'],['Primerjajte pogostost incidentov z dnem 1','Prepoznajte, katere spremembe so imele največji vpliv','Prilagodite pristope, ki niso delovali'],['Dokumentirajte vse, kar se je izboljšalo','Ustvarite preprosto vzdrževalno rutino','Načrtujte naslednji 30-dnevni pristop na podlagi podatkov']];}
+}
 
 function buildPlanDaysList(){
   const wrap=document.getElementById('planAccordion');if(!wrap)return;wrap.innerHTML='';
-  const days=getPlanDays();const pet=state.answers.petName||L('vaš ljubljenček','your pet');const actions=planActions(pet);
+  const days=getPlanDays();const pet=state.answers.petName||'your pet';const actions=planActions(pet);
   days.forEach((d,i)=>{
     const item=document.createElement('div');
     const isLocked=d.locked;
@@ -3182,11 +2733,11 @@ function buildPlanDaysList(){
           </div>
           <div style="flex:1;">
             <div style="font-size:0.92rem;font-weight:500;color:var(--secondary);">${d.title}</div>
-            <div style="font-size:0.76rem;color:var(--secondary);margin-top:2px;">${L('Dan','Day')} ${i+1} · ${L('Odklene se po prijavi dne','Unlocks after check-in on day')} ${i}</div>
+            <div style="font-size:0.76rem;color:var(--secondary);margin-top:2px;">${'Day'} ${i+1} · ${'Unlocks after check-in on day'} ${i}</div>
           </div>
         </div>`;
     }else{
-      const statusLabel = d.missed ? L('Zamujeno','Missed') : (d.done?L('Dokončano','Completed'):L('Danes','Today'));
+      const statusLabel = d.missed ? 'Missed' : (d.done?'Completed':'Today');
       // Day number badge: green check if done, neutral "missed" mark if missed, else the day number.
       let badge;
       if(d.done){
@@ -3202,7 +2753,7 @@ function buildPlanDaysList(){
           <div class="day-num ${badgeClass}">${badge}</div>
           <div style="flex:1;">
             <div style="font-size:0.92rem;font-weight:500;${d.missed?'color:var(--secondary);':''}">${d.title}</div>
-            <div style="font-size:0.78rem;color:var(--secondary);margin-top:2px;">${L('Dan','Day')} ${i+1} · ${statusLabel}</div>
+            <div style="font-size:0.78rem;color:var(--secondary);margin-top:2px;">${'Day'} ${i+1} · ${statusLabel}</div>
           </div>
           <svg class="acc-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#999" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
@@ -3210,12 +2761,12 @@ function buildPlanDaysList(){
           <div class="acc-body-inner">
             <p style="font-size:0.88rem;line-height:1.6;color:var(--text);margin-bottom:16px;">${planDescFor(i)}</p>
             <div style="margin-bottom:16px;">
-              <div style="font-size:0.78rem;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);">${L('Verjetni vzroki','Likely causes')}</div>
+              <div style="font-size:0.78rem;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);">${'Likely causes'}</div>
               <div style="display:flex;flex-wrap:wrap;gap:6px;">${planCausesFor(i).map(c=>`<span class="tag">${c}</span>`).join('')}</div>
             </div>
             <div>
-              <div style="font-size:0.78rem;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);">${L('Takojšnji ukrepi','Immediate actions')}</div>
-              ${planActionsFor(actions,i,state.answers.petName||L('vaš ljubljenček','your pet')).map(a=>`<div class="task-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--text);flex-shrink:0;margin-top:7px;"></div><div class="task-text">${a}</div></div>`).join('')}
+              <div style="font-size:0.78rem;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);">${'Immediate actions'}</div>
+              ${planActionsFor(actions,i,state.answers.petName||'your pet').map(a=>`<div class="task-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--text);flex-shrink:0;margin-top:7px;"></div><div class="task-text">${a}</div></div>`).join('')}
             </div>
           </div>
         </div>`;
@@ -3237,21 +2788,16 @@ function toggleAcc(i){
 
 function buildPlanDetail(){/* handled by accordion now */}
 function buildOverview(petType){
-  const pet=state.answers.petName||L('vaš ljubljenček','your pet');
+  const pet=state.answers.petName||'your pet';
   const el=document.getElementById('behaviorExplain');
   if(el){
     if(state.aiBehaviorExplain){ el.textContent=state.aiBehaviorExplain; }
-    else el.textContent=L(
-    `To vedenje pri ${petType} je pogosto odziv na stresorje v okolju, spremembe rutine ali nezadovoljene vedenjske potrebe. Ključni vpogled je, da je vedenje komunikacija - ${pet} nekaj sporoča. Razumevanje, kaj sporoča, je glavni cilj tega načrta.`,
-    `This behavior in a ${petType} is often a response to environmental stressors, routine changes, or unmet behavioral needs. The key insight is that behavior is communication - ${pet} is telling you something. Understanding what it's saying is the main goal of this plan.`
-    );
+    else el.textContent=`This behavior in a ${petType} is often a response to environmental stressors, routine changes, or unmet behavioral needs. The key insight is that behavior is communication - ${pet} is telling you something. Understanding what it's saying is the main goal of this plan.`;
   }
   const notEl=document.getElementById('whatNotToDo');
   const items = (Array.isArray(state.aiWhatNotToDo) && state.aiWhatNotToDo.length)
     ? state.aiWhatNotToDo
-    : (currentLang==='en'
-        ? ['Punish or reprimand after the fact','Give excessive attention immediately after an incident','Make sudden large changes to routine','Skip check-ins even on good days - consistency is everything']
-        : ['Kaznovanje ali graja za nazaj','Pretirana pozornost takoj po incidentu','Nenadne velike spremembe rutine','Izpuščanje prijav tudi na dobre dni - doslednost je vse']);
+    : ['Punish or reprimand after the fact','Give excessive attention immediately after an incident','Make sudden large changes to routine','Skip check-ins even on good days - consistency is everything'];
   if(notEl)notEl.innerHTML=items.map(t=>`<div class="task-item"><div style="width:18px;height:18px;border-radius:50%;background:rgba(199,122,122,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.7rem;color:var(--danger);font-weight:600;">✕</div><div class="task-text">${t}</div></div>`).join('');
 }
 function buildTrend(){
@@ -3266,7 +2812,7 @@ function buildTrend(){
   }
   // one bar per check-in (severity height; clear days = tiny green bar)
   const bars=checkins.map((c,i)=>{
-    if(c.occurred==='Ne') return {h:8,color:'#9DB8A1'};
+    if((c.occurred==='No'||c.occurred==='Ne')) return {h:8,color:'#9DB8A1'};
     const sev=c.severity||5;
     return {h:Math.max(15,sev*9),color:sev<=4?'#9DB8A1':sev<=7?'#C8A16B':'#C77A7A'};
   });
@@ -3369,7 +2915,7 @@ function renderAssessmentSwitcher(){
   let rows = pets.map(a=>`
     <div onclick="switchAssessment('${a.id}')" style="display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer;border-bottom:1px solid var(--border);${a.id===state.currentAssessmentId?'background:rgba(0,0,0,0.03);':''}" onmouseenter="this.style.background='rgba(0,0,0,0.04)'" onmouseleave="this.style.background='${a.id===state.currentAssessmentId?'rgba(0,0,0,0.03)':'transparent'}'">
       <span style="font-size:1.1rem;">${a.emoji}</span>
-      <div style="flex:1;"><div style="font-size:0.9rem;font-weight:500;">${a.petName}</div><div style="font-size:0.76rem;color:var(--secondary);">${a.focus||L('Vedenjski načrt','Behaviour plan')}</div></div>
+      <div style="flex:1;"><div style="font-size:0.9rem;font-weight:500;">${a.petName}</div><div style="font-size:0.76rem;color:var(--secondary);">${a.focus||'Behaviour plan'}</div></div>
       ${a.id===state.currentAssessmentId?'<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-6" stroke="var(--success)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
     </div>`).join('');
   // empty slots for each remaining credit
@@ -3377,7 +2923,7 @@ function renderAssessmentSwitcher(){
     rows += `
     <div onclick="addPetFromCredit()" style="display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer;border-bottom:1px solid var(--border);" onmouseenter="this.style.background='rgba(0,0,0,0.04)'" onmouseleave="this.style.background='transparent'">
       <span style="font-size:1.1rem;width:22px;text-align:center;color:var(--success);">+</span>
-      <div style="flex:1;"><div style="font-size:0.9rem;font-weight:500;color:var(--success);">${L('Dodaj žival','Add a pet')}</div><div style="font-size:0.76rem;color:var(--secondary);">${L('Prosto mesto za načrt','Available plan slot')}</div></div>
+      <div style="flex:1;"><div style="font-size:0.9rem;font-weight:500;color:var(--success);">${'Add a pet'}</div><div style="font-size:0.76rem;color:var(--secondary);">${'Available plan slot'}</div></div>
     </div>`;
   }
   dd.innerHTML=rows;
@@ -3389,7 +2935,7 @@ function addPetFromCredit(){
   if((state.assessments||[]).length>=6){
     const dd=document.getElementById('assessDropdown'); if(dd) dd.style.display='none';
     const ch=document.getElementById('assessChevron'); if(ch) ch.style.transform='rotate(0deg)';
-    showCelebration('🐾',L('Doseženo največje število','Maximum reached'),L('Na enem računu lahko spremljate do 6 živali.','You can track up to 6 pets on one account.'),L('V redu','Got it'),()=>{});
+    showCelebration('🐾','Maximum reached','You can track up to 6 pets on one account.','Got it',()=>{});
     return;
   }
   // close dropdown
@@ -3452,7 +2998,7 @@ function rebuildForCurrentAssessment(){
   setTxt('todayFocus',dayTitle);
   setTxt('todayFocusDesc',pt.focusDesc||'');
   setTxt('tasksFocusTitle',dayTitle);
-  setTxt('planSub',L(`Prilagojeno za ${petName}`,`Personalized for ${petName}`));
+  setTxt('planSub',`Personalized for ${petName}`);
   try{ state.tasks=getDayTasks(state.currentDay); }catch(e){}
   try{ renderTaskPreview(); }catch(e){}
   try{ renderAllTasks(); }catch(e){}
@@ -3472,30 +3018,30 @@ function updateCreditsHint(){
   const credits=state.planCredits||0;
   if(hint){
     if(credits>0){
-      hint.textContent = L(`Na voljo še ${credits} `+(credits===1?'načrt':'načrtov'),`${credits} plan${credits===1?'':'s'} remaining`);
+      hint.textContent = `${credits} plan${credits===1?'':'s'} remaining`;
       hint.style.color='var(--success)';
     } else {
-      hint.textContent = L('Naslednji načrt zahteva nov nakup','Next plan requires a new purchase');
+      hint.textContent = 'Next plan requires a new purchase';
       hint.style.color='var(--secondary)';
     }
   }
   if(btn){
     btn.textContent = (credits>0)
-      ? L('Začni nov načrt','Start a new plan')
-      : L('Kupi nov načrt','Buy a new plan');
+      ? 'Start a new plan'
+      : 'Buy a new plan';
   }
 }
 
 function buyNewPlan(){
   // Max 6 pets per account - no point buying more credits beyond that.
   if((state.assessments||[]).length>=6 && (state.planCredits||0)<=0){
-    showCelebration('🐾',L('Doseženo največje število','Maximum reached'),L('Na enem računu lahko spremljate do 6 živali.','You can track up to 6 pets on one account.'),L('V redu','Got it'),()=>{});
+    showCelebration('🐾','Maximum reached','You can track up to 6 pets on one account.','Got it',()=>{});
     return;
   }
   // Open the package picker modal over a blurred profile.
-  const t=document.getElementById('buyPlanTitle'); if(t) t.textContent=L('Kupi nov načrt','Buy a new plan');
-  const s=document.getElementById('buyPlanSub'); if(s) s.textContent=L('Izberite paket','Choose your package');
-  const cl=document.getElementById('buyPlanClose'); if(cl) cl.textContent=L('Nazaj na profil','Back to profile');
+  const t=document.getElementById('buyPlanTitle'); if(t) t.textContent='Buy a new plan';
+  const s=document.getElementById('buyPlanSub'); if(s) s.textContent='Choose your package';
+  const cl=document.getElementById('buyPlanClose'); if(cl) cl.textContent='Back to profile';
   document.getElementById('buyPlanModal').style.display='flex';
 }
 function closeBuyPlan(){ document.getElementById('buyPlanModal').style.display='none'; }
@@ -3542,7 +3088,7 @@ function startNewAssessment(){
       const hl=document.querySelector('#screen-entry .entry-headline');
       const sub=document.querySelector('#screen-entry .entry-sub');
       const howWrap=document.getElementById('entryHowWrap');
-      if(hl){ hl.textContent=L('Dodaj novo žival','Add a new pet'); hl.style.fontSize='1.5rem'; }
+      if(hl){ hl.textContent='Add a new pet'; hl.style.fontSize='1.5rem'; }
       if(sub){ sub.style.display='none'; }           // hide marketing subtitle
       if(howWrap){ howWrap.style.display='none'; }    // hide "How this works" link
     }catch(e){}
@@ -3618,8 +3164,8 @@ function openArchive(){
   pruneArchive();
   const archive=state.archive||[];
   const c=document.getElementById('profileDetailContent');
-  let html=`<h2 style="font-size:1.4rem;margin-bottom:6px;">${L('Arhiv','Archive')}</h2>
-    <p style="font-size:0.8rem;color:var(--secondary);margin-bottom:18px;">${L('Dokončani načrti zadnjega meseca','Completed plans from the last month')}</p>`;
+  let html=`<h2 style="font-size:1.4rem;margin-bottom:6px;">${'Archive'}</h2>
+    <p style="font-size:0.8rem;color:var(--secondary);margin-bottom:18px;">${'Completed plans from the last month'}</p>`;
   if(archive.length){
     html+=archive.map(p=>{
       const d=new Date(p.completedDate);
@@ -3627,11 +3173,11 @@ function openArchive(){
       return `<div onclick="openArchiveDetail('${p.id}')" class="card" style="padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer;">
         <span style="font-size:1.5rem;">${p.emoji}</span>
         <div style="flex:1;"><div style="font-size:0.95rem;font-weight:600;">${p.petName}</div>
-        <div style="font-size:0.8rem;color:var(--secondary);">${p.issue||L('Vedenjski načrt','Behaviour plan')} · ${dateStr}</div></div>
+        <div style="font-size:0.8rem;color:var(--secondary);">${p.issue||'Behaviour plan'} · ${dateStr}</div></div>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`;
     }).join('');
   } else {
-    html+=`<div style="text-align:center;color:var(--secondary);font-size:0.85rem;padding:40px 0;">${L('Še ni arhiviranih načrtov.','No archived plans yet.')}</div>`;
+    html+=`<div style="text-align:center;color:var(--secondary);font-size:0.85rem;padding:40px 0;">${'No archived plans yet.'}</div>`;
   }
   c.innerHTML=html;
   showTab('profileDetail');
@@ -3663,13 +3209,13 @@ function openArchiveDetail(id){
       <div><div style="font-size:1.3rem;font-weight:600;font-family:'Inter Tight',sans-serif;">${p.petName}</div>
       <div style="font-size:0.82rem;color:var(--secondary);">${p.issue||''} · ${dateStr}</div></div></div>
     <div class="card" style="display:flex;margin:18px 0;padding:4px;">
-      ${stat(L('Izboljšanje','Improvement'),impTxt)}
-      ${stat(L('Prijave','Check-ins'),p.checkinCount||0)}
-      ${stat(L('Incidenti','Incidents'),p.incidentCount!=null?p.incidentCount:'-')}
+      ${stat('Improvement',impTxt)}
+      ${stat('Check-ins',p.checkinCount||0)}
+      ${stat('Incidents',p.incidentCount!=null?p.incidentCount:'-')}
     </div>
-    ${chart?`<div class="card" style="padding:8px 16px;margin-bottom:18px;"><div style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);margin-bottom:4px;">${L('Incidenti skozi čas','Incidents over time')}</div>${chart}</div>`:''}
-    ${s.commonTime?`<div style="font-size:0.85rem;color:var(--secondary);margin-bottom:8px;">${L('Najpogostejši čas','Most common time')}: <strong style="color:var(--text);">${s.commonTime}</strong></div>`:''}
-    <button class="btn btn-primary btn-full" style="margin-top:16px;" onclick="downloadArchivePDF('${p.id}')">${L('Prenesi kot PDF','Download as PDF')}</button>`;
+    ${chart?`<div class="card" style="padding:8px 16px;margin-bottom:18px;"><div style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);margin-bottom:4px;">${'Incidents over time'}</div>${chart}</div>`:''}
+    ${s.commonTime?`<div style="font-size:0.85rem;color:var(--secondary);margin-bottom:8px;">${'Most common time'}: <strong style="color:var(--text);">${s.commonTime}</strong></div>`:''}
+    <button class="btn btn-primary btn-full" style="margin-top:16px;" onclick="downloadArchivePDF('${p.id}')">${'Download as PDF'}</button>`;
   showTab('profileDetail');
 }
 function downloadArchivePDF(id){
@@ -3732,19 +3278,19 @@ function generatePlanPDF(p){
       header('');
       let y=150;
       doc.setFont('helvetica','bold'); doc.setFontSize(30); doc.setTextColor(...dark);
-      doc.text(tr('Poročilo o napredku','Progress Report'), M, y); y+=44;
+      doc.text('Progress Report', M, y); y+=44;
       doc.setFont('helvetica','normal'); doc.setFontSize(13); doc.setTextColor(...grey);
-      doc.text(`${p.petName}  ·  ${p.issue||tr('Vedenjski načrt','Behaviour plan')}`, M, y); y+=20;
-      doc.text(`${p.planLength}-${tr('dnevni vedenjski načrt','day behaviour plan')}  ·  ${dateStr}`, M, y); y+=46;
+      doc.text(`${p.petName}  ·  ${p.issue||'Behaviour plan'}`, M, y); y+=20;
+      doc.text(`${p.planLength}-${'day behaviour plan'}  ·  ${dateStr}`, M, y); y+=46;
       // big stat row
       const impTxt=(p.improvement!=null&&p.improvement<0)?`-${Math.abs(p.improvement)}%`:(p.incidentCount===0?'100%':'-');
       const totalInc = chk.reduce((a,c)=>a+(+c.freq||+c.count||0),0);
       const clearDays = chk.filter(c=>(c.occurred==='Ne'||c.occurred==='No'||(+c.freq||+c.count||0)===0)).length;
       const stats=[
-        [tr('Izboljšanje','Improvement'),impTxt],
-        [tr('Prijave','Check-ins'),String(p.checkinCount||chk.length||0)],
-        [tr('Incidenti skupaj','Total incidents'),String(totalInc)],
-        [tr('Čistih dni','Clear days'),String(clearDays)]
+        ['Improvement',impTxt],
+        ['Check-ins',String(p.checkinCount||chk.length||0)],
+        ['Total incidents',String(totalInc)],
+        ['Clear days',String(clearDays)]
       ];
       const bw=(W-2*M-3*12)/4;
       stats.forEach((st,i)=>{
@@ -3758,7 +3304,7 @@ function generatePlanPDF(p){
       y+=104;
       // incidents-over-time chart
       if(chk.length){
-        y=sectionLabel(tr('Incidenti skozi čas','Incidents over time'), y); y+=4;
+        y=sectionLabel('Incidents over time', y); y+=4;
         const vals=chk.map(c=>+c.freq||+c.count||0);
         const max=Math.max(1,...vals);
         const cw=(W-2*M)/chk.length, ch=120;
@@ -3778,11 +3324,11 @@ function generatePlanPDF(p){
       }
       // key patterns
       const s=p.stats||{};
-      y=sectionLabel(tr('Ključni vzorci','Key patterns'), y); y+=2;
+      y=sectionLabel('Key patterns', y); y+=2;
       const patterns=[
-        [tr('Najpogostejši čas','Most common time'), s.commonTime||'-'],
-        [tr('Najpogostejši kraj','Most common location'), s.commonLoc||'-'],
-        [tr('Glavni sprožilec','Top trigger'), s.commonTrig||'-']
+        ['Most common time', s.commonTime||'-'],
+        ['Most common location', s.commonLoc||'-'],
+        ['Top trigger', s.commonTrig||'-']
       ];
       doc.setFontSize(11);
       patterns.forEach(pt=>{
@@ -3795,19 +3341,19 @@ function generatePlanPDF(p){
 
       // ════ DAY-BY-DAY PAGES ════
       if(chk.length){
-        let y2=header(tr('Dnevnik po dnevih','Day-by-day log'));
+        let y2=header('Day-by-day log');
         const fieldRows=(c)=>{
-          const occ = (c.occurred==='Da'||c.occurred==='Yes') ? tr('Da','Yes') : (c.occurred? tr('Ne','No') : '-');
+          const occ = (c.occurred==='Da'||c.occurred==='Yes') ? 'Yes' : (c.occurred? 'No' : '-');
           return [
-            [tr('Vedenje se je pojavilo','Behaviour occurred'), occ],
-            [tr('Število','Times'), (c.freq!=null?String(c.freq):(c.count!=null?String(c.count):'-'))],
-            [tr('Resnost (1-10)','Severity (1-10)'), c.severity!=null?String(c.severity):'-'],
-            [tr('Kraj','Location'), c.loc||'-'],
-            [tr('Čas','Time'), c.time||'-'],
-            [tr('Sprožilec','Trigger'), c.trigger||'-'],
-            [tr('Energija','Energy'), c.energy||'-'],
-            [tr('Spremembe','Changes'), c.changes||'-'],
-            [tr('Opombe','Notes'), c.notes||'-']
+            ['Behaviour occurred', occ],
+            ['Times', (c.freq!=null?String(c.freq):(c.count!=null?String(c.count):'-'))],
+            ['Severity (1-10)', c.severity!=null?String(c.severity):'-'],
+            ['Location', c.loc||'-'],
+            ['Time', c.time||'-'],
+            ['Trigger', c.trigger||'-'],
+            ['Energy', c.energy||'-'],
+            ['Changes', c.changes||'-'],
+            ['Notes', c.notes||'-']
           ];
         };
         chk.forEach((c,i)=>{
@@ -3815,10 +3361,10 @@ function generatePlanPDF(p){
           const blockH = 30 + rows.length*17 + 18;
           y2=ensure(y2, blockH);
           // day card header
-          const dayTitle = (planDays[i] && planDays[i].title) ? planDays[i].title : (tr('Dan','Day')+' '+(i+1));
+          const dayTitle = (planDays[i] && planDays[i].title) ? planDays[i].title : ('Day'+' '+(i+1));
           doc.setFillColor(...light); doc.roundedRect(M, y2, W-2*M, blockH-8, 8,8,'F');
           doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...green);
-          doc.text(`${tr('Dan','Day')} ${i+1}`, M+14, y2+22);
+          doc.text(`${'Day'} ${i+1}`, M+14, y2+22);
           doc.setTextColor(...dark);
           doc.text(dayTitle, M+60, y2+22, {maxWidth:W-2*M-74});
           let ry=y2+40;
@@ -3835,77 +3381,75 @@ function generatePlanPDF(p){
       }
 
       // ════ FINAL NOTE PAGE ════
-      let y3=header(tr('Povzetek in priporočila','Summary & recommendations'));
+      let y3=header('Summary & recommendations');
       doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(...dark);
       const summary = (p.improvement!=null && p.improvement<0)
-        ? tr(`V ${p.planLength} dneh se je pogostost vedenja zmanjšala za ${Math.abs(p.improvement)}%. Doslednost rutine je ključna za ohranjanje napredka.`,
-             `Over ${p.planLength} days the behaviour frequency dropped by ${Math.abs(p.improvement)}%. Routine consistency is key to maintaining progress.`)
-        : tr('Nadaljujte z doslednim spremljanjem in rutino. Majhne, dosledne spremembe se hitro seštejejo.',
-             'Keep monitoring consistently and maintain the routine. Small, consistent changes add up quickly.');
+        ? `Over ${p.planLength} days the behaviour frequency dropped by ${Math.abs(p.improvement)}%. Routine consistency is key to maintaining progress.`
+        : 'Keep monitoring consistently and maintain the routine. Small, consistent changes add up quickly.';
       const lines=doc.splitTextToSize(summary, W-2*M);
       doc.text(lines, M, y3); y3+=lines.length*16+24;
       doc.setFillColor(...light); doc.roundedRect(M,y3,W-2*M,70,10,10,'F');
       doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...dark);
-      doc.text(tr('Pomembno','Important'), M+16, y3+24);
+      doc.text('Important', M+16, y3+24);
       doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...grey);
-      doc.text(doc.splitTextToSize(tr('To poročilo ponuja vedenjske smernice in ne nadomešča strokovne veterinarske oskrbe. Pri zdravstvenih skrbeh se vedno posvetujte z veterinarjem.','This report offers behavioural guidance and is not a substitute for professional veterinary care. For medical concerns, always consult a vet.'), W-2*M-32), M+16, y3+42);
+      doc.text(doc.splitTextToSize('This report offers behavioural guidance and is not a substitute for professional veterinary care. For medical concerns, always consult a vet.', W-2*M-32), M+16, y3+42);
 
       doc.save(`TheNuci-${p.petName}-${p.dateKey||'plan'}.pdf`);
-    }catch(e){ console.warn('PDF error',e); alert(L('Napaka pri ustvarjanju PDF.','Error generating PDF.')); }
+    }catch(e){ console.warn('PDF error',e); alert('Error generating PDF.'); }
   };
   if(window.jspdf && window.jspdf.jsPDF){ build(); return; }
   const sc=document.createElement('script');
   sc.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
   sc.onload=build;
-  sc.onerror=()=>alert(L('PDF knjižnice ni bilo mogoče naložiti.','Could not load the PDF library.'));
+  sc.onerror=()=>alert('Could not load the PDF library.');
   document.head.appendChild(sc);
 }
 
 function openProfileDetail(kind){
-  const pet=state.answers.petName||L('vaš ljubljenček','your pet');
+  const pet=state.answers.petName||'your pet';
   const c=document.getElementById('profileDetailContent');
   let html='';
   if(kind==='history'){
-    html=`<h2 style="font-size:1.4rem;margin-bottom:16px;">${L('Zgodovina ocen','Assessment History')}</h2>`;
-    html+=(state.assessments||[]).map(a=>`<div class="card" style="padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;gap:12px;"><span style="font-size:1.4rem;">${a.emoji}</span><div style="flex:1;"><div style="font-size:0.95rem;font-weight:500;">${a.petName}</div><div style="font-size:0.8rem;color:var(--secondary);">${a.focus||L('Vedenjski načrt','Behaviour plan')} · ${L('7-dnevni načrt','7-day plan')}</div></div><span class="tag">${L('Aktivno','Active')}</span></div>`).join('');
+    html=`<h2 style="font-size:1.4rem;margin-bottom:16px;">${'Assessment History'}</h2>`;
+    html+=(state.assessments||[]).map(a=>`<div class="card" style="padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;gap:12px;"><span style="font-size:1.4rem;">${a.emoji}</span><div style="flex:1;"><div style="font-size:0.95rem;font-weight:500;">${a.petName}</div><div style="font-size:0.8rem;color:var(--secondary);">${a.focus||'Behaviour plan'} · ${'7-day plan'}</div></div><span class="tag">${'Active'}</span></div>`).join('');
   }else if(kind==='plans'){
     pruneArchive();
     const archive = state.archive||[];
-    html=`<h2 style="font-size:1.4rem;margin-bottom:6px;">${L('Prejšnji načrti','Previous Plans')}</h2>
-          <p style="font-size:0.8rem;color:var(--secondary);margin-bottom:16px;">${L('Dokončani načrti zadnjega meseca','Completed plans from the last month')}</p>`;
+    html=`<h2 style="font-size:1.4rem;margin-bottom:6px;">${'Previous Plans'}</h2>
+          <p style="font-size:0.8rem;color:var(--secondary);margin-bottom:16px;">${'Completed plans from the last month'}</p>`;
     // current in-progress plan first
     if(!state.planComplete && state.answers && state.answers.petName){
       const pct=Math.round((state.currentDay/state.planLength)*100);
       html+=`<div class="card" style="padding:18px;margin-bottom:10px;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-size:1.3rem;">${EMOJIS[state.answers.petType]||'🐾'}</span>
-        <div style="flex:1;"><div style="font-size:0.92rem;font-weight:600;">${pet}</div><div style="font-size:0.8rem;color:var(--secondary);">${L(`V teku · Dan ${state.currentDay} od ${state.planLength}`,`In progress · Day ${state.currentDay} of ${state.planLength}`)}</div></div>
-        <span class="tag" style="background:rgba(107,143,113,0.12);color:var(--success);">${L('Aktiven','Active')}</span></div>
+        <div style="flex:1;"><div style="font-size:0.92rem;font-weight:600;">${pet}</div><div style="font-size:0.8rem;color:var(--secondary);">${`In progress · Day ${state.currentDay} of ${state.planLength}`}</div></div>
+        <span class="tag" style="background:rgba(107,143,113,0.12);color:var(--success);">${'Active'}</span></div>
         <div class="progress-bar-track" style="height:4px;"><div class="progress-bar-fill" style="width:${pct}%;background:var(--success);"></div></div></div>`;
     }
     if(archive.length){
       html+=archive.map(p=>{
         const d=new Date(p.completedDate);
         const dateStr=isNaN(d)?'':d.toLocaleDateString(currentLang==='sl'?'sl-SI':'en-GB',{day:'numeric',month:'short',year:'numeric'});
-        const imp = (p.improvement!=null && p.improvement<0) ? `${Math.abs(p.improvement)}% ${L('manj incidentov','fewer incidents')}` : (p.incidentCount===0?L('Brez incidentov','No incidents'):L('Dokončan','Completed'));
+        const imp = (p.improvement!=null && p.improvement<0) ? `${Math.abs(p.improvement)}% ${'fewer incidents'}` : (p.incidentCount===0?'No incidents':'Completed');
         return `<div class="card" style="padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;gap:12px;">
           <span style="font-size:1.4rem;">${p.emoji}</span>
           <div style="flex:1;"><div style="font-size:0.92rem;font-weight:600;">${p.petName}</div>
-          <div style="font-size:0.78rem;color:var(--secondary);">${dateStr} · ${p.planLength}-${L('dnevni načrt','day plan')}</div></div>
+          <div style="font-size:0.78rem;color:var(--secondary);">${dateStr} · ${p.planLength}-${'day plan'}</div></div>
           <span class="tag" style="background:rgba(107,143,113,0.12);color:var(--success);">${imp}</span></div>`;
       }).join('');
     } else if(state.planComplete || !(state.answers && state.answers.petName)){
-      html+=`<div style="text-align:center;color:var(--secondary);font-size:0.85rem;padding:30px 0;">${L('Še ni dokončanih načrtov.','No completed plans yet.')}</div>`;
+      html+=`<div style="text-align:center;color:var(--secondary);font-size:0.85rem;padding:30px 0;">${'No completed plans yet.'}</div>`;
     }
   }else if(kind==='settings'){
-    html=`<h2 style="font-size:1.4rem;margin-bottom:16px;">${L('Nastavitve računa','Account Settings')}</h2>
+    html=`<h2 style="font-size:1.4rem;margin-bottom:16px;">${'Account Settings'}</h2>
       <div class="card" style="padding:8px 18px;margin-bottom:12px;">
-        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">${L('Ime','Name')}</span><span style="font-size:0.85rem;color:var(--secondary);">${L('Imetnik računa','Account holder')}</span></div>
-        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">${L('E-pošta','Email')}</span><span style="font-size:0.85rem;color:var(--secondary);">${state.userEmail||'you@email.com'}</span></div>
-        <div class="profile-row" style="border-bottom:none;"><span style="font-size:0.9rem;font-weight:500;">${L('Geslo','Password')}</span><span style="font-size:0.85rem;color:var(--secondary);">${L('Spremeni','Change')}</span></div>
+        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">${'Name'}</span><span style="font-size:0.85rem;color:var(--secondary);">${'Account holder'}</span></div>
+        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">${'Email'}</span><span style="font-size:0.85rem;color:var(--secondary);">${state.userEmail||'you@email.com'}</span></div>
+        <div class="profile-row" style="border-bottom:none;"><span style="font-size:0.9rem;font-weight:500;">${'Password'}</span><span style="font-size:0.85rem;color:var(--secondary);">${'Change'}</span></div>
       </div>
       <div class="card" style="padding:16px 18px;">
-        <div style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);margin-bottom:10px;">${L('Dnevna prijava','Daily check-in')}</div>
-        <p style="font-size:0.84rem;line-height:1.5;">${L('Vaše okno za prijavo se odpre vsak dan ob <strong style="color:var(--text);">20:00</strong> in je odprto 2 uri. Prijavite se vsak dan, da ohranite svoj niz 🔥','Your check-in window opens every day at <strong style="color:var(--text);">20:00</strong> and stays open for 2 hours. Check in daily to keep your streak 🔥')}</p>
+        <div style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary);margin-bottom:10px;">${'Daily check-in'}</div>
+        <p style="font-size:0.84rem;line-height:1.5;">${'Your check-in window opens every day at <strong style="color:var(--text);">20:00</strong> and stays open for 2 hours. Check in daily to keep your streak 🔥'}</p>
       </div>`;
   }else if(kind==='email'){
     const labels = currentLang==='en'
@@ -3913,7 +3457,7 @@ function openProfileDetail(kind){
       : ['Opomniki za dnevno prijavo','Tedenski povzetek napredka','Obvestila o novih vpogledih','Posodobitve izdelka'];
     // First toggle (daily reminders) is wired to the real email_reminders flag.
     const remindersOn = state.emailReminders !== false;
-    html=`<h2 style="font-size:1.4rem;margin-bottom:16px;">${L('E-poštne nastavitve','Email Preferences')}</h2>
+    html=`<h2 style="font-size:1.4rem;margin-bottom:16px;">${'Email Preferences'}</h2>
       <div class="card" style="padding:8px 18px;">
         ${labels.map((label,i)=>{
           const on = i===0 ? remindersOn : (i<3);
@@ -3921,12 +3465,12 @@ function openProfileDetail(kind){
           return `<div class="profile-row" style="${i===3?'border-bottom:none;':''}"><span style="font-size:0.9rem;font-weight:500;">${label}</span><div ${handler} style="cursor:pointer;"><div class="tgl ${on?'on':''}" style="width:42px;height:24px;border-radius:99px;background:var(--border);position:relative;transition:background 0.2s;"><div style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform 0.2s;"></div></div></div></div>`;
         }).join('')}
       </div>
-      <p style="font-size:0.78rem;color:var(--secondary);margin-top:14px;line-height:1.5;">${L('Opomnik za prijavo prejmete vsak dan ob 20:00 po vašem času, če se še niste prijavili.','You\'ll get a check-in reminder every day at 20:00 your time, if you haven\'t checked in yet.')}</p>`;
+      <p style="font-size:0.78rem;color:var(--secondary);margin-top:14px;line-height:1.5;">${'You\'ll get a check-in reminder every day at 20:00 your time, if you haven\'t checked in yet.'}</p>`;
   }else if(kind==='billing'){
     const txns = Array.isArray(state.transactions) && state.transactions.length
       ? state.transactions.slice().reverse()   // newest first
       : (state.pricePaid!=null ? [{date:null,packageId:state.packageId||'single',price:state.pricePaid,credits:1}] : []);
-    const pkgName = (id)=> id==='triple' ? L('Paket 3 načrtov','3-plan package') : L('1 načrt','1 plan');
+    const pkgName = (id)=> id==='triple' ? '3-plan package' : '1 plan';
     const fmtDate = (iso)=>{ if(!iso) return ''; try{ const d=new Date(iso); return d.toLocaleDateString(currentLang==='en'?'en-GB':'sl-SI',{day:'numeric',month:'short',year:'numeric'}); }catch(e){ return ''; } };
     const rows = txns.length
       ? txns.map(t=>`
@@ -3936,18 +3480,18 @@ function openProfileDetail(kind){
             <span style="font-size:0.95rem;font-weight:600;">€${(t.price!=null?t.price:9.95).toFixed(2)}</span>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;">
-            <span style="font-size:0.8rem;color:var(--secondary);">${fmtDate(t.date)||L('Enkratni nakup','One-time purchase')}</span>
-            <span class="tag" style="background:rgba(107,143,113,0.12);color:var(--success);">${L('Plačano','Paid')}</span>
+            <span style="font-size:0.8rem;color:var(--secondary);">${fmtDate(t.date)||'One-time purchase'}</span>
+            <span class="tag" style="background:rgba(107,143,113,0.12);color:var(--success);">${'Paid'}</span>
           </div>
         </div>`).join('')
-      : `<div class="card" style="padding:18px;margin-bottom:10px;"><div style="font-size:0.88rem;color:var(--secondary);">${L('Ni nakupov.','No purchases yet.')}</div></div>`;
-    html=`<h2 style="font-size:1.4rem;margin-bottom:16px;">${L('Obračun','Billing')}</h2>
+      : `<div class="card" style="padding:18px;margin-bottom:10px;"><div style="font-size:0.88rem;color:var(--secondary);">${'No purchases yet.'}</div></div>`;
+    html=`<h2 style="font-size:1.4rem;margin-bottom:16px;">${'Billing'}</h2>
       ${rows}
       <div class="card" style="padding:8px 18px;margin-top:2px;">
-        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">${L('Način plačila','Payment method')}</span><span style="font-size:0.85rem;color:var(--secondary);">${L('Kartica, ki se konča na','Card ending in')} ${state.cardLast4||'••••'}</span></div>
-        <div class="profile-row" style="border-bottom:none;"><span style="font-size:0.9rem;font-weight:500;">${L('Potrebujete pomoč?','Need help?')}</span><a href="mailto:hello@thenuci.com" style="font-size:0.85rem;color:var(--success);text-decoration:none;font-weight:500;">hello@thenuci.com</a></div>
+        <div class="profile-row"><span style="font-size:0.9rem;font-weight:500;">${'Payment method'}</span><span style="font-size:0.85rem;color:var(--secondary);">${'Card ending in'} ${state.cardLast4||'••••'}</span></div>
+        <div class="profile-row" style="border-bottom:none;"><span style="font-size:0.9rem;font-weight:500;">${'Need help?'}</span><a href="mailto:hello@thenuci.com" style="font-size:0.85rem;color:var(--success);text-decoration:none;font-weight:500;">hello@thenuci.com</a></div>
       </div>
-      <p style="font-size:0.78rem;color:var(--secondary);margin-top:14px;line-height:1.5;">${L('Plačila varno obdeluje Stripe. To so enkratni nakupi - naročnine ni.','Payments are processed securely by Stripe. These are one-time purchases - there is no subscription.')}</p>`;
+      <p style="font-size:0.78rem;color:var(--secondary);margin-top:14px;line-height:1.5;">${'Payments are processed securely by Stripe. These are one-time purchases - there is no subscription.'}</p>`;
   }
   c.innerHTML=html;
   showTab('profileDetail');
@@ -3981,15 +3525,15 @@ document.addEventListener('click',e=>{
 // CHECK-IN
 // ═══════════════════════════════════════
 const CI_STEPS=[
-  {title:'Se je vedenje danes pojavilo?',sub:'Bodite iskreni - vsak podatek pomaga.',type:'pills',options:['Da','Ne'],id:'occurred'},
-  {title:'Kolikokrat se je zgodilo?',type:'count',id:'freq'},
-  {title:'Kako resno je bilo?',sub:'1 = zelo blago, 10 = zelo resno',type:'slider',id:'severity',min:1,max:10},
-  {title:'Kje se je zgodilo?',type:'select',id:'loc',options:['Dnevna soba','Spalnica','Kuhinja','Hodnik','Zunaj','Več krajev','Drugo']},
-  {title:'Ob katerem času se je zgodilo?',type:'select',id:'time',options:['Jutro (6-12h)','Popoldne (12-18h)','Večer (18-24h)','Noč (0-6h)','Ves dan']},
-  {title:'Kaj se je zgodilo tik pred tem?',sub:'Kaj je bil sprožilec, če sploh?',type:'text',id:'trigger',placeholder:'npr. Ravno smo nameravali oditi…'},
-  {title:'Raven energije danes?',type:'pills',id:'energy',options:['Nizka','Normalna','Visoka']},
-  {title:'Kakšne nenavadne spremembe danes?',type:'select',id:'changes',options:['Nič nenavadnega','Obiski doma','Motnja urnika','Nova hrana ali priboljšek','Sprememba aktivnosti zunaj','Drugo']},
-  {title:'Kakšne opombe?',sub:'Neobvezno, a koristno.',type:'textarea',id:'notes',placeholder:'npr. Po sprehodu je bil bolj sproščen…'},
+  {title:'Did the behaviour happen today?',sub:'Be honest - every data point helps.',type:'pills',options:['Yes','No'],id:'occurred'},
+  {title:'How many times did it happen?',type:'count',id:'freq'},
+  {title:'How serious was it?',sub:'1 = very mild, 10 = very serious',type:'slider',id:'severity',min:1,max:10},
+  {title:'Where did it happen?',type:'select',id:'loc',options:['Living room','Bedroom','Kitchen','Hallway','Outside','Multiple places','Other']},
+  {title:'What time did it happen?',type:'select',id:'time',options:['Morning (6-12h)','Afternoon (12-18h)','Evening (18-24h)','Night (0-6h)','All day']},
+  {title:'What happened right before?',sub:'What was the trigger, if any?',type:'text',id:'trigger',placeholder:'e.g. We were about to leave…'},
+  {title:'Energy level today?',type:'pills',id:'energy',options:['Low','Normal','High']},
+  {title:'Any unusual changes today?',type:'select',id:'changes',options:['Nothing unusual','Visitors at home','Schedule disruption','New food or treat','Change in outdoor activity','Other']},
+  {title:'Any notes?',sub:'Optional, but helpful.',type:'textarea',id:'notes',placeholder:'e.g. He was more relaxed after the walk…'},
 ];
 let ciData={};let ciStep=0;
 
@@ -4063,11 +3607,11 @@ function checkinNext(){
       return;
     }
     // NO INCIDENTS - close, then advance (end-state handled inside if last day)
-    if(ciData.occurred==='Ne'){
+    if((ciData.occurred==='No'||ciData.occurred==='Ne')){
       closeCheckin();
       const wasLast = state.currentDay >= state.planLength;
       completeCheckinDay();
-      if(!wasLast) setTimeout(()=>showCelebration('🥳',L('Danes brez incidentov!','No incidents today!'),L('Cel dan brez incidentov je pravi napredek. Jutri nadaljujte z rutino.','A full day without incidents is real progress. Keep the routine going tomorrow.'),L('Odlično!','Great!'),()=>{}),300);
+      if(!wasLast) setTimeout(()=>showCelebration('🥳','No incidents today!','A full day without incidents is real progress. Keep the routine going tomorrow.','Great!',()=>{}),300);
       return;
     }
     // YES (Da) - continue through the full check-in
@@ -4078,17 +3622,17 @@ function checkinNext(){
 function checkinBack(){if(ciStep>0){ciStep--;renderCI();}}
 
 function showCIComplete(){
-  const pet=state.answers.petName||'vaš ljubljenček';const sev=ciData.severity||5;
+  const pet=state.answers.petName||'your pet';const sev=ciData.severity||5;
   let insight='';
-  if(sev<=4)insight=L(`Današnji incident je bil blag (${sev}/10). Nižja resnost nakazuje, da spremembe okolja delujejo. Ostanite dosledni.`,`Today's incident was mild (${sev}/10). The lower severity suggests the environmental changes are working. Stay consistent.`);
-  else if(sev>=8)insight=L(`Danes je bilo težko. Resnost ${sev}/10 je visoka. To se pogosto zgodi v prehodnih obdobjih - ne obupajte. Preglejte, kaj je bilo danes drugače.`,`Today was tough. Severity ${sev}/10 is high. This often happens during transition periods - don't give up. Review what was different today.`);
-  else insight=L(`Podatki današnje prijave so zabeleženi. Incidenti se običajno pojavljajo ${ciData.time||'zvečer'}. Ohranjanje tega časa z malo dražljaji lahko pomaga.`,`Today's check-in data has been logged. Incidents usually occur ${ciData.time||'in the evening'}. Keeping that time low-stimulation can help.`);
+  if(sev<=4)insight=`Today's incident was mild (${sev}/10). The lower severity suggests the environmental changes are working. Stay consistent.`;
+  else if(sev>=8)insight=`Today was tough. Severity ${sev}/10 is high. This often happens during transition periods - don't give up. Review what was different today.`;
+  else insight=`Today's check-in data has been logged. Incidents usually occur ${ciData.time||'in the evening'}. Keeping that time low-stimulation can help.`;
   const body=document.getElementById('checkinBody');
   body.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px 0;"><div style="width:64px;height:64px;border-radius:50%;background:rgba(107,143,113,0.1);display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:20px;animation:scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;">✓</div><h2 style="font-size:1.4rem;margin-bottom:8px;">Check-in saved!</h2><p style="margin-bottom:24px;font-size:0.9rem;">Here's what we're seeing.</p></div><div class="insight-box" style="width:100%;text-align:left;"><div class="insight-label">AI daily insight</div><div class="insight-text">${insight}</div></div>`;
   const doneRow=document.createElement('div');
   doneRow.style.cssText='display:flex;justify-content:center;margin-top:28px;';
   const doneBtn=document.createElement('button');
-  doneBtn.setAttribute('aria-label','Končano');
+  doneBtn.setAttribute('aria-label','Done');
   doneBtn.onmousedown=function(e){e.preventDefault();};
   doneBtn.style.cssText='width:52px;height:52px;border-radius:50%;border:none;background:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow);';
   doneBtn.innerHTML='<svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M13 4l-6 6-3-3" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -4096,7 +3640,7 @@ function showCIComplete(){
     closeCheckin();
     const wasLast = state.currentDay >= state.planLength;
     completeCheckinDay();
-    if(!wasLast) setTimeout(()=>showCelebration('✅',L('Prijava dokončana!','Check-in complete!'),L('Vaši podatki so zabeleženi. Gradite dragocen vzorec.','Your data is recorded. You\'re building a valuable pattern.'),L('Kar tako naprej','Keep it up'),()=>{}),300);
+    if(!wasLast) setTimeout(()=>showCelebration('✅','Check-in complete!','Your data is recorded. You\'re building a valuable pattern.','Keep it up',()=>{}),300);
   };
   doneRow.appendChild(doneBtn);
   body.appendChild(doneRow);
@@ -4202,14 +3746,14 @@ async function adaptNextDay(dayNum){
 // Was the last check-in a "No incident"? Used for end-state logic.
 function recentAllClear(n){
   if(!state.checkins||state.checkins.length<n) return false;
-  return state.checkins.slice(-n).every(c=>c.occurred==='Ne');
+  return state.checkins.slice(-n).every(c=>(c.occurred==='No'||c.occurred==='Ne'));
 }
 
 // Called when the user finishes the final day of the current plan.
 // Archive a completed plan with its full data. Keeps only the last 1 month.
 function archivePlan(){
   if(!state.archive) state.archive=[];
-  const pet=state.answers.petName||'Vaš ljubljenček';
+  const pet=state.answers.petName||'your pet';
   const petType=state.answers.petType||'other';
   const s=state.stats||{};
   const improvement = (s.improvement!=null) ? s.improvement : null;
@@ -4217,12 +3761,12 @@ function archivePlan(){
   const today=todayKey();
   const dup=state.archive.find(p=>p.assessmentId===state.currentAssessmentId && p.dateKey===today);
   if(dup) return;
-  const issue = state.answers.mainIssue || (document.getElementById('todayFocus')||{}).textContent || L('Vedenjski načrt','Behaviour plan');
+  const issue = state.answers.mainIssue || (document.getElementById('todayFocus')||{}).textContent || 'Behaviour plan';
   state.archive.unshift({
     id, assessmentId:state.currentAssessmentId||null,
     petName:pet, petType, emoji:EMOJIS[petType]||'🐾',
     issue,
-    focus:(document.getElementById('todayFocus')||{}).textContent||L('Vedenjski načrt','Behaviour plan'),
+    focus:(document.getElementById('todayFocus')||{}).textContent||'Behaviour plan',
     planLength:state.planLength||7,
     completedDate:new Date().toISOString(), dateKey:today,
     improvement, checkinCount:(state.checkins||[]).length,
@@ -4251,7 +3795,7 @@ function handlePlanEnd(){
     state.planComplete=true;
     state.currentDay=state.planLength;
     const dl=document.getElementById('todayDayLabel');
-    if(dl)dl.textContent=L(`Načrt dokončan · ${state.planLength} dni`,`Plan complete · ${state.planLength} days`);
+    if(dl)dl.textContent=`Plan complete · ${state.planLength} days`;
     buildPlanDaysList(); refreshTodayForDay(); recomputeStats();
     finalizeCompletedPlan('resolved');
   } else {
@@ -4300,7 +3844,7 @@ function acceptExtension(){
   state.selectedPeriod=null;      // re-pick largest available window
   closePlanEnd();
   buildPlanDaysList(); refreshTodayForDay(); buildPeriodButtons(); recomputeStats(); persistState();
-  setTimeout(()=>showCelebration('🎁',L('Odklenjeni 4 dodatni dnevi','4 extra days unlocked'),L('Vaš načrt je bil prilagojen na podlagi vsega doslej - brezplačno.','Your plan has been adapted based on everything so far - free of charge.'),L('Naprej','Continue'),()=>{}),300);
+  setTimeout(()=>showCelebration('🎁','4 extra days unlocked','Your plan has been adapted based on everything so far - free of charge.','Continue',()=>{}),300);
 }
 
 // Monthly subscription path (€4.99) - Stripe in production
@@ -4313,7 +3857,7 @@ function startSubscription(){
   state.selectedPeriod=null;      // re-pick largest available window
   closePlanEnd();
   buildPlanDaysList(); refreshTodayForDay(); buildPeriodButtons(); recomputeStats(); persistState();
-  setTimeout(()=>showCelebration('🔓',L('Naročnina aktivna','Subscription active'),L('Vaš načrt se zdaj nadaljuje z novimi tedenskimi koraki in polnim spremljanjem.','Your plan now continues with new weekly steps and full tracking.'),L('Naprej','Continue'),()=>{}),300);
+  setTimeout(()=>showCelebration('🔓','Subscription active','Your plan now continues with new weekly steps and full tracking.','Continue',()=>{}),300);
 }
 
 function cancelSubscription(){
@@ -4332,15 +3876,15 @@ function refreshTodayForDay(){
   const tasksFocus=document.getElementById('tasksFocusTitle');
   if(focusEl)focusEl.textContent=cur.title;
   if(tasksFocus)tasksFocus.textContent=cur.title;
-  if(dayLabel)dayLabel.textContent=L(`Dan ${state.currentDay} od ${state.planLength} · Vedenjski načrt`,`Day ${state.currentDay} of ${state.planLength} · Behaviour plan`);
-  if(tasksDay)tasksDay.textContent=L(`Dan ${state.currentDay} od ${state.planLength}`,`Day ${state.currentDay} of ${state.planLength}`);
+  if(dayLabel)dayLabel.textContent=`Day ${state.currentDay} of ${state.planLength} · Behaviour plan`;
+  if(tasksDay)tasksDay.textContent=`Day ${state.currentDay} of ${state.planLength}`;
   // Show the AI's adaptive insight for the current day, if we have one.
   const insightEl=document.getElementById('todayInsightText');
   if(insightEl){
     if(state.dayInsights && state.dayInsights[state.currentDay]){
       insightEl.textContent = state.dayInsights[state.currentDay];
     } else {
-      insightEl.textContent = L('Dokončajte današnjo prijavo za AI vpogled.','Complete today\'s check-in to receive your AI insight.');
+      insightEl.textContent = 'Complete today\'s check-in to receive your AI insight.';
     }
   }
   updateCheckinButtonState();
@@ -4371,9 +3915,9 @@ function recomputeStats(){
   const planPct=Math.round((completedDays/planLen)*100);
 
   // Incidents within the window
-  const incidents=checkins.filter(c=>c.occurred==='Da');
+  const incidents=checkins.filter(c=>(c.occurred==='Yes'||c.occurred==='Da'));
   const incidentCount=incidents.length;
-  const clearCount=checkins.filter(c=>c.occurred==='Ne').length;
+  const clearCount=checkins.filter(c=>(c.occurred==='No'||c.occurred==='Ne')).length;
 
   // Behaviour score (windowed)
   let score=50;
@@ -4388,8 +3932,8 @@ function recomputeStats(){
   let improvement=null;
   if(total>=4){
     const half=Math.floor(total/2);
-    const firstInc=checkins.slice(0,half).filter(c=>c.occurred==='Da').length;
-    const secondInc=checkins.slice(half).filter(c=>c.occurred==='Da').length;
+    const firstInc=checkins.slice(0,half).filter(c=>(c.occurred==='Yes'||c.occurred==='Da')).length;
+    const secondInc=checkins.slice(half).filter(c=>(c.occurred==='Yes'||c.occurred==='Da')).length;
     if(firstInc>0) improvement=Math.round(((secondInc-firstInc)/firstInc)*100);
     else if(secondInc===0) improvement=-100;
     else improvement=0;
@@ -4421,7 +3965,7 @@ function renderStats(){
   const todayPlanBar=document.getElementById('todayPlanBar');
   if(todayPlanBar)todayPlanBar.style.width=(s.planPct||0)+'%';
   const todayDayBadge=document.getElementById('todayDayBadge');
-  if(todayDayBadge)todayDayBadge.textContent=L(`Dan ${state.currentDay} od ${state.planLength}`,`Day ${state.currentDay} of ${state.planLength}`);
+  if(todayDayBadge)todayDayBadge.textContent=`Day ${state.currentDay} of ${state.planLength}`;
 
   // Progress page - render full grid live
   buildProgressGrid();
@@ -4434,22 +3978,13 @@ function setText(id,v){const el=document.getElementById(id);if(el)el.textContent
 // In production these come from the AI (taskOverrides[day]).
 // ═══════════════════════════════════════════════════════════════════
 function getDayTasks(day){
-  const pet=state.answers.petName||L('vaš ljubljenček','your pet');
+  const pet=state.answers.petName||'your pet';
   const savedDone=(state.tasksDone && state.tasksDone[day]) ? state.tasksDone[day] : null;
   const applyDone=(arr)=> arr.map((t,i)=>({text:(typeof t==='string'?t:t.text), done: savedDone?!!savedDone[i]:false}));
   // AI override if present
   if(state.taskOverrides&&state.taskOverrides[day]){
     return applyDone(state.taskOverrides[day]);
   }
-  const byDaySL={
-    1:[`Natančno opazujte ${pet} in zabeležite, kdaj točno se vedenje pojavi`,'Odstranite najbolj očiten sprožilec iz okolja',`Naj bo rutina za ${pet} danes mirna in predvidljiva`,'Izogibajte se kaznovanju - ostanite nevtralni in potrpežljivi','Zapišite čas vsakega incidenta za prijavo'],
-    2:[`Zabeležite vsak incident s časom, krajem in kaj se je zgodilo tik pred tem`,`Opazujte govorico telesa ${pet} za zgodnje opozorilne znake`,'Prepoznajte en jasen vzorec od včeraj in danes','Naj bodo odzivi vseh članov gospodinjstva dosledni','Zabeležite raven energije zjutraj in zvečer'],
-    3:[`Naredite eno ciljno spremembo okolja na podlagi vzorca`,`Uredite mirno varno mesto, kamor se ${pet} lahko umakne`,'Zmanjšajte dražljaje v času dneva z visokim tveganjem','Nagradite mirno vedenje takoj, ko ga opazite','Naj bo varno mesto na voljo ves dan'],
-    4:[`Uvedite eno pozitivno nadomestno vedenje za ${pet}`,'Nagradite želeno vedenje takoj, vsakič','Naj bodo trenutki treninga kratki - pod 5 minut','Izogibajte se nehotenemu krepitvi neželenega vedenja','Spremljajte, katere nagrade delujejo najbolje'],
-    5:[`Ponovite, kar je včeraj delovalo - doslednost pred intenzivnostjo`,'Izboljšajte natančnost časa nagrajevanja','Odstranite vsak sprožilec, ki se je očitno izboljšal','Namenite mirno pozornost v časih z nizkim tveganjem','Zabeležite morebitne nove vzorce'],
-    6:[`Primerjajte incidente tega tedna z dnem 1`,'Okrepite rutine, ki so zmanjšale incidente','Postopno opustite vse, kar ni pomagalo',`Nocoj omogočite ${pet} predvidljivo umirjanje`,'Razmislite o največjem izboljšanju doslej'],
-    7:[`Opravite mirno celodnevno opazovanje ${pet}`,'Utrdite rutino, ki deluje najbolje','Pripravite vprašanja za zadnjo prijavo','Naj bo vse dosledno','Proslavite napredek tega tedna'],
-  };
   const byDayEN={
     1:[`Observe ${pet} closely and note exactly when the behavior occurs`,'Remove the single most obvious trigger from the environment',`Keep ${pet}'s routine calm and predictable today`,'Avoid punishment - stay neutral and patient','Write down the time of each incident for the check-in'],
     2:[`Log every incident with the time, place and what happened right before`,`Watch ${pet}'s body language for early warning signs`,'Identify one clear pattern from yesterday and today','Keep all household members\' responses consistent','Note energy levels in the morning and evening'],
@@ -4459,12 +3994,10 @@ function getDayTasks(day){
     6:[`Compare this week's incidents with day 1`,'Reinforce the routines that reduced incidents','Gradually drop anything that did not help',`Give ${pet} a predictable wind-down tonight`,'Reflect on the biggest improvement so far'],
     7:[`Do a calm full-day observation of ${pet}`,'Lock in the routine that works best','Prepare questions for the final check-in','Keep everything consistent','Celebrate this week\'s progress'],
   };
-  const byDay = currentLang==='en' ? byDayEN : byDaySL;
+  const byDay = byDayEN;
   let list = byDay[day];
   if(!list){
-    list = currentLang==='en'
-      ? [`Maintain ${pet}'s established calm routine`,'Reinforce positive behavior with timely rewards','Watch for returning triggers and remove them','Keep the safe space available','Log today\'s observations in the check-in']
-      : [`Ohranjajte uveljavljeno mirno rutino za ${pet}`,'Krepite pozitivno vedenje s pravočasnimi nagradami','Bodite pozorni na vračajoče se sprožilce in jih odstranite','Naj bo varno mesto na voljo','Zabeležite današnja opažanja v prijavi'];
+    list = [`Maintain ${pet}'s established calm routine`,'Reinforce positive behavior with timely rewards','Watch for returning triggers and remove them','Keep the safe space available','Log today\'s observations in the check-in'];
   }
   return applyDone(list);
 }
@@ -4482,9 +4015,9 @@ function buildProgressGrid(){
     grid.innerHTML=`<div class="metric-card full" style="text-align:center;padding:28px 16px;">
       <div style="font-size:1.6rem;margin-bottom:10px;">📊</div>
       <div style="font-size:0.95rem;font-weight:600;margin-bottom:4px;">No data yet</div>
-      <div style="font-size:0.84rem;color:var(--secondary);">Dokončajte prvo dnevno prijavo in vaš napredek se bo prikazal tukaj.</div>
+      <div style="font-size:0.84rem;color:var(--secondary);">Complete your first daily check-in and your progress will appear here.</div>
     </div>`;
-    const ai=document.getElementById('progressAiSummary'); if(ai)ai.textContent=L('Vaši vpogledi se bodo prikazali po prvi prijavi.','Your insights will appear after your first check-in.');
+    const ai=document.getElementById('progressAiSummary'); if(ai)ai.textContent='Your insights will appear after your first check-in.';
     const tEl=document.getElementById('progTime'); if(tEl)tEl.textContent='-';
     const lEl=document.getElementById('progLocation'); if(lEl)lEl.textContent='-';
     const gEl=document.getElementById('progTrigger'); if(gEl)gEl.textContent='-';
@@ -4507,10 +4040,10 @@ function buildProgressGrid(){
 
   const ai=document.getElementById('progressAiSummary');
   if(ai){
-    const pfx = currentLang==='en' ? (s.periodLabel==='lifetime'?'Over the full plan: ':`Over the last ${s.periodLabel}: `) : (s.periodLabel==='lifetime' ? 'V celotnem načrtu: ' : `V zadnjih ${s.periodLabel}: `);
-    if(s.incidentCount===0) ai.textContent=pfx+L(`zabeleženih ${s.total} prijav in noben incident - odlično. Ohranjajte dosledno rutino.`,`${s.total} check-ins logged and no incidents - excellent. Keep the routine consistent.`);
-    else if(s.improvement!==null&&s.improvement<0) ai.textContent=pfx+L(`incidenti se zmanjšujejo (${Math.abs(s.improvement)}% manj). Vzorec se najbolj izboljša ${s.commonTime||'ob doslednih časih'}. Ostanite na poti.`,`incidents are trending down (${Math.abs(s.improvement)}% fewer). The pattern improves most ${s.commonTime||'at consistent times'}. Stay on track.`);
-    else ai.textContent=pfx+L(`zabeleženih ${s.incidentCount} incidentov, najpogosteje ${s.commonTime?(s.commonTime.toLowerCase()):'ob različnih časih'}${s.commonLoc?(', '+s.commonLoc.toLowerCase()):''}. Nadaljujte s prijavami za razkritje trenda.`,`${s.incidentCount} incidents logged, most often ${s.commonTime?(s.commonTime.toLowerCase()):'at varied times'}${s.commonLoc?(', '+s.commonLoc.toLowerCase()):''}. Keep checking in to reveal the trend.`);
+    const pfx = (s.periodLabel==='lifetime'?'Over the full plan: ':`Over the last ${s.periodLabel}: `);
+    if(s.incidentCount===0) ai.textContent=pfx+`${s.total} check-ins logged and no incidents - excellent. Keep the routine consistent.`;
+    else if(s.improvement!==null&&s.improvement<0) ai.textContent=pfx+`incidents are trending down (${Math.abs(s.improvement)}% fewer). The pattern improves most ${s.commonTime||'at consistent times'}. Stay on track.`;
+    else ai.textContent=pfx+`${s.incidentCount} incidents logged, most often ${s.commonTime?(s.commonTime.toLowerCase()):'at varied times'}${s.commonLoc?(', '+s.commonLoc.toLowerCase()):''}. Keep checking in to reveal the trend.`;
   }
   buildTrend();
 }
@@ -4623,22 +4156,22 @@ function updateCheckinButtonState(){
     btn.style.opacity=''; btn.style.cursor=''; btn.style.animation='';
     if(planDone){
       btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary');
-      btn.innerHTML=L('✓ Ocena dokončana','✓ Assessment complete');
+      btn.innerHTML='✓ Assessment complete';
       btn.onclick=()=>{}; btn.style.opacity='0.75'; btn.style.cursor='default';
     } else if(status==='done'){
       btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary');
-      btn.innerHTML=L('✓ Opravljeno - se vrne jutri ob 20:00','✓ Done - back tomorrow at 20:00');
+      btn.innerHTML='✓ Done - back tomorrow at 20:00';
       btn.onclick=()=>{}; btn.style.opacity='0.75'; btn.style.cursor='default';
     } else if(status==='open'){
       btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary');
       const cd=checkinTimeLeft();
-      btn.innerHTML=L('Začni današnjo prijavo','Start today\'s check-in')+' <span style="opacity:0.85;font-variant-numeric:tabular-nums;">'+cd+'</span> <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      btn.innerHTML='Start today\'s check-in'+' <span style="opacity:0.85;font-variant-numeric:tabular-nums;">'+cd+'</span> <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       btn.style.animation='ciPulse 2s ease-out infinite';
       btn.onclick=()=>openCheckin();
       startCheckinCountdown();
     } else { // 'before' or 'after' → locked, tappable to show the unlock sheet
       btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary');
-      btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="margin-right:2px;"><rect x="3" y="7" width="10" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7V5.5a3 3 0 016 0V7" stroke="currentColor" stroke-width="1.4"/></svg> `+L('Prijava se odpre ob 20:00','Check-in opens at 20:00');
+      btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="margin-right:2px;"><rect x="3" y="7" width="10" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7V5.5a3 3 0 016 0V7" stroke="currentColor" stroke-width="1.4"/></svg> `+'Check-in opens at 20:00';
       btn.onclick=()=>showCheckinLockSheet();
       btn.style.cursor='pointer';
     }
@@ -4718,11 +4251,11 @@ function showCheckinLockSheet(){
   const title=document.getElementById('lockSheetTitle');
   const msg=document.getElementById('lockSheetMsg');
   if(status==='after'){
-    if(title) title.textContent=L('Prijava je zaprta','Check-in is closed');
-    if(msg) msg.innerHTML=L('Današnje okno za prijavo (20:00-22:00) je zaprto. Vrne se jutri ob 20:00.','Today\'s check-in window (20:00-22:00) has closed. It returns tomorrow at 20:00.');
+    if(title) title.textContent='Check-in is closed';
+    if(msg) msg.innerHTML='Today\'s check-in window (20:00-22:00) has closed. It returns tomorrow at 20:00.';
   } else {
-    if(title) title.textContent=L('Prijava se odpre ob 20:00','Check-in opens at 20:00');
-    if(msg) msg.innerHTML=L('Dnevna prijava poteka od <strong style="color:var(--text);">20:00</strong> do <strong style="color:var(--text);">22:00</strong>.','Your daily check-in runs from <strong style="color:var(--text);">20:00</strong> to <strong style="color:var(--text);">22:00</strong>.');
+    if(title) title.textContent='Check-in opens at 20:00';
+    if(msg) msg.innerHTML='Your daily check-in runs from <strong style="color:var(--text);">20:00</strong> to <strong style="color:var(--text);">22:00</strong>.';
   }
   sheet.style.display='flex';
 }
@@ -4868,35 +4401,35 @@ async function loadStateForUser(email){
 // PLAN END SCREENS (resolved / extend / subscribe)
 // ═══════════════════════════════════════════════════════════════════
 function showPlanEndScreen(kind){
-  const pet=state.answers.petName||L('vaš ljubljenček','your pet');
+  const pet=state.answers.petName||'your pet';
   const ov=document.getElementById('planEndOverlay');
   const c=document.getElementById('planEndContent');
   if(kind==='resolved'){
     c.innerHTML=`
       <div class="celebration-emoji">🎉</div>
-      <div class="celebration-title">${L(`${pet} odlično napreduje!`,`${pet} is doing great!`)}</div>
-      <div class="celebration-sub">${L('V 7 dneh se je težava razrešila. Vse je dokončano - načrt, prijave in napredek so vsi pri 100%. Opravili ste čudovito delo.','Over 7 days the issue has resolved. Everything is complete - plan, check-ins and progress are all at 100%. You did wonderful work.')}</div>
-      <button class="btn btn-primary" style="margin-top:28px;min-width:200px;padding:14px 32px;" onclick="finishResolved()">${L('Prikaži končni napredek','Show final progress')}</button>`;
+      <div class="celebration-title">${`${pet} is doing great!`}</div>
+      <div class="celebration-sub">${'Over 7 days the issue has resolved. Everything is complete - plan, check-ins and progress are all at 100%. You did wonderful work.'}</div>
+      <button class="btn btn-primary" style="margin-top:28px;min-width:200px;padding:14px 32px;" onclick="finishResolved()">${'Show final progress'}</button>`;
     launchConfetti(); playChime();
   } else if(kind==='extend'){
     c.innerHTML=`
       <div class="celebration-emoji">🌱</div>
-      <div class="celebration-title">${L('Nadaljujmo','Let us keep going')}</div>
-      <div class="celebration-sub">${L(`Težava še ni povsem razrešena - to je povsem normalno. Vaš načrt bomo podaljšali za <strong style="color:var(--text);">4 dni, brezplačno</strong>, in ga prilagodili na podlagi vsega, kar smo izvedeli o ${pet}.`,`The issue isn't fully resolved yet - that's completely normal. We'll extend your plan by <strong style="color:var(--text);">4 days, free of charge</strong>, and adapt it based on everything we've learned about ${pet}.`)}</div>
-      <button class="btn btn-primary" style="margin-top:28px;min-width:200px;padding:14px 32px;" onclick="acceptExtension()">${L('Nadaljuj še 4 dni - brezplačno','Continue 4 more days - free')}</button>`;
+      <div class="celebration-title">${'Let us keep going'}</div>
+      <div class="celebration-sub">${`The issue isn't fully resolved yet - that's completely normal. We'll extend your plan by <strong style="color:var(--text);">4 days, free of charge</strong>, and adapt it based on everything we've learned about ${pet}.`}</div>
+      <button class="btn btn-primary" style="margin-top:28px;min-width:200px;padding:14px 32px;" onclick="acceptExtension()">${'Continue 4 more days - free'}</button>`;
   } else if(kind==='subscribe'){
     // One-time model. If the user still has prepaid credits, offer to add a pet.
     // Otherwise show the two package cards (tap -> straight to payment).
     const credits = state.planCredits||0;
     const offer = credits>0
-      ? `<div style="font-size:0.9rem;color:var(--secondary);margin-bottom:20px;">${L(`Na voljo imate še ${credits} `+(credits===1?'načrt':'načrtov')+'.',`You still have ${credits} plan${credits===1?'':'s'} available.`)}</div>
-         <button class="btn btn-primary" style="min-width:230px;padding:15px 32px;" onclick="closePlanEnd();addPetFromCredit();">${L('Dodaj novo žival','Add a new pet')}</button>`
+      ? `<div style="font-size:0.9rem;color:var(--secondary);margin-bottom:20px;">${`You still have ${credits} plan${credits===1?'':'s'} available.`}</div>
+         <button class="btn btn-primary" style="min-width:230px;padding:15px 32px;" onclick="closePlanEnd();addPetFromCredit();">${'Add a new pet'}</button>`
       : `<div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;">
         <div onclick="upsellChoose('single')" style="cursor:pointer;background:var(--card);border:1.5px solid var(--border);border-radius:18px;padding:18px 20px;text-align:left;transition:border-color .2s;" onmouseenter="this.style.borderColor='var(--success)'" onmouseleave="this.style.borderColor='var(--border)'">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div>
-              <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;">${L('1 načrt','1 plan')}</div>
-              <div style="font-size:0.78rem;color:var(--secondary);">${L('For one pet or one issue','For one pet or issue')}</div>
+              <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;">${'1 plan'}</div>
+              <div style="font-size:0.78rem;color:var(--secondary);">${'For one pet or issue'}</div>
             </div>
             <div style="display:flex;align-items:baseline;gap:6px;">
               <span style="font-size:0.85rem;color:var(--secondary);text-decoration:line-through;opacity:0.55;">€19.95</span>
@@ -4905,11 +4438,11 @@ function showPlanEndScreen(kind){
           </div>
         </div>
         <div onclick="upsellChoose('triple')" style="cursor:pointer;position:relative;background:var(--card);border:1.5px solid var(--success);border-radius:18px;padding:18px 20px;text-align:left;transition:border-color .2s;">
-          <div class="pkg-badge" style="position:absolute;top:-10px;left:20px;">${L('Najboljša vrednost','Best value')}</div>
+          <div class="pkg-badge" style="position:absolute;top:-10px;left:20px;">${'Best value'}</div>
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div>
-              <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;">${L('3 načrti','3 plans')}</div>
-              <div style="font-size:0.78rem;color:var(--secondary);">${L('For multiple pets or issues','For multiple pets or issues')}</div>
+              <div style="font-family:'Inter Tight',sans-serif;font-size:1.05rem;font-weight:600;">${'3 plans'}</div>
+              <div style="font-size:0.78rem;color:var(--secondary);">${'For multiple pets or issues'}</div>
             </div>
             <div style="display:flex;align-items:baseline;gap:6px;">
               <span style="font-size:0.85rem;color:var(--secondary);text-decoration:line-through;opacity:0.55;">€59.95</span>
@@ -4920,10 +4453,10 @@ function showPlanEndScreen(kind){
       </div>`;
     c.innerHTML=`
       <div class="celebration-emoji" style="font-size:3rem;">🎉</div>
-      <div class="celebration-title">${L('Odlično opravljeno','Beautifully done')}</div>
-      <div class="celebration-sub" style="margin-bottom:24px;">${L(`Načrt za ${pet} je dokončan. Želite načrt za drugo žival ali težavo?`,`${pet}'s plan is complete. Want a plan for another pet or issue?`)}</div>
+      <div class="celebration-title">${'Beautifully done'}</div>
+      <div class="celebration-sub" style="margin-bottom:24px;">${`${pet}'s plan is complete. Want a plan for another pet or issue?`}</div>
       ${offer}
-      <button class="btn btn-ghost" style="margin-top:24px;" onclick="finishResolved()">${L('Pozneje','Later')}</button>`;
+      <button class="btn btn-ghost" style="margin-top:24px;" onclick="finishResolved()">${'Later'}</button>`;
     launchConfetti(); playChime();
   }
   ov.classList.add('open');
@@ -4969,10 +4502,10 @@ function maybeAskContinue(){
     state.askedContinue=true;
     showPlanEndScreen && (function(){
       const ov=document.getElementById('planEndOverlay');const c=document.getElementById('planEndContent');
-      const pet=state.answers.petName||L('vaš ljubljenček','your pet');
-      c.innerHTML=`<div class="celebration-emoji">✨</div><div class="celebration-title">${L(`${pet} je 4 dni brez incidentov`,`${pet} is 4 days incident-free`)}</div><div class="celebration-sub">${L('Stvari gredo res dobro. Želite nadaljevati z mesečnim načrtom ali zaključiti tukaj?','Things are going really well. Would you like to continue with the monthly plan or finish here?')}</div>
-      <button class="btn btn-primary" style="margin-top:24px;min-width:200px;padding:14px 32px;" onclick="closePlanEnd()">${L('Nadaljuj','Continue')}</button>
-      <button class="btn btn-ghost" style="margin-top:6px;color:var(--danger);" onclick="cancelSubscription()">${L('Prekliči naročnino','Cancel subscription')}</button>`;
+      const pet=state.answers.petName||'your pet';
+      c.innerHTML=`<div class="celebration-emoji">✨</div><div class="celebration-title">${`${pet} is 4 days incident-free`}</div><div class="celebration-sub">${'Things are going really well. Would you like to continue with the monthly plan or finish here?'}</div>
+      <button class="btn btn-primary" style="margin-top:24px;min-width:200px;padding:14px 32px;" onclick="closePlanEnd()">${'Continue'}</button>
+      <button class="btn btn-ghost" style="margin-top:6px;color:var(--danger);" onclick="cancelSubscription()">${'Cancel subscription'}</button>`;
       ov.classList.add('open');
     })();
   }
@@ -4983,17 +4516,14 @@ function maybeAskContinue(){
 // ═══════════════════════════════════════
 const ANGRY_EMOJIS={dog:'🐕',cat:'😾',rabbit:'🐇',bird:'🦜',hamster:'🐹',reptile:'🦎',fish:'🐠',other:'😾'};
 function showStreakLost(lostFrom, context){
-  const pet=state.answers.petName||L('tvoj ljubljenček','your pet');
+  const pet=state.answers.petName||'your pet';
   const petType=state.answers.petType||'other';
   const emoji=ANGRY_EMOJIS[petType]||'😾';
   document.getElementById('streakLostEmoji').textContent=emoji;
-  let subText = L(`Zamudil si svoje okno za prijavo in ${pet} ni navdušen.`,`You missed your check-in window and ${pet} is not impressed.`);
+  let subText = `You missed your check-in window and ${pet} is not impressed.`;
   if(context && context.missedDays>0){
-    const dw = context.missedDays===1 ? L('dan','day') : L('dni','days');
-    subText = L(
-      `Zamudil si ${context.missedDays} ${dw} prijav in ${pet} ni navdušen. Tvoj načrt se je premaknil na dan ${context.movedToDay} - nadaljuj danes.`,
-      `You missed ${context.missedDays} ${dw} of check-ins and ${pet} is not impressed. Your plan moved to day ${context.movedToDay} - pick up today.`
-    );
+    const dw = context.missedDays===1 ? 'day' : 'days';
+    subText = `You missed ${context.missedDays} ${dw} of check-ins and ${pet} is not impressed. Your plan moved to day ${context.movedToDay} - pick up today.`;
   }
   document.getElementById('streakLostSub').textContent=subText;
   const numEl=document.getElementById('streakLostNumber');
@@ -5178,10 +4708,10 @@ function confirmDeleteProfile(){
   const ov=document.getElementById('planEndOverlay');
   const c=document.getElementById('planEndContent');
   c.innerHTML=`<div class="celebration-emoji">🗑️</div>
-    <div class="celebration-title">${L('Izbriši profil?','Delete profile?')}</div>
-    <div class="celebration-sub">${L(`To trajno odstrani profil, načrt, prijave in ves napredek za ${state.answers.petName||'vašega ljubljenčka'}. Tega ni mogoče razveljaviti.`,`This permanently removes the profile, plan, check-ins and all progress for ${state.answers.petName||'your pet'}. This cannot be undone.`)}</div>
-    <button class="btn btn-primary" style="margin-top:24px;min-width:200px;padding:14px 32px;background:var(--danger);" onclick="doDeleteProfile()">${L('Izbriši trajno','Delete permanently')}</button>
-    <button class="btn btn-ghost" style="margin-top:6px;" onclick="closePlanEnd()">${L('Prekliči','Cancel')}</button>`;
+    <div class="celebration-title">${'Delete profile?'}</div>
+    <div class="celebration-sub">${`This permanently removes the profile, plan, check-ins and all progress for ${state.answers.petName||'your pet'}. This cannot be undone.`}</div>
+    <button class="btn btn-primary" style="margin-top:24px;min-width:200px;padding:14px 32px;background:var(--danger);" onclick="doDeleteProfile()">${'Delete permanently'}</button>
+    <button class="btn btn-ghost" style="margin-top:6px;" onclick="closePlanEnd()">${'Cancel'}</button>`;
   ov.classList.add('open');
 }
 async function doDeleteProfile(){
