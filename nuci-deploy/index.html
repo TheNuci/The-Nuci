@@ -177,6 +177,7 @@ select.input-field{background-image:url("data:image/svg+xml,%3Csvg width='12' he
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes celebBounce{from{transform:scale(0) rotate(-10deg);opacity:0}to{transform:scale(1) rotate(0deg);opacity:1}}
 @keyframes scaleIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .fade-up{animation:fadeUp 0.4s ease forwards}
 #screen-entry{align-items:center;justify-content:center;padding:24px}
 html.kb-up #screen-entry.active .entry-center{animation:none!important}
@@ -415,7 +416,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   <div class="roadmap-inner">
     <button class="back-btn" id="roadmapBackBtn" onclick="state.fromUpsell=false;showScreen('screen-app');showTab('profile');" style="display:none;margin-bottom:14px;">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Nazaj na profil
+      Back to profile
     </button>
     <div class="roadmap-badge">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M6 4v3.5L8 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
@@ -428,8 +429,40 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         <span style="font-size:1.4rem;line-height:1;">✨</span>
         <div>
           <div style="font-family:'Inter Tight',sans-serif;font-size:1.02rem;font-weight:600;margin-bottom:6px;">Crafted by AI, just for your pet</div>
-          <p style="font-size:0.9rem;line-height:1.5;color:var(--secondary);margin:0;">Based on everything you've shared, our AI builds a personalized 7-day behaviour plan made specifically for your pet and your situation - with clear daily steps, likely causes, and what to avoid. Each day adapts as you check in.</p>
+          <p style="font-size:0.9rem;line-height:1.5;color:var(--secondary);margin:0;">A 7-day plan that adapts every day based on your check-ins, notes and done tasks.</p>
         </div>
+      </div>
+    </div>
+
+    <!-- AI ANALYSIS PREVIEW (proves value, reveals nothing) -->
+    <div id="roadmapAnalysis" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;margin-bottom:18px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <span style="width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block;"></span>
+        <span style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--secondary);font-weight:600;">Analysis complete</span>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <div style="flex:1;background:var(--bg);border-radius:12px;padding:13px;text-align:center;">
+          <div id="anFocus" style="font-family:'Inter Tight',sans-serif;font-size:0.95rem;font-weight:600;line-height:1.2;">Behaviour</div>
+          <div style="font-size:0.7rem;color:var(--secondary);margin-top:3px;">Main focus</div>
+        </div>
+        <div style="flex:1;background:var(--bg);border-radius:12px;padding:13px;text-align:center;">
+          <div id="anLevel" style="font-family:'Inter Tight',sans-serif;font-size:0.95rem;font-weight:600;line-height:1.2;color:var(--success);">Workable</div>
+          <div style="font-size:0.7rem;color:var(--secondary);margin-top:3px;">Difficulty</div>
+        </div>
+        <div style="flex:1;background:var(--bg);border-radius:12px;padding:13px;text-align:center;">
+          <div style="font-family:'Inter Tight',sans-serif;font-size:0.95rem;font-weight:600;line-height:1.2;">7 days</div>
+          <div style="font-size:0.7rem;color:var(--secondary);margin-top:3px;">Plan length</div>
+        </div>
+      </div>
+      <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--secondary);font-weight:600;margin-bottom:10px;">Your 7-day plan</div>
+      <div id="anDayList" style="display:flex;flex-direction:column;gap:7px;position:relative;">
+        <!-- locked day rows injected by JS -->
+      </div>
+      <div style="text-align:center;margin-top:14px;font-size:0.8rem;color:var(--secondary);">
+        <span style="display:inline-flex;align-items:center;gap:5px;">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 7V5.5a3 3 0 016 0V7" stroke="currentColor" stroke-width="1.3"/></svg>
+          Unlock all 7 days below
+        </span>
       </div>
     </div>
 
@@ -549,7 +582,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Daily check-ins with AI insights</span></div>
         <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Progress tracking over time</span></div>
       </div>
-      <button onclick="showScreen('screen-roadmap')" style="margin-top:14px;background:none;border:none;color:var(--success);font-size:0.82rem;font-weight:600;cursor:pointer;padding:0;">← Spremeni paket</button>
+      <button onclick="showScreen('screen-roadmap')" style="margin-top:14px;background:none;border:none;color:var(--success);font-size:0.82rem;font-weight:600;cursor:pointer;padding:0;">← Change package</button>
     </div>
 
     <!-- Promo code -->
@@ -880,6 +913,16 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   </div>
 </div>
 
+<!-- ONBOARDING OVERLAY (shown once after first purchase) -->
+<div class="celebration-overlay" id="onboardingOverlay">
+  <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;padding:36px 26px;text-align:center;max-width:360px;width:100%;">
+    <div id="obStepWrap" style="width:100%;"></div>
+    <div style="display:flex;gap:6px;margin-top:24px;" id="obDots"></div>
+    <button class="btn btn-primary" onclick="onboardingNext()" style="margin-top:20px;min-width:200px;padding:14px 32px;" id="obBtn">Next</button>
+    <button onclick="closeOnboarding()" style="margin-top:12px;background:none;border:none;color:var(--secondary);font-size:0.82rem;cursor:pointer;" id="obSkip">Skip</button>
+  </div>
+</div>
+
 <!-- PLAN END OVERLAY (resolved / extend / subscribe) -->
 <div class="celebration-overlay" id="planEndOverlay">
   <div id="planEndContent" style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;padding:40px 24px;text-align:center;max-width:360px;"></div>
@@ -924,7 +967,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         </div>
       </div>
     </div>
-    <button onclick="closeBuyPlan()" style="width:100%;margin-top:18px;background:none;border:none;color:var(--secondary);font-size:0.9rem;font-weight:500;cursor:pointer;padding:8px;" id="buyPlanClose">Nazaj na profil</button>
+    <button onclick="closeBuyPlan()" style="width:100%;margin-top:18px;background:none;border:none;color:var(--secondary);font-size:0.9rem;font-weight:500;cursor:pointer;padding:8px;" id="buyPlanClose">Back to profile</button>
   </div>
 </div>
 
@@ -935,11 +978,20 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="9" rx="2" stroke="#C8A16B" stroke-width="1.6"/><path d="M8 10V7a4 4 0 018 0v3" stroke="#C8A16B" stroke-width="1.6" stroke-linecap="round"/></svg>
     </div>
     <h3 style="font-size:1.25rem;margin-bottom:8px;" id="lockSheetTitle">Check-in opens at 20:00</h3>
-    <p style="font-size:0.9rem;margin-bottom:14px;line-height:1.55;" id="lockSheetMsg">Your daily check-in runs from <strong style="color:var(--text);">20:00</strong> to <strong style="color:var(--text);">22:00</strong>.</p>
+    <p style="font-size:0.9rem;margin-bottom:14px;line-height:1.55;" id="lockSheetMsg">Your daily check-in runs from<br><strong style="color:var(--text);display:block;text-align:center;margin-top:4px;">20:00 to 22:00</strong></p>
     <p style="font-size:0.84rem;margin-bottom:24px;line-height:1.55;color:var(--secondary);">We keep it to the evening on purpose - by the end of the day you've seen how your pet actually behaved, so your check-in (and tomorrow's plan) is based on the full picture.</p>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-primary" onclick="closeCheckinLock()" style="flex:1;">Got it</button>
     </div>
+  </div>
+</div>
+
+<!-- DAY 1 PREVIEW SHEET (real AI Day 1, shown from the roadmap) -->
+<div id="day1PreviewSheet" style="position:fixed;inset:0;z-index:310;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);" onclick="if(event.target===this)closeDay1Preview()">
+  <div style="background:var(--card);width:100%;max-width:440px;border-radius:24px 24px 0 0;padding:26px 24px calc(26px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(0,0,0,0.2);animation:sheetUp 0.34s cubic-bezier(0.34,1.4,0.64,1);max-height:82vh;overflow-y:auto;">
+    <div style="width:38px;height:4px;border-radius:99px;background:rgba(0,0,0,0.14);margin:0 auto 18px;"></div>
+    <div id="day1PreviewBody"></div>
+    <button class="btn btn-primary btn-full" onclick="closeDay1Preview()" style="margin-top:20px;">Close preview</button>
   </div>
 </div>
 
@@ -1564,11 +1616,129 @@ function buildRoadmap(){
   const petName=state.answers.petName||'your pet';
   const subEl=document.getElementById('roadmapSub');
   if(subEl) subEl.textContent = `A personalized 7-day plan for ${petName}.`;
-  // The 7-day table was removed from this screen; the day-by-day plan now
-  // lives only inside the profile after purchase.
-  // If a loyalty discount is active, reflect −10% on the carousel prices
+  buildRoadmapAnalysis();
   updateRoadmapPrices();
 }
+
+// Builds the "Analysis complete" preview on the roadmap. It proves the AI has
+// done real work (named focus, difficulty, locked day list) WITHOUT revealing
+// any actual plan content - so the value is clear but the plan stays gated.
+function buildRoadmapAnalysis(){
+  const a = state.answers || {};
+  const pet = a.petName || 'your pet';
+  // Derive a short, human "main focus" label from the described issue.
+  const raw = (a.mainIssue || a.issue || a.behaviour || a.entry || '').toString().toLowerCase();
+  const map = [
+    [/(bark|noise|vocal|whin|howl)/,'Barking & noise'],
+    [/(bite|nip|mouth)/,'Biting & nipping'],
+    [/(anxious|anxiety|fear|scared|nervous|stress)/,'Anxiety & fear'],
+    [/(aggress|growl|snap|reactive)/,'Reactivity'],
+    [/(chew|destroy|scratch)/,'Chewing & damage'],
+    [/(toilet|potty|pee|poop|soiling|litter)/,'Toileting'],
+    [/(separation|alone|left)/,'Separation issues'],
+    [/(pull|leash|walk)/,'Leash & walking'],
+    [/(jump|hyper|energy|restless)/,'Energy & impulse'],
+    [/(eat|appetite|food)/,'Eating habits'],
+    [/(sleep|night)/,'Sleep & routine'],
+    [/(hid|withdraw|avoid)/,'Withdrawal'],
+  ];
+  let focus = 'Behaviour';
+  for(const [re,label] of map){ if(re.test(raw)){ focus = label; break; } }
+  const fEl=document.getElementById('anFocus'); if(fEl) fEl.textContent = focus;
+
+  // Difficulty read from severity/frequency if available, else "Workable".
+  const sev = +((a.severity)||0);
+  let level = 'Workable', lColor = 'var(--success)';
+  if(sev>=8){ level='Needs focus'; lColor='var(--text)'; }
+  else if(sev>=5){ level='Moderate'; lColor='var(--text)'; }
+  const lEl=document.getElementById('anLevel'); if(lEl){ lEl.textContent=level; lEl.style.color=lColor; }
+
+  // Locked day list - intriguing arcs, no real plan content revealed.
+  const arc = [
+    'Stabilize & reset',
+    'Spot the pattern',
+    'Adjust the environment',
+    'Build the new habit',
+    'Reinforce what works',
+    'Review the progress',
+    'Lock it in',
+  ];
+  const list=document.getElementById('anDayList');
+  if(list){
+    list.innerHTML = arc.map((t,i)=>{
+      const open = i===0;
+      if(open){
+        // Day 1 is a real, tappable preview that pulses like the check-in CTA.
+        return `<div id="anDay1Preview" onclick="openDay1Preview()" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bg);border-radius:10px;animation:ciPulse 2s ease-out infinite;">
+          <div style="width:22px;height:22px;border-radius:6px;background:var(--success);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;flex-shrink:0;">1</div>
+          <div style="flex:1;font-size:0.86rem;font-weight:600;" id="anDay1Title">${t}</div>
+          <span id="anDay1Cta" style="font-size:0.68rem;color:var(--success);font-weight:700;text-transform:uppercase;letter-spacing:0.04em;display:inline-flex;align-items:center;gap:4px;">Preview <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>`;
+      }
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border-radius:10px;opacity:0.62;">
+        <div style="width:22px;height:22px;border-radius:6px;background:rgba(0,0,0,0.08);color:var(--secondary);display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;flex-shrink:0;">${i+1}</div>
+        <div style="flex:1;font-size:0.86rem;font-weight:500;filter:blur(0.3px);">${t}</div>
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;opacity:0.5;"><rect x="3" y="7" width="10" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 7V5.5a3 3 0 016 0V7" stroke="currentColor" stroke-width="1.3"/></svg>
+      </div>`;
+    }).join('');
+  }
+  // Kick off real AI plan generation in the background so the Day 1 preview
+  // shows actual, personalized content when tapped.
+  ensureRoadmapPlan();
+}
+
+// Generate the AI plan (once) while the user is on the roadmap, so the Day 1
+// preview is real. Stores result in state.planOverrides via generatePlanAI.
+let _roadmapPlanPromise=null;
+function ensureRoadmapPlan(){
+  if(state.planOverrides && state.planOverrides[1]) return Promise.resolve();   // already have it
+  if(_roadmapPlanPromise) return _roadmapPlanPromise;
+  _roadmapPlanPromise = (async()=>{
+    try{ await generatePlanAI(state.answers); }
+    catch(e){ try{ generatePlan(state.answers); }catch(_){ } }
+    // refresh the Day 1 title with the real plan title if available
+    try{
+      const d1=getPlanDays()[0];
+      const tEl=document.getElementById('anDay1Title');
+      if(d1 && d1.title && tEl) tEl.textContent=d1.title;
+    }catch(e){}
+  })();
+  return _roadmapPlanPromise;
+}
+
+// Opens a sheet showing the real, AI-generated Day 1 (title, focus, tasks).
+async function openDay1Preview(){
+  const sheet=document.getElementById('day1PreviewSheet');
+  const body=document.getElementById('day1PreviewBody');
+  if(!sheet||!body) return;
+  sheet.style.display='flex';
+  body.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--secondary);font-size:0.9rem;">Preparing your Day 1…</div>';
+  try{ await ensureRoadmapPlan(); }catch(e){}
+  let d1=null;
+  try{ d1=getPlanDays()[0]; }catch(e){}
+  const pet=state.answers.petName||'your pet';
+  if(!d1){
+    body.innerHTML='<div style="text-align:center;padding:30px 0;color:var(--secondary);font-size:0.9rem;">Your Day 1 will be ready in the app.</div>';
+    return;
+  }
+  let tasks=[];
+  try{ tasks=(getDayTasks?getDayTasks(1):[]).map(t=>t.text||t).filter(Boolean); }catch(e){}
+  if(!tasks.length && Array.isArray(d1.tasks)) tasks=d1.tasks;
+  body.innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="width:26px;height:26px;border-radius:7px;background:var(--success);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;">1</div>
+      <span style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--secondary);font-weight:600;">Day 1 · your real plan</span>
+    </div>
+    <h3 style="font-family:'Inter Tight',sans-serif;font-size:1.25rem;font-weight:600;margin:0 0 6px;">${d1.title||'Day 1'}</h3>
+    ${d1.sub?`<p style="font-size:0.9rem;color:var(--secondary);margin:0 0 16px;line-height:1.5;">${d1.sub}</p>`:''}
+    ${tasks.length?`<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--secondary);font-weight:600;margin-bottom:10px;">Today's tasks</div>
+      <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:8px;">
+        ${tasks.map(t=>`<div style="display:flex;gap:10px;align-items:flex-start;"><span style="width:6px;height:6px;border-radius:50%;background:var(--success);flex-shrink:0;margin-top:7px;"></span><span style="font-size:0.9rem;line-height:1.45;">${t}</span></div>`).join('')}
+      </div>`:''}
+    <p style="font-size:0.82rem;color:var(--secondary);margin-top:16px;line-height:1.5;">This is Day 1 of ${pet}'s plan. Days 2-7 unlock with your purchase and adapt each day as you check in.</p>`;
+}
+function closeDay1Preview(){ const s=document.getElementById('day1PreviewSheet'); if(s) s.style.display='none'; }
+
 function updateRoadmapPrices(){
   const disc = state.pendingDiscount || 0;
   const single = 9.95, triple = 19.95;
@@ -2216,6 +2386,7 @@ function completePayment(){
         petPhoto: state.petPhoto, userEmail: state.userEmail,
         pricePaid: currentPrice(), promoUsed: appliedPromo?appliedPromo.code:null,
         planCredits: credits, packageId: selectedPackage?selectedPackage.id:'single',
+        planOverrides: state.planOverrides||null, aiDays: state.aiDays||null, aiPlan: state.aiPlan||null,
         paid: true
       }));
     }catch(e){}
@@ -2281,7 +2452,7 @@ function completePayment(){
       try{ saveCurrentProgress(); }catch(e){}   // store this pet's plan in its record
       try{ showScreen('screen-app'); showTab('today'); }catch(e){}
       persistStateNow().finally(()=>{ setTimeout(()=>{ window.__handlingPaidReturn=false; }, 1500); });
-      setTimeout(()=>{ try{ showCelebration('🎉','Payment successful!','Your plan is ready.','Go to Today',()=>{}); }catch(e){} },500);
+      setTimeout(()=>{ try{ showOnboarding(); }catch(e){ try{ showCelebration('🎉','Payment successful!','Your plan is ready.','Go to Today',()=>{}); }catch(_){} } },500);
     };
 
     const doFirstPurchase=()=>{
@@ -2303,14 +2474,24 @@ function completePayment(){
       state.currentDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
       state.planStartDate = todayKey();   // anchor day-1 to today for missed-day math
       state.lastCheckinDate=null; state.tasksDone={}; state.planComplete=false;
-      state.taskOverrides={}; state.planOverrides={};
-      if(state.answers && state.answers.petType){
+      state.taskOverrides={}; state.planComplete=false;
+      // Reuse the exact plan the user previewed on the roadmap (stashed before
+      // the Stripe redirect), so the Day 1 they saw is the Day 1 they get.
+      const stashedPlan = p && p.planOverrides && Object.keys(p.planOverrides).length ? p.planOverrides : null;
+      if(stashedPlan){
+        state.planOverrides = stashedPlan;
+        if(p.aiDays) state.aiDays = p.aiDays;
+        if(p.aiPlan) state.aiPlan = p.aiPlan;
+        openAppAfter();
+      } else if(state.answers && state.answers.petType){
+        state.planOverrides={};
         showPlanLoading(true);
         generatePlanAI(state.answers).finally(()=>{
           showPlanLoading(false);
           openAppAfter();
         });
       } else {
+        state.planOverrides={};
         openAppAfter();
       }
     };
@@ -2587,10 +2768,10 @@ function buildPeriodButtons(){
   const el=document.getElementById('progressPeriods');if(!el)return;
   const planLength=state.planLength||7;
   // available windows grow with the plan
-  const periods=[{d:7,label:'7 dni'}];
-  if(planLength>7)periods.push({d:14,label:'14 dni'});
-  if(planLength>14)periods.push({d:30,label:'30 dni'});
-  if(planLength>30)periods.push({d:9999,label:'Celotno'});
+  const periods=[{d:7,label:'7 days'}];
+  if(planLength>7)periods.push({d:14,label:'14 days'});
+  if(planLength>14)periods.push({d:30,label:'30 days'});
+  if(planLength>30)periods.push({d:9999,label:'All time'});
   // default selected = the largest window that fits the plan (most data shown)
   if(state.selectedPeriod==null) state.selectedPeriod=periods[periods.length-1].d;
   el.innerHTML=periods.map(p=>`<button class="pill${state.selectedPeriod===p.d?' selected':''}" style="white-space:nowrap;" onclick="selectPeriod(this,${p.d})">${p.label}</button>`).join('');
@@ -3676,6 +3857,26 @@ function completeCheckinDay(){
   state._missShown = false;     // reset miss flag for the new cycle
   state.checkinDoneForDay = state.currentDay;
 
+  // ── Milestones (shown once each, after this check-in) ──────────────
+  // These reward consistency and keep people coming back across the 7 days.
+  if(!state._milestonesShown) state._milestonesShown = {};
+  const ms = state._milestonesShown;
+  const pet = state.answers.petName || 'your pet';
+  const queueMilestone = (key, emoji, title, sub) => {
+    if(ms[key]) return false;
+    ms[key] = true;
+    setTimeout(()=>{ try{ showCelebration(emoji, title, sub, 'Keep going', ()=>{}); }catch(e){} }, 650);
+    return true;
+  };
+  const halfDay = Math.ceil((state.planLength||7)/2);
+  let milestoneQueued = false;
+  if(state.streak === 3){
+    milestoneQueued = queueMilestone('streak3','🔥',"3-day streak!",`You've checked in three days running. Consistency is exactly what helps ${pet} change.`);
+  }
+  if(!milestoneQueued && state.currentDay === halfDay && !state.planComplete){
+    milestoneQueued = queueMilestone('halfway','⛰️','Halfway there',`You're halfway through ${pet}'s plan. The routines you're building are starting to stick.`);
+  }
+
   const isLastDay = state.currentDay >= state.planLength;
 
   if(isLastDay){
@@ -3702,6 +3903,25 @@ function completeCheckinDay(){
 // Ask the AI to adapt a given upcoming day based on check-in history.
 // Falls back silently to the existing plan on any failure.
 const AI_ADAPT_ENDPOINT = '/.netlify/functions/regenerate-day';
+// Builds, for each plan day, which tasks the owner actually completed vs
+// skipped - so the AI can adapt the next day to real follow-through.
+function buildTasksDoneSummary(){
+  const out={};
+  try{
+    const done = state.tasksDone || {};
+    Object.keys(done).forEach(day=>{
+      const flags = Array.isArray(done[day]) ? done[day] : [];
+      if(!flags.length) return;
+      let tasks=[];
+      try{ tasks=(getDayTasks(+day)||[]).map(t=>t.text||t); }catch(e){}
+      const completed=[], skipped=[];
+      flags.forEach((f,i)=>{ const label=tasks[i]||('Task '+(i+1)); if(f) completed.push(label); else skipped.push(label); });
+      out[day]={completed, skipped};
+    });
+  }catch(e){}
+  return out;
+}
+
 async function adaptNextDay(dayNum){
   if(!AI_ADAPT_ENDPOINT || !dayNum) return;
   try{
@@ -3714,6 +3934,7 @@ async function adaptNextDay(dayNum){
         answers: state.answers,
         checkins: state.checkins||[],
         notes: state.dayNotes||{},
+        tasksDone: buildTasksDoneSummary(),
         nextDay: dayNum,
         planLength: state.planLength||7,
         nextDayPlan: cur ? {title:cur.title, sub:cur.sub, desc:cur.desc, tasks:cur.tasks} : null,
@@ -3893,6 +4114,19 @@ function refreshTodayForDay(){
 // ═══════════════════════════════════════════════════════════════════
 // LIVE STATS - derived purely from check-ins
 // ═══════════════════════════════════════════════════════════════════
+// Map legacy Slovenian check-in values (saved before the app was English-only)
+// to their English equivalents so stats and summaries always read in English.
+const _SL_VALUE_MAP={
+  'Da':'Yes','Ne':'No',
+  'Dnevna soba':'Living room','Spalnica':'Bedroom','Kuhinja':'Kitchen','Hodnik':'Hallway','Zunaj':'Outside','Več krajev':'Multiple places','Drugo':'Other',
+  'Jutro (6-12h)':'Morning (6-12h)','Popoldne (12-18h)':'Afternoon (12-18h)','Večer (18-24h)':'Evening (18-24h)','Noč (0-6h)':'Night (0-6h)','Ves dan':'All day',
+  'Nizka':'Low','Normalna':'Normal','Visoka':'High',
+  'Nič nenavadnega':'Nothing unusual','Obiski doma':'Visitors at home','Motnja urnika':'Schedule disruption','Nova hrana ali priboljšek':'New food or treat','Sprememba aktivnosti zunaj':'Change in outdoor activity'
+};
+function normalizeValue(v){
+  if(v==null) return v;
+  return _SL_VALUE_MAP[v] || v;
+}
 function recomputeStats(){
   const allCheckins=state.checkins||[];
   const planLen=state.planLength||7;
@@ -3948,9 +4182,9 @@ function recomputeStats(){
     const counts={}; checkins.forEach(c=>{if(c[key]){counts[c[key]]=(counts[c[key]]||0)+1;}});
     let best=null,bestN=0; for(const k in counts){if(counts[k]>bestN){best=k;bestN=counts[k];}} return best;
   };
-  const commonTime=mode('time'), commonLoc=mode('loc'), commonTrig=mode('trigger');
+  const commonTime=normalizeValue(mode('time')), commonLoc=normalizeValue(mode('loc')), commonTrig=mode('trigger');
 
-  state.stats={score,improvement,streak:streakVal,planPct,checkinRate,total,incidentCount,clearCount,commonTime,commonLoc,commonTrig,completedDays,windowCheckins:checkins,periodLabel:(win>=9999?'lifetime':win+' dni')};
+  state.stats={score,improvement,streak:streakVal,planPct,checkinRate,total,incidentCount,clearCount,commonTime,commonLoc,commonTrig,completedDays,windowCheckins:checkins,periodLabel:(win>=9999?'lifetime':win+' days')};
   renderStats();
 }
 
@@ -4028,10 +4262,10 @@ function buildProgressGrid(){
   const impTxt = s.improvement===null?'-':(s.improvement<=0?s.improvement+'%':'+'+s.improvement+'%');
   const impColor = s.improvement===null?'var(--secondary)':(s.improvement<0?'var(--success)':(s.improvement>0?'var(--danger)':'var(--secondary)'));
   grid.innerHTML=`
-    <div class="metric-card"><div class="metric-label">Vedenjski rezultat</div><div style="display:flex;align-items:baseline;gap:3px;"><div class="metric-value">${s.score}</div><div style="font-size:0.75rem;color:var(--secondary);">/100</div></div><div class="metric-change ${s.score>=60?'up':''}" style="${s.score<60?'color:var(--secondary);':''}">${s.score>=60?'improving':'building baseline'}</div></div>
+    <div class="metric-card"><div class="metric-label">Behaviour score</div><div style="display:flex;align-items:baseline;gap:3px;"><div class="metric-value">${s.score}</div><div style="font-size:0.75rem;color:var(--secondary);">/100</div></div><div class="metric-change ${s.score>=60?'up':''}" style="${s.score<60?'color:var(--secondary);':''}">${s.score>=60?'improving':'building baseline'}</div></div>
     <div class="metric-card"><div class="metric-label">Improvement</div><div class="metric-value" style="color:${impColor};">${impTxt}</div><div class="metric-change" style="color:var(--secondary);font-size:0.73rem;">${s.improvement===null?'need 4+ check-ins':'incidents trend'}</div></div>
-    <div class="metric-card"><div class="metric-label">Niz</div><div class="metric-value">${s.streak}</div><div class="metric-change up">dni 🔥</div></div>
-    <div class="metric-card"><div class="metric-label">Stopnja prijav</div><div class="metric-value">${s.checkinRate}%</div><div class="metric-change ${s.checkinRate>=70?'up':''}" style="${s.checkinRate<70?'color:var(--secondary);':''}">${s.total} total</div></div>
+    <div class="metric-card"><div class="metric-label">Streak</div><div class="metric-value">${s.streak}</div><div class="metric-change up">days 🔥</div></div>
+    <div class="metric-card"><div class="metric-label">Check-in rate</div><div class="metric-value">${s.checkinRate}%</div><div class="metric-change ${s.checkinRate>=70?'up':''}" style="${s.checkinRate<70?'color:var(--secondary);':''}">${s.total} total</div></div>
     <div class="metric-card full"><div class="metric-label">Plan completion</div><div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px;"><div class="metric-value" style="font-size:1.4rem;">${s.planPct}%</div><div style="font-size:0.82rem;color:var(--secondary);">${s.completedDays} of ${state.planLength} days</div></div><div class="progress-bar-track" style="height:4px;"><div class="progress-bar-fill" style="width:${s.planPct}%;background:var(--success);"></div></div></div>`;
 
   setText('progTime', s.commonTime||'-');
@@ -4255,7 +4489,7 @@ function showCheckinLockSheet(){
     if(msg) msg.innerHTML='Today\'s check-in window (20:00-22:00) has closed. It returns tomorrow at 20:00.';
   } else {
     if(title) title.textContent='Check-in opens at 20:00';
-    if(msg) msg.innerHTML='Your daily check-in runs from <strong style="color:var(--text);">20:00</strong> to <strong style="color:var(--text);">22:00</strong>.';
+    if(msg) msg.innerHTML='Your daily check-in runs from<br><strong style="color:var(--text);display:block;text-align:center;margin-top:4px;">20:00 to 22:00</strong>';
   }
   sheet.style.display='flex';
 }
@@ -4289,6 +4523,7 @@ function serializeState(){
     checkinHour: state.checkinHour,
     cardLast4: state.cardLast4,
     assessments: state.assessments,
+    _onboardingDone: state._onboardingDone||false,
     currentAssessmentId: state.currentAssessmentId,
     petImageUrl: state.petImageUrl,
     tasksDone: (state.tasksDone && typeof state.tasksDone==='object' && !Array.isArray(state.tasksDone)) ? state.tasksDone : {},
@@ -4298,6 +4533,7 @@ function serializeState(){
     petPhoto: state.petPhoto||null,
     planCredits: state.planCredits||0,
     _creditConsumedThisAdd: state._creditConsumedThisAdd||false,
+    _milestonesShown: state._milestonesShown||{},
     archive: state.archive||[],
     pricePaid: state.pricePaid!=null?state.pricePaid:null,
     packageId: state.packageId||null,
@@ -4329,6 +4565,7 @@ function restoreState(data){
     lastMissShownDate: data.lastMissShownDate||null,
     checkinHour: data.checkinHour!=null?data.checkinHour:null,
     cardLast4: data.cardLast4||null,
+    _onboardingDone: data._onboardingDone||false,
     assessments: data.assessments||[],
     currentAssessmentId: data.currentAssessmentId||null,
     petImageUrl: data.petImageUrl||null,
@@ -4338,6 +4575,7 @@ function restoreState(data){
     petPhoto: data.petPhoto||null,
     planCredits: data.planCredits||0,
     _creditConsumedThisAdd: data._creditConsumedThisAdd||false,
+    _milestonesShown: data._milestonesShown||{},
     archive: data.archive||[],
     pricePaid: data.pricePaid!=null?data.pricePaid:null,
     packageId: data.packageId||null,
@@ -4409,7 +4647,8 @@ function showPlanEndScreen(kind){
       <div class="celebration-emoji">🎉</div>
       <div class="celebration-title">${`${pet} is doing great!`}</div>
       <div class="celebration-sub">${'Over 7 days the issue has resolved. Everything is complete - plan, check-ins and progress are all at 100%. You did wonderful work.'}</div>
-      <button class="btn btn-primary" style="margin-top:28px;min-width:200px;padding:14px 32px;" onclick="finishResolved()">${'Show final progress'}</button>`;
+      <button class="btn btn-primary" style="margin-top:28px;min-width:200px;padding:14px 32px;" onclick="shareProgressCard()">${'Share your progress'}</button>
+      <button class="btn btn-ghost" style="margin-top:12px;min-width:200px;" onclick="finishResolved()">${'Show final progress'}</button>`;
     launchConfetti(); playChime();
   } else if(kind==='extend'){
     c.innerHTML=`
@@ -4490,6 +4729,72 @@ function closePlanEnd(){
     try{ switchAssessment(id); }catch(e){}
   }
 }
+// Generates an on-brand progress card (PNG) the user can save/share. This is a
+// genuine "proud moment" and doubles as free word-of-mouth marketing.
+function shareProgressCard(){
+  try{
+    const pet=state.answers.petName||'My pet';
+    const s=state.stats||{};
+    const streak=s.streak||state.streak||0;
+    const checkins=s.total||(state.checkins?state.checkins.length:0);
+    const dpr=2, W=1080, H=1350;
+    const cv=document.createElement('canvas'); cv.width=W*dpr; cv.height=H*dpr;
+    const x=cv.getContext('2d'); x.scale(dpr,dpr);
+    // bg
+    x.fillStyle='#F1F1F1'; x.fillRect(0,0,W,H);
+    // card
+    const m=70, cardY=150, cardH=H-300;
+    x.fillStyle='#FAFAFA';
+    roundRect(x,m,cardY,W-m*2,cardH,40); x.fill();
+    // brand mark (two circles)
+    x.fillStyle='#6B8F71'; x.beginPath(); x.arc(W/2-22,250,46,0,7); x.fill();
+    x.globalAlpha=0.5; x.beginPath(); x.arc(W/2+22,250,46,0,7); x.fill(); x.globalAlpha=1;
+    // title
+    x.fillStyle='#111'; x.textAlign='center';
+    x.font='700 64px Sora, sans-serif';
+    x.fillText(`${pet} did it.`, W/2, 400);
+    x.fillStyle='#6B8F71';
+    x.font='600 30px Inter, sans-serif';
+    x.fillText('7-DAY BEHAVIOUR PLAN COMPLETE', W/2, 455);
+    // big checkmark circle
+    x.fillStyle='#6B8F71'; x.beginPath(); x.arc(W/2,600,80,0,7); x.fill();
+    x.strokeStyle='#fff'; x.lineWidth=11; x.lineCap='round'; x.lineJoin='round';
+    x.beginPath(); x.moveTo(W/2-34,600); x.lineTo(W/2-8,628); x.lineTo(W/2+38,575); x.stroke();
+    // stats row
+    const sy=820;
+    const stat=(cx,val,lab)=>{
+      x.fillStyle='#111'; x.font='700 72px Sora, sans-serif'; x.textAlign='center';
+      x.fillText(String(val), cx, sy);
+      x.fillStyle='#888'; x.font='500 26px Inter, sans-serif';
+      x.fillText(lab, cx, sy+44);
+    };
+    stat(W/2-200, '100%', 'completed');
+    stat(W/2, streak, 'day streak');
+    stat(W/2+200, checkins, 'check-ins');
+    // tagline
+    x.fillStyle='#111'; x.font='600 34px Inter, sans-serif';
+    x.fillText('Every behavior has a cause.', W/2, 1050);
+    x.fillStyle='#888'; x.font='500 28px Inter, sans-serif';
+    x.fillText('thenuci.com', W/2, 1100);
+    // export
+    cv.toBlob((blob)=>{
+      if(!blob){ return; }
+      const file=new File([blob], `${pet}-the-nuci.png`, {type:'image/png'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        navigator.share({files:[file], title:'The Nuci', text:`${pet} completed a 7-day behaviour plan with The Nuci!`}).catch(()=>downloadBlob(blob, file.name));
+      } else {
+        downloadBlob(blob, file.name);
+      }
+    }, 'image/png');
+  }catch(e){ console.warn('share card failed', e); finishResolved(); }
+}
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function downloadBlob(blob,name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
 function finishResolved(){
   const hadSwitch=state._switchAfterClose;
   closePlanEnd();
@@ -4588,6 +4893,50 @@ function showCelebration(emoji,title,sub,btnText,cb){
 function closeCelebration(){
   document.getElementById('celebrationOverlay').classList.remove('show');
   stopConfetti();if(celebCB){celebCB();celebCB=null;}
+}
+
+// ── First-time onboarding (shown once, right after the first purchase) ──
+let _obStep=0;
+const _OB_STEPS=[
+  {emoji:'🐾',title:'Welcome to your plan',body:"Each day has a few short, specific tasks built around your pet's exact behaviour. Small, consistent steps are what create change."},
+  {emoji:'📝',title:'Jot notes through the day',body:"On the Today screen, add quick notes about what you notice. These feed straight into how tomorrow's plan is shaped - the more you write, the sharper it gets."},
+  {emoji:'🌙',title:'Check in every evening',body:"Your daily check-in opens at 20:00 and runs for two hours. By evening you've seen the full day, so your check-in - and the next day's plan - is based on the real picture."},
+];
+function showOnboarding(){
+  if(state._onboardingDone){ try{ showCelebration('🎉','Plan unlocked!','Your 7-day plan is ready.','Go to Today',()=>{}); }catch(e){} return; }
+  _obStep=0;
+  renderOnboardingStep();
+  document.getElementById('onboardingOverlay').classList.add('show');
+  try{ launchConfetti(); playChime(); }catch(e){}
+}
+function renderOnboardingStep(){
+  const s=_OB_STEPS[_obStep];
+  const wrap=document.getElementById('obStepWrap');
+  if(wrap){
+    wrap.innerHTML=`
+      <div style="font-size:3rem;line-height:1;margin-bottom:18px;">${s.emoji}</div>
+      <div class="celebration-title" style="margin-bottom:10px;">${s.title}</div>
+      <div class="celebration-sub" style="line-height:1.55;">${s.body}</div>`;
+  }
+  const dots=document.getElementById('obDots');
+  if(dots){
+    dots.innerHTML=_OB_STEPS.map((_,i)=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===_obStep?'var(--success)':'rgba(0,0,0,0.15)'};display:inline-block;transition:background 0.2s;"></span>`).join('');
+  }
+  const btn=document.getElementById('obBtn');
+  if(btn) btn.textContent = _obStep>=_OB_STEPS.length-1 ? "Let's start" : 'Next';
+  const skip=document.getElementById('obSkip');
+  if(skip) skip.style.display = _obStep>=_OB_STEPS.length-1 ? 'none' : 'block';
+}
+function onboardingNext(){
+  if(_obStep>=_OB_STEPS.length-1){ closeOnboarding(); return; }
+  _obStep++;
+  renderOnboardingStep();
+}
+function closeOnboarding(){
+  document.getElementById('onboardingOverlay').classList.remove('show');
+  stopConfetti();
+  state._onboardingDone=true;
+  try{ persistState(); }catch(e){}
 }
 
 function playChime(){
