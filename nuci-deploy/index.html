@@ -337,6 +337,10 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <p id="entryHowWrap" style="font-size:0.82rem;color:var(--secondary);margin-top:2px;line-height:1.5;">
       <a href="#" data-i18n="entry_how" onclick="event.preventDefault();showScreen('screen-about')" style="color:var(--secondary);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.12);transition:color 0.2s;" onmouseenter="this.style.color='var(--text)'" onmouseleave="this.style.color='var(--secondary)'">How this works & what we help with</a>
     </p>
+    <button id="translateBtn" onclick="openTranslateHelp()" style="margin-top:20px;display:inline-flex;align-items:center;gap:9px;background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:13px 22px;font-size:0.95rem;font-weight:600;color:var(--text);cursor:pointer;transition:border-color 0.2s;font-family:'Inter',sans-serif;" onmouseenter="this.style.borderColor='var(--success)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M3 5h10M8 3v2c0 4-2.5 7-5 8m2-3c1.5 1.5 3.5 2.5 5 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 19l4-9 4 9m-6.5-3h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="translateBtnLabel">Translate</span>
+    </button>
   </div>
 </section>
 
@@ -992,6 +996,41 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <div style="width:38px;height:4px;border-radius:99px;background:rgba(0,0,0,0.14);margin:0 auto 18px;"></div>
     <div id="day1PreviewBody"></div>
     <button class="btn btn-primary btn-full" onclick="closeDay1Preview()" style="margin-top:20px;">Close preview</button>
+  </div>
+</div>
+
+<!-- TRANSLATE HELP MODAL (instructions in the user's own language) -->
+<div id="translateHelp" style="position:fixed;inset:0;z-index:320;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:20px;" onclick="if(event.target===this)closeTranslateHelp()">
+  <div style="background:var(--card);width:100%;max-width:400px;border-radius:24px;padding:26px 24px calc(24px + env(safe-area-inset-bottom));box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:scaleIn 0.28s cubic-bezier(0.34,1.4,0.64,1);max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:9px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 5h10M8 3v2c0 4-2.5 7-5 8m2-3c1.5 1.5 3.5 2.5 5 3" stroke="var(--success)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 19l4-9 4 9m-6.5-3h5" stroke="var(--success)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3 id="thTitle" style="font-family:'Inter Tight',sans-serif;font-size:1.15rem;font-weight:600;margin:0;">Translate this page</h3>
+      </div>
+      <button onclick="closeTranslateHelp()" aria-label="Close" style="background:none;border:none;font-size:1.5rem;line-height:1;color:var(--secondary);cursor:pointer;padding:0 4px;">×</button>
+    </div>
+    <p id="thIntro" style="font-size:0.9rem;color:var(--secondary);line-height:1.5;margin:0 0 18px;">Choose your device, then your browser:</p>
+
+    <!-- device toggle -->
+    <div style="display:flex;gap:8px;margin-bottom:8px;" id="thDeviceTabs">
+      <button class="th-tab" data-device="phone" onclick="thSetDevice('phone')" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border-radius:14px;border:1.5px solid var(--success);background:rgba(107,143,113,0.06);cursor:pointer;font-family:'Inter',sans-serif;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="7" y="3" width="10" height="18" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M11 18h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span id="thPhoneLbl" style="font-size:0.82rem;font-weight:600;">Phone / Tablet</span>
+      </button>
+      <button class="th-tab" data-device="computer" onclick="thSetDevice('computer')" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border-radius:14px;border:1.5px solid var(--border);background:transparent;cursor:pointer;font-family:'Inter',sans-serif;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 20h8M12 16v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span id="thComputerLbl" style="font-size:0.82rem;font-weight:600;">Computer</span>
+      </button>
+    </div>
+
+    <!-- browser toggle -->
+    <div style="display:flex;gap:8px;margin-bottom:18px;">
+      <button class="th-btab" data-browser="chrome" onclick="thSetBrowser('chrome')" style="flex:1;padding:11px 8px;border-radius:12px;border:1.5px solid var(--success);background:rgba(107,143,113,0.06);cursor:pointer;font-size:0.85rem;font-weight:600;color:var(--text);font-family:'Inter',sans-serif;">Chrome</button>
+      <button class="th-btab" data-browser="safari" onclick="thSetBrowser('safari')" style="flex:1;padding:11px 8px;border-radius:12px;border:1.5px solid var(--border);background:transparent;cursor:pointer;font-size:0.85rem;font-weight:600;color:var(--text);font-family:'Inter',sans-serif;">Safari</button>
+    </div>
+
+    <!-- steps -->
+    <div id="thSteps" style="display:flex;flex-direction:column;gap:12px;"></div>
   </div>
 </div>
 
@@ -1705,6 +1744,288 @@ function ensureRoadmapPlan(){
   })();
   return _roadmapPlanPromise;
 }
+
+// ── TRANSLATE HELP (instructions shown in the user's own language) ──
+// Detects browser language and shows step-by-step translate instructions in
+// that language, with device + browser toggles so it's clear even to non-English
+// speakers. The page UI stays English; the browser does the actual translation.
+const _TH_LANG = (()=>{ try{ return (navigator.language||'en').slice(0,2).toLowerCase(); }catch(e){ return 'en'; } })();
+const _TH_I18N = {
+  en:{btn:'Translate', title:'Translate this page', intro:'Choose your device, then your browser:',
+      phone:'Phone / Tablet', computer:'Computer',
+      chrome:{phone:['Tap the ⋮ menu (top right)','Tap "Translate…"','Pick your language'],
+              computer:['Click the ⋮ menu (top right)','Click "Translate"','Pick your language']},
+      safari:{phone:['Tap the "aA" icon in the address bar','Tap "Translate to…"','Pick your language'],
+              computer:['Click the translate icon in the address bar','Choose "Translate to…"','Pick your language']}},
+  sl:{btn:'Prevedi', title:'Prevedi to stran', intro:'Izberite napravo, nato brskalnik:',
+      phone:'Telefon / Tablica', computer:'Računalnik',
+      chrome:{phone:['Tapnite meni ⋮ (zgoraj desno)','Tapnite "Prevedi…"','Izberite svoj jezik'],
+              computer:['Kliknite meni ⋮ (zgoraj desno)','Kliknite "Prevedi"','Izberite svoj jezik']},
+      safari:{phone:['Tapnite ikono "aA" v naslovni vrstici','Tapnite "Prevedi v…"','Izberite svoj jezik'],
+              computer:['Kliknite ikono za prevod v naslovni vrstici','Izberite "Prevedi v…"','Izberite svoj jezik']}},
+  de:{btn:'Übersetzen', title:'Diese Seite übersetzen', intro:'Wählen Sie Ihr Gerät, dann Ihren Browser:',
+      phone:'Handy / Tablet', computer:'Computer',
+      chrome:{phone:['Tippen Sie auf das Menü ⋮ (oben rechts)','Tippen Sie auf „Übersetzen…"','Wählen Sie Ihre Sprache'],
+              computer:['Klicken Sie auf das Menü ⋮ (oben rechts)','Klicken Sie auf „Übersetzen"','Wählen Sie Ihre Sprache']},
+      safari:{phone:['Tippen Sie auf „aA" in der Adressleiste','Tippen Sie auf „Übersetzen in…"','Wählen Sie Ihre Sprache'],
+              computer:['Klicken Sie auf das Übersetzen-Symbol in der Adressleiste','Wählen Sie „Übersetzen in…"','Wählen Sie Ihre Sprache']}},
+  it:{btn:'Traduci', title:'Traduci questa pagina', intro:'Scegli il dispositivo, poi il browser:',
+      phone:'Telefono / Tablet', computer:'Computer',
+      chrome:{phone:['Tocca il menu ⋮ (in alto a destra)','Tocca "Traduci…"','Scegli la tua lingua'],
+              computer:['Clicca sul menu ⋮ (in alto a destra)','Clicca "Traduci"','Scegli la tua lingua']},
+      safari:{phone:['Tocca l\'icona "aA" nella barra degli indirizzi','Tocca "Traduci in…"','Scegli la tua lingua'],
+              computer:['Clicca sull\'icona di traduzione nella barra degli indirizzi','Scegli "Traduci in…"','Scegli la tua lingua']}},
+  es:{btn:'Traducir', title:'Traducir esta página', intro:'Elige tu dispositivo y luego tu navegador:',
+      phone:'Teléfono / Tableta', computer:'Ordenador',
+      chrome:{phone:['Toca el menú ⋮ (arriba a la derecha)','Toca "Traducir…"','Elige tu idioma'],
+              computer:['Haz clic en el menú ⋮ (arriba a la derecha)','Haz clic en "Traducir"','Elige tu idioma']},
+      safari:{phone:['Toca el icono "aA" en la barra de direcciones','Toca "Traducir a…"','Elige tu idioma'],
+              computer:['Haz clic en el icono de traducción en la barra de direcciones','Elige "Traducir a…"','Elige tu idioma']}},
+  hr:{btn:'Prevedi', title:'Prevedi ovu stranicu', intro:'Odaberite uređaj, zatim preglednik:',
+      phone:'Telefon / Tablet', computer:'Računalo',
+      chrome:{phone:['Dodirnite izbornik ⋮ (gore desno)','Dodirnite "Prevedi…"','Odaberite svoj jezik'],
+              computer:['Kliknite izbornik ⋮ (gore desno)','Kliknite "Prevedi"','Odaberite svoj jezik']},
+      safari:{phone:['Dodirnite ikonu "aA" u adresnoj traci','Dodirnite "Prevedi na…"','Odaberite svoj jezik'],
+              computer:['Kliknite ikonu za prijevod u adresnoj traci','Odaberite "Prevedi na…"','Odaberite svoj jezik']}},
+  fr:{btn:'Traduire', title:'Traduire cette page', intro:'Choisissez votre appareil, puis votre navigateur :',
+      phone:'Téléphone / Tablette', computer:'Ordinateur',
+      chrome:{phone:['Appuyez sur le menu ⋮ (en haut à droite)','Appuyez sur « Traduire… »','Choisissez votre langue'],
+              computer:['Cliquez sur le menu ⋮ (en haut à droite)','Cliquez sur « Traduire »','Choisissez votre langue']},
+      safari:{phone:['Appuyez sur l\'icône « aA » dans la barre d\'adresse','Appuyez sur « Traduire en… »','Choisissez votre langue'],
+              computer:['Cliquez sur l\'icône de traduction dans la barre d\'adresse','Choisissez « Traduire en… »','Choisissez votre langue']}},
+  pt:{btn:'Traduzir', title:'Traduzir esta página', intro:'Escolha o seu dispositivo e depois o navegador:',
+      phone:'Telemóvel / Tablet', computer:'Computador',
+      chrome:{phone:['Toque no menu ⋮ (canto superior direito)','Toque em "Traduzir…"','Escolha o seu idioma'],
+              computer:['Clique no menu ⋮ (canto superior direito)','Clique em "Traduzir"','Escolha o seu idioma']},
+      safari:{phone:['Toque no ícone "aA" na barra de endereço','Toque em "Traduzir para…"','Escolha o seu idioma'],
+              computer:['Clique no ícone de tradução na barra de endereço','Escolha "Traduzir para…"','Escolha o seu idioma']}},
+  nl:{btn:'Vertalen', title:'Deze pagina vertalen', intro:'Kies je apparaat en daarna je browser:',
+      phone:'Telefoon / Tablet', computer:'Computer',
+      chrome:{phone:['Tik op het menu ⋮ (rechtsboven)','Tik op "Vertalen…"','Kies je taal'],
+              computer:['Klik op het menu ⋮ (rechtsboven)','Klik op "Vertalen"','Kies je taal']},
+      safari:{phone:['Tik op het "aA"-pictogram in de adresbalk','Tik op "Vertaal naar…"','Kies je taal'],
+              computer:['Klik op het vertaalpictogram in de adresbalk','Kies "Vertaal naar…"','Kies je taal']}},
+  pl:{btn:'Przetłumacz', title:'Przetłumacz tę stronę', intro:'Wybierz urządzenie, a następnie przeglądarkę:',
+      phone:'Telefon / Tablet', computer:'Komputer',
+      chrome:{phone:['Dotknij menu ⋮ (prawy górny róg)','Dotknij „Przetłumacz…"','Wybierz swój język'],
+              computer:['Kliknij menu ⋮ (prawy górny róg)','Kliknij „Przetłumacz"','Wybierz swój język']},
+      safari:{phone:['Dotknij ikony „aA" w pasku adresu','Dotknij „Przetłumacz na…"','Wybierz swój język'],
+              computer:['Kliknij ikonę tłumaczenia w pasku adresu','Wybierz „Przetłumacz na…"','Wybierz swój język']}},
+  sv:{btn:'Översätt', title:'Översätt den här sidan', intro:'Välj din enhet och sedan din webbläsare:',
+      phone:'Telefon / Surfplatta', computer:'Dator',
+      chrome:{phone:['Tryck på menyn ⋮ (uppe till höger)','Tryck på "Översätt…"','Välj ditt språk'],
+              computer:['Klicka på menyn ⋮ (uppe till höger)','Klicka på "Översätt"','Välj ditt språk']},
+      safari:{phone:['Tryck på "aA"-ikonen i adressfältet','Tryck på "Översätt till…"','Välj ditt språk'],
+              computer:['Klicka på översättningsikonen i adressfältet','Välj "Översätt till…"','Välj ditt språk']}},
+  da:{btn:'Oversæt', title:'Oversæt denne side', intro:'Vælg din enhed og derefter din browser:',
+      phone:'Telefon / Tablet', computer:'Computer',
+      chrome:{phone:['Tryk på menuen ⋮ (øverst til højre)','Tryk på "Oversæt…"','Vælg dit sprog'],
+              computer:['Klik på menuen ⋮ (øverst til højre)','Klik på "Oversæt"','Vælg dit sprog']},
+      safari:{phone:['Tryk på "aA"-ikonet i adresselinjen','Tryk på "Oversæt til…"','Vælg dit sprog'],
+              computer:['Klik på oversættelsesikonet i adresselinjen','Vælg "Oversæt til…"','Vælg dit sprog']}},
+  fi:{btn:'Käännä', title:'Käännä tämä sivu', intro:'Valitse laite ja sitten selain:',
+      phone:'Puhelin / Tabletti', computer:'Tietokone',
+      chrome:{phone:['Napauta valikkoa ⋮ (oikea yläkulma)','Napauta "Käännä…"','Valitse kielesi'],
+              computer:['Napsauta valikkoa ⋮ (oikea yläkulma)','Napsauta "Käännä"','Valitse kielesi']},
+      safari:{phone:['Napauta "aA"-kuvaketta osoitepalkissa','Napauta "Käännä kielelle…"','Valitse kielesi'],
+              computer:['Napsauta käännöskuvaketta osoitepalkissa','Valitse "Käännä kielelle…"','Valitse kielesi']}},
+  no:{btn:'Oversett', title:'Oversett denne siden', intro:'Velg enheten din og deretter nettleseren:',
+      phone:'Telefon / Nettbrett', computer:'Datamaskin',
+      chrome:{phone:['Trykk på menyen ⋮ (øverst til høyre)','Trykk på "Oversett…"','Velg språket ditt'],
+              computer:['Klikk på menyen ⋮ (øverst til høyre)','Klikk på "Oversett"','Velg språket ditt']},
+      safari:{phone:['Trykk på "aA"-ikonet i adressefeltet','Trykk på "Oversett til…"','Velg språket ditt'],
+              computer:['Klikk på oversettelsesikonet i adressefeltet','Velg "Oversett til…"','Velg språket ditt']}},
+  cs:{btn:'Přeložit', title:'Přeložit tuto stránku', intro:'Vyberte zařízení a poté prohlížeč:',
+      phone:'Telefon / Tablet', computer:'Počítač',
+      chrome:{phone:['Klepněte na nabídku ⋮ (vpravo nahoře)','Klepněte na „Přeložit…"','Vyberte svůj jazyk'],
+              computer:['Klikněte na nabídku ⋮ (vpravo nahoře)','Klikněte na „Přeložit"','Vyberte svůj jazyk']},
+      safari:{phone:['Klepněte na ikonu „aA" v adresním řádku','Klepněte na „Přeložit do…"','Vyberte svůj jazyk'],
+              computer:['Klikněte na ikonu překladu v adresním řádku','Vyberte „Přeložit do…"','Vyberte svůj jazyk']}},
+  sk:{btn:'Preložiť', title:'Preložiť túto stránku', intro:'Vyberte zariadenie a potom prehliadač:',
+      phone:'Telefón / Tablet', computer:'Počítač',
+      chrome:{phone:['Ťuknite na ponuku ⋮ (vpravo hore)','Ťuknite na „Preložiť…"','Vyberte svoj jazyk'],
+              computer:['Kliknite na ponuku ⋮ (vpravo hore)','Kliknite na „Preložiť"','Vyberte svoj jazyk']},
+      safari:{phone:['Ťuknite na ikonu „aA" v paneli s adresou','Ťuknite na „Preložiť do…"','Vyberte svoj jazyk'],
+              computer:['Kliknite na ikonu prekladu v paneli s adresou','Vyberte „Preložiť do…"','Vyberte svoj jazyk']}},
+  hu:{btn:'Fordítás', title:'Az oldal lefordítása', intro:'Válassza ki az eszközt, majd a böngészőt:',
+      phone:'Telefon / Tablet', computer:'Számítógép',
+      chrome:{phone:['Koppintson a ⋮ menüre (jobbra fent)','Koppintson a „Fordítás…" lehetőségre','Válassza ki a nyelvét'],
+              computer:['Kattintson a ⋮ menüre (jobbra fent)','Kattintson a „Fordítás" gombra','Válassza ki a nyelvét']},
+      safari:{phone:['Koppintson az „aA" ikonra a címsorban','Koppintson a „Fordítás erre…" lehetőségre','Válassza ki a nyelvét'],
+              computer:['Kattintson a fordítás ikonra a címsorban','Válassza a „Fordítás erre…" lehetőséget','Válassza ki a nyelvét']}},
+  ro:{btn:'Traduceți', title:'Traduceți această pagină', intro:'Alegeți dispozitivul, apoi browserul:',
+      phone:'Telefon / Tabletă', computer:'Computer',
+      chrome:{phone:['Atingeți meniul ⋮ (dreapta sus)','Atingeți „Traduceți…"','Alegeți limba'],
+              computer:['Faceți clic pe meniul ⋮ (dreapta sus)','Faceți clic pe „Traduceți"','Alegeți limba']},
+      safari:{phone:['Atingeți pictograma „aA" din bara de adrese','Atingeți „Traduceți în…"','Alegeți limba'],
+              computer:['Faceți clic pe pictograma de traducere din bara de adrese','Alegeți „Traduceți în…"','Alegeți limba']}},
+  bg:{btn:'Преведи', title:'Преведете тази страница', intro:'Изберете устройство, след това браузър:',
+      phone:'Телефон / Таблет', computer:'Компютър',
+      chrome:{phone:['Докоснете менюто ⋮ (горе вдясно)','Докоснете „Преведи…"','Изберете своя език'],
+              computer:['Щракнете върху менюто ⋮ (горе вдясно)','Щракнете върху „Преведи"','Изберете своя език']},
+      safari:{phone:['Докоснете иконата „aA" в адресната лента','Докоснете „Преведи на…"','Изберете своя език'],
+              computer:['Щракнете върху иконата за превод в адресната лента','Изберете „Преведи на…"','Изберете своя език']}},
+  el:{btn:'Μετάφραση', title:'Μετάφραση αυτής της σελίδας', intro:'Επιλέξτε συσκευή και έπειτα πρόγραμμα περιήγησης:',
+      phone:'Τηλέφωνο / Tablet', computer:'Υπολογιστής',
+      chrome:{phone:['Πατήστε το μενού ⋮ (πάνω δεξιά)','Πατήστε «Μετάφραση…»','Επιλέξτε τη γλώσσα σας'],
+              computer:['Κάντε κλικ στο μενού ⋮ (πάνω δεξιά)','Κάντε κλικ στο «Μετάφραση»','Επιλέξτε τη γλώσσα σας']},
+      safari:{phone:['Πατήστε το εικονίδιο «aA» στη γραμμή διευθύνσεων','Πατήστε «Μετάφραση σε…»','Επιλέξτε τη γλώσσα σας'],
+              computer:['Κάντε κλικ στο εικονίδιο μετάφρασης στη γραμμή διευθύνσεων','Επιλέξτε «Μετάφραση σε…»','Επιλέξτε τη γλώσσα σας']}},
+  uk:{btn:'Перекласти', title:'Перекласти цю сторінку', intro:'Виберіть пристрій, потім браузер:',
+      phone:'Телефон / Планшет', computer:'Комп\'ютер',
+      chrome:{phone:['Торкніться меню ⋮ (вгорі праворуч)','Торкніться «Перекласти…»','Виберіть свою мову'],
+              computer:['Натисніть меню ⋮ (вгорі праворуч)','Натисніть «Перекласти»','Виберіть свою мову']},
+      safari:{phone:['Торкніться значка «aA» в адресному рядку','Торкніться «Перекласти на…»','Виберіть свою мову'],
+              computer:['Натисніть значок перекладу в адресному рядку','Виберіть «Перекласти на…»','Виберіть свою мову']}},
+  ru:{btn:'Перевести', title:'Перевести эту страницу', intro:'Выберите устройство, затем браузер:',
+      phone:'Телефон / Планшет', computer:'Компьютер',
+      chrome:{phone:['Нажмите меню ⋮ (вверху справа)','Нажмите «Перевести…»','Выберите свой язык'],
+              computer:['Нажмите меню ⋮ (вверху справа)','Нажмите «Перевести»','Выберите свой язык']},
+      safari:{phone:['Нажмите значок «aA» в адресной строке','Нажмите «Перевести на…»','Выберите свой язык'],
+              computer:['Нажмите значок перевода в адресной строке','Выберите «Перевести на…»','Выберите свой язык']}},
+  sr:{btn:'Преведи', title:'Преведи ову страницу', intro:'Изаберите уређај, затим прегледач:',
+      phone:'Телефон / Таблет', computer:'Рачунар',
+      chrome:{phone:['Додирните мени ⋮ (горе десно)','Додирните „Преведи…"','Изаберите свој језик'],
+              computer:['Кликните мени ⋮ (горе десно)','Кликните „Преведи"','Изаберите свој језик']},
+      safari:{phone:['Додирните икону „aA" у адресној траци','Додирните „Преведи на…"','Изаберите свој језик'],
+              computer:['Кликните икону за превод у адресној траци','Изаберите „Преведи на…"','Изаберите свој језик']}},
+  et:{btn:'Tõlgi', title:'Tõlgi see leht', intro:'Valige seade ja seejärel brauser:',
+      phone:'Telefon / Tahvelarvuti', computer:'Arvuti',
+      chrome:{phone:['Puudutage menüüd ⋮ (üleval paremal)','Puudutage „Tõlgi…"','Valige oma keel'],
+              computer:['Klõpsake menüüd ⋮ (üleval paremal)','Klõpsake „Tõlgi"','Valige oma keel']},
+      safari:{phone:['Puudutage aadressiribal ikooni „aA"','Puudutage „Tõlgi keelde…"','Valige oma keel'],
+              computer:['Klõpsake aadressiribal tõlkeikooni','Valige „Tõlgi keelde…"','Valige oma keel']}},
+  lv:{btn:'Tulkot', title:'Tulkot šo lapu', intro:'Izvēlieties ierīci, pēc tam pārlūku:',
+      phone:'Telefons / Planšete', computer:'Dators',
+      chrome:{phone:['Pieskarieties izvēlnei ⋮ (augšējā labajā stūrī)','Pieskarieties „Tulkot…"','Izvēlieties savu valodu'],
+              computer:['Noklikšķiniet uz izvēlnes ⋮ (augšējā labajā stūrī)','Noklikšķiniet uz „Tulkot"','Izvēlieties savu valodu']},
+      safari:{phone:['Pieskarieties ikonai „aA" adreses joslā','Pieskarieties „Tulkot uz…"','Izvēlieties savu valodu'],
+              computer:['Noklikšķiniet uz tulkošanas ikonas adreses joslā','Izvēlieties „Tulkot uz…"','Izvēlieties savu valodu']}},
+  lt:{btn:'Versti', title:'Versti šį puslapį', intro:'Pasirinkite įrenginį, tada naršyklę:',
+      phone:'Telefonas / Planšetė', computer:'Kompiuteris',
+      chrome:{phone:['Bakstelėkite meniu ⋮ (viršuje dešinėje)','Bakstelėkite „Versti…"','Pasirinkite savo kalbą'],
+              computer:['Spustelėkite meniu ⋮ (viršuje dešinėje)','Spustelėkite „Versti"','Pasirinkite savo kalbą']},
+      safari:{phone:['Bakstelėkite piktogramą „aA" adreso juostoje','Bakstelėkite „Versti į…"','Pasirinkite savo kalbą'],
+              computer:['Spustelėkite vertimo piktogramą adreso juostoje','Pasirinkite „Versti į…"','Pasirinkite savo kalbą']}},
+  zh:{btn:'翻译', title:'翻译此页面', intro:'选择您的设备，然后选择浏览器：',
+      phone:'手机 / 平板', computer:'电脑',
+      chrome:{phone:['点按菜单 ⋮（右上角）','点按"翻译…"','选择您的语言'],
+              computer:['点击菜单 ⋮（右上角）','点击"翻译"','选择您的语言']},
+      safari:{phone:['点按地址栏中的"aA"图标','点按"翻译为…"','选择您的语言'],
+              computer:['点击地址栏中的翻译图标','选择"翻译为…"','选择您的语言']}},
+  ja:{btn:'翻訳', title:'このページを翻訳', intro:'デバイスを選び、次にブラウザを選んでください：',
+      phone:'スマホ / タブレット', computer:'パソコン',
+      chrome:{phone:['メニュー ⋮（右上）をタップ','「翻訳…」をタップ','言語を選択'],
+              computer:['メニュー ⋮（右上）をクリック','「翻訳」をクリック','言語を選択']},
+      safari:{phone:['アドレスバーの「aA」アイコンをタップ','「次の言語に翻訳…」をタップ','言語を選択'],
+              computer:['アドレスバーの翻訳アイコンをクリック','「次の言語に翻訳…」を選択','言語を選択']}},
+  ko:{btn:'번역', title:'이 페이지 번역', intro:'기기를 선택한 다음 브라우저를 선택하세요:',
+      phone:'휴대폰 / 태블릿', computer:'컴퓨터',
+      chrome:{phone:['메뉴 ⋮(오른쪽 상단)를 탭하세요','"번역…"을 탭하세요','언어를 선택하세요'],
+              computer:['메뉴 ⋮(오른쪽 상단)를 클릭하세요','"번역"을 클릭하세요','언어를 선택하세요']},
+      safari:{phone:['주소창의 "aA" 아이콘을 탭하세요','"다음 언어로 번역…"을 탭하세요','언어를 선택하세요'],
+              computer:['주소창의 번역 아이콘을 클릭하세요','"다음 언어로 번역…"을 선택하세요','언어를 선택하세요']}},
+  hi:{btn:'अनुवाद करें', title:'इस पेज का अनुवाद करें', intro:'अपना डिवाइस चुनें, फिर ब्राउज़र:',
+      phone:'फ़ोन / टैबलेट', computer:'कंप्यूटर',
+      chrome:{phone:['मेनू ⋮ (ऊपर दाएँ) पर टैप करें','"अनुवाद करें…" पर टैप करें','अपनी भाषा चुनें'],
+              computer:['मेनू ⋮ (ऊपर दाएँ) पर क्लिक करें','"अनुवाद करें" पर क्लिक करें','अपनी भाषा चुनें']},
+      safari:{phone:['एड्रेस बार में "aA" आइकन पर टैप करें','"इसमें अनुवाद करें…" पर टैप करें','अपनी भाषा चुनें'],
+              computer:['एड्रेस बार में अनुवाद आइकन पर क्लिक करें','"इसमें अनुवाद करें…" चुनें','अपनी भाषा चुनें']}},
+  th:{btn:'แปล', title:'แปลหน้านี้', intro:'เลือกอุปกรณ์ของคุณ จากนั้นเลือกเบราว์เซอร์:',
+      phone:'โทรศัพท์ / แท็บเล็ต', computer:'คอมพิวเตอร์',
+      chrome:{phone:['แตะเมนู ⋮ (มุมขวาบน)','แตะ "แปล…"','เลือกภาษาของคุณ'],
+              computer:['คลิกเมนู ⋮ (มุมขวาบน)','คลิก "แปล"','เลือกภาษาของคุณ']},
+      safari:{phone:['แตะไอคอน "aA" ในแถบที่อยู่','แตะ "แปลเป็น…"','เลือกภาษาของคุณ'],
+              computer:['คลิกไอคอนแปลในแถบที่อยู่','เลือก "แปลเป็น…"','เลือกภาษาของคุณ']}},
+  vi:{btn:'Dịch', title:'Dịch trang này', intro:'Chọn thiết bị của bạn, sau đó chọn trình duyệt:',
+      phone:'Điện thoại / Máy tính bảng', computer:'Máy tính',
+      chrome:{phone:['Nhấn vào menu ⋮ (góc trên bên phải)','Nhấn "Dịch…"','Chọn ngôn ngữ của bạn'],
+              computer:['Nhấp vào menu ⋮ (góc trên bên phải)','Nhấp "Dịch"','Chọn ngôn ngữ của bạn']},
+      safari:{phone:['Nhấn vào biểu tượng "aA" trên thanh địa chỉ','Nhấn "Dịch sang…"','Chọn ngôn ngữ của bạn'],
+              computer:['Nhấp vào biểu tượng dịch trên thanh địa chỉ','Chọn "Dịch sang…"','Chọn ngôn ngữ của bạn']}},
+  id:{btn:'Terjemahkan', title:'Terjemahkan halaman ini', intro:'Pilih perangkat Anda, lalu browser:',
+      phone:'Ponsel / Tablet', computer:'Komputer',
+      chrome:{phone:['Ketuk menu ⋮ (kanan atas)','Ketuk "Terjemahkan…"','Pilih bahasa Anda'],
+              computer:['Klik menu ⋮ (kanan atas)','Klik "Terjemahkan"','Pilih bahasa Anda']},
+      safari:{phone:['Ketuk ikon "aA" di bilah alamat','Ketuk "Terjemahkan ke…"','Pilih bahasa Anda'],
+              computer:['Klik ikon terjemahan di bilah alamat','Pilih "Terjemahkan ke…"','Pilih bahasa Anda']}},
+  tr:{btn:'Çevir', title:'Bu sayfayı çevir', intro:'Cihazınızı, ardından tarayıcınızı seçin:',
+      phone:'Telefon / Tablet', computer:'Bilgisayar',
+      chrome:{phone:['⋮ menüsüne dokunun (sağ üst)','"Çevir…" öğesine dokunun','Dilinizi seçin'],
+              computer:['⋮ menüsüne tıklayın (sağ üst)','"Çevir" öğesine tıklayın','Dilinizi seçin']},
+      safari:{phone:['Adres çubuğundaki "aA" simgesine dokunun','"Şu dile çevir…" öğesine dokunun','Dilinizi seçin'],
+              computer:['Adres çubuğundaki çeviri simgesine tıklayın','"Şu dile çevir…" öğesini seçin','Dilinizi seçin']}},
+  ar:{btn:'ترجمة', title:'ترجمة هذه الصفحة', intro:'اختر جهازك، ثم المتصفح:',
+      phone:'هاتف / جهاز لوحي', computer:'كمبيوتر',
+      chrome:{phone:['اضغط على القائمة ⋮ (أعلى اليمين)','اضغط على "ترجمة…"','اختر لغتك'],
+              computer:['انقر على القائمة ⋮ (أعلى اليمين)','انقر على "ترجمة"','اختر لغتك']},
+      safari:{phone:['اضغط على أيقونة "aA" في شريط العنوان','اضغط على "ترجمة إلى…"','اختر لغتك'],
+              computer:['انقر على أيقونة الترجمة في شريط العنوان','اختر "ترجمة إلى…"','اختر لغتك']}},
+  fa:{btn:'ترجمه', title:'ترجمه این صفحه', intro:'دستگاه خود را انتخاب کنید، سپس مرورگر:',
+      phone:'تلفن / تبلت', computer:'رایانه',
+      chrome:{phone:['روی منوی ⋮ (بالا سمت راست) ضربه بزنید','روی «ترجمه…» ضربه بزنید','زبان خود را انتخاب کنید'],
+              computer:['روی منوی ⋮ (بالا سمت راست) کلیک کنید','روی «ترجمه» کلیک کنید','زبان خود را انتخاب کنید']},
+      safari:{phone:['روی نماد «aA» در نوار آدرس ضربه بزنید','روی «ترجمه به…» ضربه بزنید','زبان خود را انتخاب کنید'],
+              computer:['روی نماد ترجمه در نوار آدرس کلیک کنید','«ترجمه به…» را انتخاب کنید','زبان خود را انتخاب کنید']}},
+  he:{btn:'תרגם', title:'תרגם דף זה', intro:'בחר את המכשיר שלך ולאחר מכן את הדפדפן:',
+      phone:'טלפון / טאבלט', computer:'מחשב',
+      chrome:{phone:['הקש על התפריט ⋮ (למעלה מימין)','הקש על "תרגם…"','בחר את השפה שלך'],
+              computer:['לחץ על התפריט ⋮ (למעלה מימין)','לחץ על "תרגם"','בחר את השפה שלך']},
+      safari:{phone:['הקש על הסמל "aA" בשורת הכתובת','הקש על "תרגם ל…"','בחר את השפה שלך'],
+              computer:['לחץ על סמל התרגום בשורת הכתובת','בחר "תרגם ל…"','בחר את השפה שלך']}},
+};
+function thLang(){ return _TH_I18N[_TH_LANG] || _TH_I18N.en; }
+const _TH_RTL = ['ar','fa','he'];
+function thIsRTL(){ return _TH_RTL.includes(_TH_LANG); }
+let _thDevice='phone', _thBrowser='chrome';
+function openTranslateHelp(){
+  const t=thLang();
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('thTitle', t.title); set('thIntro', t.intro);
+  set('thPhoneLbl', t.phone); set('thComputerLbl', t.computer);
+  _thDevice='phone'; _thBrowser='chrome';
+  thSetDevice('phone'); thSetBrowser('chrome');
+  const modal=document.getElementById('translateHelp');
+  // Right-to-left languages (Arabic, Farsi, Hebrew) read the other way.
+  const inner=modal.querySelector('div');
+  if(inner) inner.style.direction = thIsRTL() ? 'rtl' : 'ltr';
+  modal.style.display='flex';
+}
+function closeTranslateHelp(){ const m=document.getElementById('translateHelp'); if(m) m.style.display='none'; }
+function thSetDevice(d){
+  _thDevice=d;
+  document.querySelectorAll('#thDeviceTabs .th-tab').forEach(b=>{
+    const on=b.dataset.device===d;
+    b.style.borderColor=on?'var(--success)':'var(--border)';
+    b.style.background=on?'rgba(107,143,113,0.06)':'transparent';
+  });
+  thRenderSteps();
+}
+function thSetBrowser(b){
+  _thBrowser=b;
+  document.querySelectorAll('.th-btab').forEach(el=>{
+    const on=el.dataset.browser===b;
+    el.style.borderColor=on?'var(--success)':'var(--border)';
+    el.style.background=on?'rgba(107,143,113,0.06)':'transparent';
+  });
+  thRenderSteps();
+}
+function thRenderSteps(){
+  const t=thLang();
+  const steps=(t[_thBrowser] && t[_thBrowser][_thDevice]) || [];
+  const wrap=document.getElementById('thSteps');
+  if(!wrap) return;
+  wrap.innerHTML=steps.map((s,i)=>`
+    <div style="display:flex;gap:12px;align-items:center;">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--success);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;flex-shrink:0;">${i+1}</div>
+      <div style="font-size:0.92rem;line-height:1.4;">${s}</div>
+    </div>`).join('');
+}
+(function(){
+  function applyBtnLabel(){ const el=document.getElementById('translateBtnLabel'); if(el) el.textContent = thLang().btn; }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', applyBtnLabel);
+  else applyBtnLabel();
+})();
 
 // Opens a sheet showing the real, AI-generated Day 1 (title, focus, tasks).
 async function openDay1Preview(){
@@ -2572,16 +2893,21 @@ function completePayment(){
 
     if(had){
       // We loaded a saved profile. But "has a profile" is NOT the same as "paid".
-      // Someone can finish the questionnaire + sign up (profile row created) WITHOUT
-      // paying. Only let them into the app if there's real evidence of payment:
-      // a recorded transaction, available credits, or a completed/generated plan.
-      const hasPaidEvidence = !!(
+      // The authoritative signal is the server-side `purchased` column (set only
+      // after a real payment). Local state can carry leftovers from testing, so
+      // we trust the server flag first, then real client evidence as backup.
+      const serverPurchased = (state.purchased === true);
+      const clientEvidence = !!(
         (Array.isArray(state.transactions) && state.transactions.length) ||
         (state.planCredits||0) > 0 ||
-        state.planComplete ||
-        (state.planOverrides && Object.keys(state.planOverrides).length) ||
-        (Array.isArray(state.assessments) && state.assessments.length)
+        state.planComplete
       );
+      const hasPaidEvidence = serverPurchased || clientEvidence;
+      try{
+        console.log('[Nuci access]', { email, serverPurchased, clientEvidence,
+          transactions:(state.transactions||[]).length, credits:(state.planCredits||0),
+          planComplete:!!state.planComplete, decision: hasPaidEvidence?'APP':'ROADMAP' });
+      }catch(e){}
       if(!hasPaidEvidence){
         // Signed in, profile exists, but never paid -> send to the package/payment step.
         state.paid=false;
@@ -4625,11 +4951,15 @@ async function persistStateNow(){
 async function loadStateForUser(email){
   if(!supa || !email) return false;
   try{
-    const { data, error } = await supa.from('profiles').select('data,email_reminders').eq('email', email.toLowerCase()).maybeSingle();
+    const { data, error } = await supa.from('profiles').select('data,email_reminders,purchased').eq('email', email.toLowerCase()).maybeSingle();
     if(error){ console.warn('Load error', error); return false; }
     if(data){
       if(data.email_reminders!=null) state.emailReminders = data.email_reminders!==false;
-      if(data.data){ restoreState(data.data); return true; }
+      if(data.data){ restoreState(data.data); }
+      // 'purchased' is its own column (set server-side at payment), not part of
+      // the data blob - read it explicitly so access control is reliable.
+      state.purchased = (data.purchased===true);
+      if(data.data){ return true; }
     }
   }catch(e){ console.warn('Load failed', e); }
   return false;
