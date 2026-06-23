@@ -25,12 +25,13 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: 'AI key not configured on server' }) };
   }
 
-  let answers, checkins, nextDay, planLength, lang, nextDayPlan, notes;
+  let answers, checkins, nextDay, planLength, lang, nextDayPlan, notes, tasksDone;
   try {
     const body = JSON.parse(event.body || '{}');
     answers      = body.answers || {};
     checkins     = Array.isArray(body.checkins) ? body.checkins : [];
     notes        = body.notes || {};           // per-day owner observations
+    tasksDone    = body.tasksDone || {};        // per-day completed vs skipped tasks
     nextDay      = body.nextDay || 2;
     planLength   = body.planLength || 7;
     nextDayPlan  = body.nextDayPlan || null;   // current (template/AI) plan for that day
@@ -39,7 +40,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Bad request body' }) };
   }
 
-  const langName = lang === 'en' ? 'English' : 'Slovenian';
+  const langName = 'English';   // app is English-only; always respond in English
 
   const systemPrompt =
     `You are an expert animal behaviourist adjusting an ongoing ${planLength}-day ` +
@@ -49,7 +50,7 @@ exports.handler = async (event) => {
     `pet's actual progress. If things are improving, build on what works and ` +
     `progress faster. If not, adjust the approach and address the persistent ` +
     `trigger. Keep tasks small, concrete, and doable in one day. ` +
-    `Respond in ${langName}. ` +
+    `ALWAYS respond in English, even if the owner's notes or descriptions are in another language - translate their meaning into English. ` +
     `Return ONLY valid JSON (no markdown, no prose) with this exact shape:\n` +
     `{\n` +
     `  "insight": "1-2 sentence personalised note to the owner about today's progress and what tomorrow focuses on",\n` +
@@ -60,8 +61,9 @@ exports.handler = async (event) => {
     `Owner intake answers:\n${JSON.stringify(answers, null, 2)}\n\n` +
     `Check-in history so far (most recent last):\n${JSON.stringify(checkins, null, 2)}\n\n` +
     `Owner's free-text daily notes/observations (keyed by plan day):\n${JSON.stringify(notes, null, 2)}\n\n` +
+    `Which tasks the owner actually completed vs skipped, per day:\n${JSON.stringify(tasksDone, null, 2)}\n\n` +
     `Current planned Day ${nextDay} (may be a generic template):\n${JSON.stringify(nextDayPlan, null, 2)}\n\n` +
-    `Adapt Day ${nextDay} to the pet's real progress. Pay close attention to the owner's daily notes - they describe what actually happened and should directly shape the tasks and focus for Day ${nextDay}.`;
+    `Adapt Day ${nextDay} to the pet's real progress. Use all three signals together: the check-in history, the owner's daily notes (what actually happened), and which tasks they completed vs skipped. If they skipped tasks, make Day ${nextDay} easier to follow through on or rephrase those tasks; if they completed everything and things improved, progress faster. The notes and completed tasks should directly shape the focus and tasks for Day ${nextDay}.`;
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {

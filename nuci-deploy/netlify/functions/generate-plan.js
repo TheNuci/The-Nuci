@@ -42,7 +42,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Bad request body' }) };
   }
 
-  const langName = lang === 'en' ? 'English' : 'Slovenian';
+  const langName = 'English';   // app is English-only; always respond in English
 
   // The instruction we give the AI. It must return STRICT JSON only.
   const systemPrompt =
@@ -55,7 +55,8 @@ exports.handler = async (event) => {
     `not generic pet advice. If the problem is car travel, tasks involve the car, the route, ` +
     `the crate, short drives, positive associations with the vehicle - never vague "observe your pet". ` +
     `Use the pet's name in at least one task per day. Make day 1 concrete and actionable, not just watching. ` +
-    `Address the exact problem described, its triggers and context. No generic filler. Respond in ${langName}. ` +
+    `Address the exact problem described, its triggers and context. No generic filler. ` +
+    `ALWAYS respond in English, even if the owner wrote their description in another language - translate their meaning into English. ` +
     `Be CONCISE: tasks are short imperative phrases (max ~10 words each), ` +
     `subtitles max ~6 words, day desc one short sentence. ` +
     `Generate the meta info plus ONLY the FIRST 3 DAYS (day 1 first concrete steps on the problem, ` +
