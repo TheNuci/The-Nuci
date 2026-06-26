@@ -48,8 +48,8 @@ function emailHtml(toEmail) {
       </p>
       <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:14px 18px;margin:0 0 24px;">
         <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:#999;margin-bottom:4px;">Your check-in window</div>
-        <div style="font-size:1.15rem;font-weight:700;color:#6B8F71;font-variant-numeric:tabular-nums;">20:00 &rarr; 22:00</div>
-        <div style="font-size:0.8rem;color:#888;margin-top:4px;">You have 2 hours - it closes at 22:00 tonight.</div>
+        <div style="font-size:1.15rem;font-weight:700;color:#6B8F71;font-variant-numeric:tabular-nums;">20:00 &rarr; 23:00</div>
+        <div style="font-size:0.8rem;color:#888;margin-top:4px;">You have 3 hours - it closes at 23:00 tonight.</div>
       </div>
       <a href="https://thenuci.com/"
          style="display:inline-block;background:#111111;color:#fff;text-decoration:none;
