@@ -2167,6 +2167,18 @@ async function generatePlanAI(answers){
     generatePlan(answers);
   }catch(e){
     console.error('[Nuci AI] FAILED, using local template. Reason:', e && e.message ? e.message : e);
+    // Visible diagnostic (temporary) so we can see WHY AI failed without the console.
+    try{
+      const msg = '[AI diagnostic] '+(e && e.message ? e.message : String(e));
+      let bar=document.getElementById('aiDiagBar');
+      if(!bar){
+        bar=document.createElement('div'); bar.id='aiDiagBar';
+        bar.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#C77A7A;color:#fff;font:600 12px/1.4 sans-serif;padding:10px 14px;text-align:center;';
+        bar.onclick=()=>bar.remove();
+        document.body.appendChild(bar);
+      }
+      bar.textContent = msg + '  (tap to dismiss)';
+    }catch(_){}
     generatePlan(answers);
   }
 }
@@ -2830,7 +2842,18 @@ function completePayment(){
       if(stashedPlan){
         state.planOverrides = stashedPlan;
         if(p.aiDays) state.aiDays = p.aiDays;
-        if(p.aiPlan) state.aiPlan = p.aiPlan;
+        if(p.aiPlan){ state.aiPlan = p.aiPlan;
+          if(Array.isArray(p.aiPlan.causes)) state.aiCauses = p.aiPlan.causes;
+          if(p.aiPlan.behaviorExplain) state.aiBehaviorExplain = p.aiPlan.behaviorExplain;
+          if(p.aiPlan.assessment) state.aiAssessment = p.aiPlan.assessment;
+        }
+        // Rebuild taskOverrides from the stashed plan, otherwise the app shows
+        // the generic template tasks instead of the AI ones the user previewed.
+        state.taskOverrides={};
+        Object.keys(stashedPlan).forEach(k=>{
+          const d=stashedPlan[k];
+          if(d && Array.isArray(d.tasks) && d.tasks.length) state.taskOverrides[k]=d.tasks.slice();
+        });
         openAppAfter();
       } else if(state.answers && state.answers.petType){
         state.planOverrides={};
@@ -3216,6 +3239,9 @@ function toggleTask(i){
 // PLAN - interactive accordion
 // ═══════════════════════════════════════
 function planDescFor(i){
+  // Prefer the AI-generated day description/subtitle if present.
+  const ov = state.planOverrides && state.planOverrides[i+1];
+  if(ov && (ov.desc || ov.sub)) return ov.desc || ov.sub;
   if(PLAN_DESCS[i])return PLAN_DESCS[i];
   const pet=state.answers.petName||'your pet';
   const extra = [
@@ -3227,11 +3253,18 @@ function planDescFor(i){
   return extra[i%extra.length];
 }
 function planCausesFor(i){
+  // Prefer AI causes (whole-plan level) for day 1; fall back to template.
+  if(i===0 && Array.isArray(state.aiCauses) && state.aiCauses.length) return state.aiCauses.slice(0,3);
   if(PLAN_CAUSES[i])return PLAN_CAUSES[i];
   const pool = [['Routine drift','Environment change'],['Incomplete habit formation','Intermittent triggers'],['Stress carryover','Inconsistent reinforcement'],['Seasonal or situational factors','Residual anxiety']];
   return pool[i%pool.length];
 }
 function planActionsFor(actions,i,pet){
+  // Prefer the AI-generated tasks for this day if present.
+  const ov = state.planOverrides && state.planOverrides[i+1];
+  if(ov && Array.isArray(ov.tasks) && ov.tasks.length) return ov.tasks;
+  const to = state.taskOverrides && state.taskOverrides[i+1];
+  if(Array.isArray(to) && to.length) return to.map(t=>typeof t==='string'?t:t.text);
   if(actions[i])return actions[i];
   return [
     `Continue the routine that reduced incidents for ${pet}`,
