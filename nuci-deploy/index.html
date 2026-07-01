@@ -13,8 +13,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="color-scheme" content="light only">
 <meta name="theme-color" content="#F1F1F1">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236B8F71'/%3E%3Ccircle cx='25' cy='32' r='11' fill='%23FAFAFA'/%3E%3Ccircle cx='39' cy='32' r='11' fill='%23FAFAFA' fill-opacity='0.55'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236B8F71'/%3E%3Ccircle cx='25' cy='32' r='11' fill='%23FAFAFA'/%3E%3Ccircle cx='39' cy='32' r='11' fill='%23FAFAFA' fill-opacity='0.55'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236B8F71'/%3E%3Ctext x='30' y='44' font-family='Sora,Arial,sans-serif' font-size='34' font-weight='700' fill='%23FAFAFA' text-anchor='middle'%3EN%3C/text%3E%3Ccircle cx='47' cy='42' r='3.5' fill='%23FAFAFA'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236B8F71'/%3E%3Ctext x='30' y='44' font-family='Sora,Arial,sans-serif' font-size='34' font-weight='700' fill='%23FAFAFA' text-anchor='middle'%3EN%3C/text%3E%3Ccircle cx='47' cy='42' r='3.5' fill='%23FAFAFA'/%3E%3C/svg%3E">
 <title>The Nuci - Pet Behaviour & Wellbeing</title>
 <meta name="description" content="The Nuci helps you understand and improve your pet's behaviour with an AI-personalized 7-day plan, daily check-ins and progress tracking.">
 <meta property="og:title" content="The Nuci - Pet Behaviour & Wellbeing">
@@ -311,16 +311,9 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
   <button id="entryBackBtn" onclick="exitAddPet()" style="display:none;position:fixed;top:max(16px,env(safe-area-inset-top));left:16px;z-index:20;background:rgba(250,250,250,0.8);backdrop-filter:blur(8px);border:none;border-radius:99px;padding:8px 14px;cursor:pointer;align-items:center;gap:6px;font-size:0.9rem;color:var(--text);font-family:'Inter',sans-serif;">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4l-4 4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Back
   </button>
-  <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg" aria-label="The Nuci" style="position:fixed;top:max(24px,calc(env(safe-area-inset-top) + 9px));left:50%;transform:translateX(-50%);height:26px;width:auto;z-index:20;">
-    <circle cy="20" r="11" fill="#6B8F71">
-      <animate attributeName="cx" values="26;38;26" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>
-      <animate attributeName="fill-opacity" values="1;0.5;1" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>
-    </circle>
-    <circle cy="20" r="11" fill="#6B8F71">
-      <animate attributeName="cx" values="38;26;38" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>
-      <animate attributeName="fill-opacity" values="0.5;1;0.5" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>
-    </circle>
-  </svg>
+  <div aria-label="The Nuci" style="position:fixed;top:max(20px,calc(env(safe-area-inset-top) + 7px));left:50%;transform:translateX(-50%);z-index:20;font-family:'Sora',-apple-system,sans-serif;font-weight:700;letter-spacing:-0.04em;font-size:20px;line-height:1;white-space:nowrap;">
+    <span style="color:#6B8F71;">The</span> <span style="color:#111111;">Nuci</span><span style="color:#6B8F71;">.</span>
+  </div>
   <div class="entry-center fade-up">
     <h1 class="entry-headline" data-i18n="entry_headline">Learn how to help your pet in 7 days</h1>
     <p class="entry-sub" data-i18n="entry_sub">Describe the behaviour and our AI builds a personalized 7-day plan for your pet.</p>
@@ -1176,13 +1169,13 @@ function openLegal(kind){
     html = `<h1 style="font-size:1.5rem;margin-bottom:6px;">Terms of Service</h1>
        <p style="color:var(--secondary);font-size:0.82rem;margin-bottom:20px;">${updated}</p>
        <p><strong>1. Service provider</strong><br>The Nuci service (the "service"), available at thenuci.com, is provided by ${company}, contact: ${email}.</p>
-       <p><strong>2. Description of the service</strong><br>The Nuci is a digital tool that uses your input to generate a personalized behaviour plan for your pet and lets you track daily progress. The plan adapts over time based on your daily check-ins and the notes you record, which form part of the service. The service provides general behavioural guidance only and is <strong>not a substitute for professional veterinary or behavioural care</strong>. For medical or serious behavioural concerns, consult a qualified veterinarian.</p>
+       <p><strong>2. Description of the service</strong><br>The Nuci is a digital tool that uses your input to generate a personalized behaviour plan for your pet and lets you track daily progress. The plan is created and adapted by artificial intelligence, which applies general, force-free behavioural principles to the information you provide, and updates each upcoming day based on your daily check-ins and notes. The service provides general behavioural guidance only and is <strong>not a substitute for professional veterinary or behavioural care, diagnosis, or treatment</strong>. The AI does not examine your pet, cannot diagnose medical or psychological conditions, and does not prescribe medication or medical treatment. Where your input suggests a possible medical cause, a serious or escalating problem, aggression or risk of injury, or any situation beyond safe self-help, the service may recommend that you consult a qualified veterinarian or in-person professional - and you should do so. For any medical, urgent, or serious behavioural concern, always consult a qualified veterinarian first.</p>
        <p><strong>3. Eligibility</strong><br>You must be at least 18 years old and able to enter into a binding contract to use the service.</p>
        <p><strong>4. Plans, credits and payment</strong><br>Access to a behaviour plan is a one-time purchase at the price shown at checkout. One purchase provides one plan (one pet); multi-plan packages provide credits to create additional pets, up to a maximum of six pets per account. Payments are processed securely by Stripe; we never see or store your full card details. Prices are shown in euros and include applicable taxes where required.</p>
        <p><strong>5. Right of withdrawal (digital content)</strong><br>The plan is digital content that is supplied immediately. By completing the purchase, you expressly request immediate performance and <strong>acknowledge that you thereby lose your statutory 14-day right of withdrawal</strong> under the Slovenian Consumer Protection Act (ZVPot) and EU Directive 2011/83/EU. Outside this, refunds are provided only where required by law.</p>
        <p><strong>6. Emails</strong><br>As part of the service we send transactional emails (e.g. account, password reset, daily check-in reminders) and, based on your consent or our legitimate interest, occasional helpful or promotional emails. You can opt out of non-essential emails at any time in your profile or via the unsubscribe option.</p>
        <p><strong>7. Acceptable use</strong><br>Your account is personal. You may not resell, redistribute, or publicly republish the generated content without permission, nor misuse the service or attempt to disrupt it.</p>
-       <p><strong>8. Liability</strong><br>The service is provided "as is". We do not guarantee specific outcomes in animal behaviour. To the maximum extent permitted by law, we are not liable for indirect or consequential damages. Nothing in these terms limits liability that cannot be limited by law.</p>
+       <p><strong>8. Liability</strong><br>The service is provided "as is" and is used at your own discretion and risk. We do not guarantee specific outcomes in animal behaviour, and behaviour change depends on many factors outside our control. You remain solely responsible for your pet, for the safety of yourself and others, and for any decision to act on the guidance provided. To the maximum extent permitted by law, we are not liable for any injury, loss, or damage - to people, animals, or property - arising from your use of the service or from following any AI-generated suggestion, nor for indirect or consequential damages. Nothing in these terms limits liability that cannot be limited by law, including liability for death or personal injury caused by our negligence.</p>
        <p><strong>9. Changes</strong><br>We may update these terms from time to time. Material changes will be reflected by the "last updated" date. Continued use after changes constitutes acceptance.</p>
        <p><strong>10. Governing law and disputes</strong><br>These terms are governed by the laws of the Republic of Slovenia. Mandatory consumer rights in your country of residence remain unaffected. Consumers may also use the EU Online Dispute Resolution platform at ec.europa.eu/consumers/odr.</p>
        <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">For questions, contact us at ${email}.</p>`;
@@ -1193,7 +1186,7 @@ function openLegal(kind){
        <p><strong>2. What data we collect</strong><br>• <strong>Account data:</strong> your email address and password (stored encrypted by our auth provider).<br>• <strong>Pet & behaviour data:</strong> the information you enter about your pet - name, species, breed, age, sex, neutering status, living environment, household, the behaviour issue, its frequency/duration/location, what you've tried, and any warning signs.<br>• <strong>Optional pet photo</strong> you choose to upload.<br>• <strong>Progress & notes data:</strong> your daily check-ins, the free-text daily notes/observations you write, streaks and plan progress. Your notes are used as an input to generate and adapt your plan.<br>• <strong>Email & contact data:</strong> we store your email address, your email preferences, your time zone and signup time, and records of which emails we've sent you, so we can send reminders and updates at the right time and respect your opt-out. <br>• <strong>Technical data:</strong> check-in dates and basic analytics.<br>Payment card details are entered directly with Stripe - <strong>we never receive or store your card number</strong>.</p>
        <p><strong>3. Purposes and legal bases</strong><br>• To provide the service, create and adapt your plan, and store progress - <em>performance of a contract</em> (Art. 6(1)(b) GDPR).<br>• To send transactional emails (account, password reset, check-in reminders) - <em>contract / legitimate interest</em>.<br>• To send occasional helpful or promotional emails - <em>your consent or legitimate interest</em>; you can opt out anytime.<br>• To understand and improve the service via analytics - <em>your consent</em> (cookie banner).</p>
        <p><strong>4. Processors we use</strong><br>We rely on trusted providers who process data on our behalf under GDPR-compliant data processing agreements:<br>• <strong>Supabase</strong> - database and authentication (data hosting).<br>• <strong>Stripe</strong> - payment processing.<br>• <strong>Resend</strong> - sending emails.<br>• <strong>Anthropic</strong> - AI generation of your plan and insights.<br>• <strong>Netlify</strong> - website hosting.<br>• <strong>Google Analytics</strong> - usage analytics (only with your consent).<br>Some providers may process data outside the EU/EEA; where they do, transfers are covered by appropriate safeguards such as the EU Standard Contractual Clauses.</p>
-       <p><strong>5. Use of artificial intelligence</strong><br>We use AI (Anthropic) to generate your behaviour plan and daily insights, and to adapt each upcoming day based on your check-ins and the daily notes you write. Only the pet and behaviour information you enter (including your notes) is sent to the AI - <strong>we do not send identifying personal data such as your name, email or payment details</strong>. Your inputs are not used to train third-party models and are used solely to create your content.</p>
+       <p><strong>5. Use of artificial intelligence</strong><br>We use AI (Anthropic) to generate your behaviour plan and daily insights, and to adapt each upcoming day based on your check-ins and the daily notes you write. Only the pet and behaviour information you enter (including your notes) is sent to the AI - <strong>we do not send identifying personal data such as your name, email or payment details</strong>. Your inputs are not used to train third-party models and are used solely to create your content.<br><br>The AI generates guidance based only on the information you provide and may be incomplete or inaccurate, especially if your input is unclear, incomplete, or describes a complex or clinical situation. The AI cannot see or examine your pet and does not replace the judgement of a qualified professional. You are responsible for deciding whether and how to apply any suggestion, for supervising your pet's safety at all times, and for seeking in-person professional help when the service recommends it or when you have any doubt. Never apply a suggestion that seems unsafe for you, your pet, or others.</p>
        <p><strong>6. Retention</strong><br>We keep your data for as long as you have an account or as needed to provide the service and meet legal obligations (e.g. tax records for purchases). When you request account deletion, your personal and pet data are removed; purchase records may be retained where law requires.</p>
        <p><strong>7. Your rights</strong><br>You have the right to access, rectify, erase, restrict, and port your data, and to object to processing or withdraw consent at any time. To exercise these rights, email ${email}. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski pooblaščenec, ip-rs.si).</p>
        <p><strong>8. Cookies</strong><br>We use strictly necessary cookies to operate the service and, only with your consent, analytics cookies to improve it. You can give or withdraw consent via the cookie banner at any time.</p>
@@ -2134,6 +2127,9 @@ async function generatePlanAI(answers){
     }
     // Store AI explanation + causes + what-not-to-do for the overview/assessment.
     if(plan.behaviorExplain) state.aiBehaviorExplain = plan.behaviorExplain;
+    if(plan.assessment) state.aiAssessment = plan.assessment;
+    state.aiSeekProfessional = (plan.seekProfessional===true);
+    if(plan.professionalNote) state.aiProfessionalNote = plan.professionalNote;
     if(Array.isArray(plan.causes)) state.aiCauses = plan.causes;
     if(Array.isArray(plan.whatNotToDo)) state.aiWhatNotToDo = plan.whatNotToDo;
     generatePlan(answers);
@@ -3296,9 +3292,28 @@ function toggleAcc(i){
 function buildPlanDetail(){/* handled by accordion now */}
 function buildOverview(petType){
   const pet=state.answers.petName||'your pet';
+  // If the AI flagged that a vet / in-person professional should be involved,
+  // surface a clear, calm notice at the top of the overview.
+  try{
+    const host=document.getElementById('behaviorExplain');
+    const card=host?host.closest('.card'):null;
+    let warn=document.getElementById('aiProBanner');
+    if(state.aiSeekProfessional && card){
+      if(!warn){
+        warn=document.createElement('div');
+        warn.id='aiProBanner';
+        warn.className='card';
+        warn.style.cssText='padding:16px 18px;margin-bottom:12px;background:rgba(199,122,122,0.07);border:1px solid rgba(199,122,122,0.3);';
+        card.parentNode.insertBefore(warn, card);
+      }
+      const note=state.aiProfessionalNote || 'Based on what you described, we recommend having a vet or qualified in-person professional involved. This plan offers safe, supportive steps in the meantime, but it is not a substitute for hands-on professional care.';
+      warn.innerHTML='<div style="display:flex;gap:10px;align-items:flex-start;"><span style="font-size:1.1rem;line-height:1.2;flex-shrink:0;">⚕️</span><div><div style="font-size:0.82rem;font-weight:700;margin-bottom:4px;color:var(--text);">Worth seeing a professional</div><p style="font-size:0.85rem;line-height:1.55;color:var(--text);margin:0;">'+note+'</p></div></div>';
+    } else if(warn){ warn.remove(); }
+  }catch(e){}
   const el=document.getElementById('behaviorExplain');
   if(el){
-    if(state.aiBehaviorExplain){ el.textContent=state.aiBehaviorExplain; }
+    if(state.aiAssessment){ el.textContent=state.aiAssessment; }
+    else if(state.aiBehaviorExplain){ el.textContent=state.aiBehaviorExplain; }
     else el.textContent=`This behavior in a ${petType} is often a response to environmental stressors, routine changes, or unmet behavioral needs. The key insight is that behavior is communication - ${pet} is telling you something. Understanding what it's saying is the main goal of this plan.`;
   }
   const notEl=document.getElementById('whatNotToDo');
@@ -4841,6 +4856,9 @@ function serializeState(){
     taskOverrides: state.taskOverrides,
     planOverrides: state.planOverrides,
     aiBehaviorExplain: state.aiBehaviorExplain||null,
+    aiAssessment: state.aiAssessment||null,
+    aiSeekProfessional: state.aiSeekProfessional||false,
+    aiProfessionalNote: state.aiProfessionalNote||null,
     aiCauses: state.aiCauses||null,
     aiWhatNotToDo: state.aiWhatNotToDo||null,
     dayInsights: state.dayInsights||null,
@@ -4884,6 +4902,9 @@ function restoreState(data){
     taskOverrides: data.taskOverrides||{},
     planOverrides: data.planOverrides||{},
     aiBehaviorExplain: data.aiBehaviorExplain||null,
+    aiAssessment: data.aiAssessment||null,
+    aiSeekProfessional: data.aiSeekProfessional||false,
+    aiProfessionalNote: data.aiProfessionalNote||null,
     aiCauses: data.aiCauses||null,
     aiWhatNotToDo: data.aiWhatNotToDo||null,
     dayInsights: data.dayInsights||null,
@@ -5076,9 +5097,16 @@ function shareProgressCard(){
     const m=70, cardY=150, cardH=H-300;
     x.fillStyle='#FAFAFA';
     roundRect(x,m,cardY,W-m*2,cardH,40); x.fill();
-    // brand mark (two circles)
-    x.fillStyle='#6B8F71'; x.beginPath(); x.arc(W/2-22,250,46,0,7); x.fill();
-    x.globalAlpha=0.5; x.beginPath(); x.arc(W/2+22,250,46,0,7); x.fill(); x.globalAlpha=1;
+    // brand wordmark "The Nuci."
+    (function(){
+      x.textAlign='center'; x.textBaseline='alphabetic';
+      x.font='700 56px Sora, sans-serif';
+      const parts=[['The ','#6B8F71'],['Nuci','#111111'],['.','#6B8F71']];
+      let total=0; parts.forEach(([t])=>{ total+=x.measureText(t).width; });
+      let startX=W/2-total/2;
+      parts.forEach(([t,col])=>{ x.fillStyle=col; x.textAlign='left'; x.fillText(t,startX,270); startX+=x.measureText(t).width; });
+      x.textAlign='center';
+    })();
     // title
     x.fillStyle='#111'; x.textAlign='center';
     x.font='700 64px Sora, sans-serif';
