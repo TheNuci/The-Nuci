@@ -32,7 +32,7 @@ function emailHtml(petName, toEmail) {
 <body style="margin:0;background:#F1F1F1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111111;">
   <div style="max-width:440px;margin:0 auto;padding:40px 16px;">
     <div style="background:#FAFAFA;border-radius:20px;padding:36px 32px;text-align:center;">
-      <img src="https://thenuci.com/email-logo.png" width="50" height="30" alt="The Nuci" style="display:block;margin:0 auto 18px;border:0;">
+      <img src="https://thenuci.com/email-logo.png" width="120" height="35" alt="The Nuci" style="display:block;margin:0 auto 18px;border:0;">
       <h1 style="font-size:1.35rem;margin:0 0 14px;font-weight:600;letter-spacing:-0.02em;">${headline}</h1>
       <p style="font-size:0.95rem;line-height:1.65;color:#555;margin:0 0 14px;">
         You're one step away. Unlock ${pet}'s personalized 7-day plan and start understanding the behaviour - its likely causes, what to do, and what to avoid.
@@ -104,13 +104,15 @@ export default async (req) => {
 
   const now = Date.now();
   let sent = 0, skipped = 0, failed = 0;
+  const diag = [];   // per-profile reason, returned when called with ?debug=1
 
   for (const p of profiles) {
     const t = Date.parse(p.signup_at);
-    if (isNaN(t)) { skipped++; continue; }
-    const ageMin = (now - t) / 60000;
+    if (isNaN(t)) { skipped++; diag.push(`${p.email}: bad/empty signup_at (${p.signup_at})`); continue; }
+    const ageMin = Math.round((now - t) / 60000);
     // Only the 15min–3h window: old enough to count as "didn't buy", not ancient.
-    if (ageMin < MIN_AGE_MIN || ageMin > MAX_AGE_MIN) { skipped++; continue; }
+    if (ageMin < MIN_AGE_MIN) { skipped++; diag.push(`${p.email}: too new (${ageMin}min, need >=${MIN_AGE_MIN})`); continue; }
+    if (ageMin > MAX_AGE_MIN) { skipped++; diag.push(`${p.email}: too old (${ageMin}min, max ${MAX_AGE_MIN})`); continue; }
 
     try {
       await sendEmail(RESEND_API_KEY, p.email, p.pet_name_pending);
@@ -123,14 +125,25 @@ export default async (req) => {
         body: JSON.stringify({ cart_nudge_sent: true })
       });
       sent++;
+      diag.push(`${p.email}: SENT (age ${ageMin}min)`);
     } catch (e) {
       console.error('Cart nudge failed for', p.email, e.message);
       failed++;
+      diag.push(`${p.email}: send failed - ${e.message}`);
     }
   }
 
   const summary = `Cart nudge run: sent=${sent} skipped=${skipped} failed=${failed} total=${profiles.length}`;
   console.log(summary);
+  // When called manually with ?debug=1, return a detailed per-profile report.
+  let wantDebug = false;
+  try{ wantDebug = new URL(req.url).searchParams.get('debug') === '1'; }catch(e){}
+  if (wantDebug) {
+    return new Response(
+      summary + '\n\n' + (diag.length ? diag.join('\n') : 'No candidate profiles matched the query (signup_at not null, not purchased, not nudged, not opted out).'),
+      { status: 200, headers: { 'Content-Type': 'text/plain' } }
+    );
+  }
   return new Response(summary, { status: 200 });
 };
 

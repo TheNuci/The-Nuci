@@ -60,7 +60,7 @@ function wrapEmail(title, bodyHtml, footerNote, toEmail) {
 <body style="margin:0;background:#F1F1F1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111111;">
   <div style="max-width:440px;margin:0 auto;padding:40px 16px;">
     <div style="background:#FAFAFA;border-radius:20px;padding:36px 32px;">
-      <img src="https://thenuci.com/email-logo.png" width="50" height="30" alt="The Nuci" style="display:block;margin:0 auto 18px;border:0;">
+      <img src="https://thenuci.com/email-logo.png" width="120" height="35" alt="The Nuci" style="display:block;margin:0 auto 18px;border:0;">
       <h1 style="font-size:1.3rem;margin:0 0 14px;font-weight:600;letter-spacing:-0.02em;text-align:center;">${title}</h1>
       <div style="font-size:0.95rem;line-height:1.65;color:#444;">${bodyHtml}</div>
       <div style="text-align:center;margin-top:26px;">
