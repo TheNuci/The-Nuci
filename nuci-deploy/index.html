@@ -2119,20 +2119,28 @@ function showPlanLoading(on){
 }
 // Tries the AI endpoint; falls back to the local template on any failure.
 async function generatePlanAI(answers){
-  if(!AI_ENDPOINT){ generatePlan(answers); return; }
+  if(!AI_ENDPOINT){ console.warn('[Nuci AI] AI_ENDPOINT empty - using template'); generatePlan(answers); return; }
   try{
+    console.log('[Nuci AI] calling', AI_ENDPOINT, 'for', answers && answers.petName);
     const res = await fetch(AI_ENDPOINT, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ answers, lang: currentLang })
     });
-    if(!res.ok) throw new Error('AI endpoint '+res.status);
+    console.log('[Nuci AI] response status:', res.status);
+    if(!res.ok){
+      let errBody=''; try{ errBody=await res.text(); }catch(e){}
+      console.error('[Nuci AI] endpoint returned error', res.status, errBody);
+      throw new Error('AI endpoint '+res.status);
+    }
     const plan = await res.json();
+    console.log('[Nuci AI] got plan. days:', plan && plan.days && plan.days.length, 'day1 title:', plan && plan.days && plan.days[0] && plan.days[0].title);
     state.aiPlan = plan;
     // Map AI days into the per-day override system so they flow through
     // generatePlan()/getPlanDays() automatically.
     if(Array.isArray(plan.days) && plan.days.length){
       state.aiDays = plan.days;
       state.planOverrides = state.planOverrides || {};
+      state.taskOverrides = state.taskOverrides || {};
       plan.days.forEach((d,i)=>{
         state.planOverrides[i+1] = {
           title: d.title || undefined,
@@ -2140,7 +2148,14 @@ async function generatePlanAI(answers){
           desc: d.desc || undefined,
           tasks: Array.isArray(d.tasks)? d.tasks : undefined
         };
+        // getDayTasks() reads from taskOverrides, so write the AI tasks there too
+        // otherwise the day shows the generic hard-coded template instead.
+        if(Array.isArray(d.tasks) && d.tasks.length){
+          state.taskOverrides[i+1] = d.tasks.slice();
+        }
       });
+    } else {
+      console.warn('[Nuci AI] plan had no days array - template titles will show. Raw:', JSON.stringify(plan).slice(0,300));
     }
     // Store AI explanation + causes + what-not-to-do for the overview/assessment.
     if(plan.behaviorExplain) state.aiBehaviorExplain = plan.behaviorExplain;
@@ -2151,7 +2166,7 @@ async function generatePlanAI(answers){
     if(Array.isArray(plan.whatNotToDo)) state.aiWhatNotToDo = plan.whatNotToDo;
     generatePlan(answers);
   }catch(e){
-    console.warn('AI plan failed, using local template', e);
+    console.error('[Nuci AI] FAILED, using local template. Reason:', e && e.message ? e.message : e);
     generatePlan(answers);
   }
 }
@@ -3614,6 +3629,14 @@ function startNewAssessment(){
   state.currentDay=1; state.checkins=[]; state.streak=0;
   state.lastCheckinDate=null; state.tasksDone={};
   state.planComplete=false; state.extended=false;
+  // Clear the previous pet's AI plan so the new pet gets its OWN plan, not
+  // inherited tasks/titles. Also reset the roadmap plan cache key.
+  state.taskOverrides={}; state.planOverrides={};
+  state.aiDays=null; state.aiPlan=null; state.dayInsights={};
+  state.aiBehaviorExplain=null; state.aiAssessment=null;
+  state.aiSeekProfessional=false; state.aiProfessionalNote=null;
+  state.aiCauses=null; state.aiWhatNotToDo=null;
+  try{ _roadmapPlanPromise=null; _roadmapPlanKey=null; }catch(e){}
   const ei=document.getElementById('entryInput'); if(ei) ei.value='';
   const ec=document.getElementById('entryChar'); if(ec) ec.textContent='0/500';
   // Existing signed-in user adding another pet: show the entry page (the
@@ -4309,6 +4332,12 @@ async function adaptNextDay(dayNum){
         desc: data.day.desc || undefined,
         tasks: Array.isArray(data.day.tasks)? data.day.tasks : undefined
       };
+      // getDayTasks() reads from taskOverrides - write the adapted tasks there
+      // too, otherwise the day keeps showing the generic template tasks.
+      if(Array.isArray(data.day.tasks) && data.day.tasks.length){
+        state.taskOverrides = state.taskOverrides || {};
+        state.taskOverrides[dayNum] = data.day.tasks.slice();
+      }
       if(data.insight){
         state.dayInsights = state.dayInsights || {};
         state.dayInsights[dayNum] = data.insight;
