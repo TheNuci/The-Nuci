@@ -22,24 +22,24 @@
 // directly based on usage. Set usage limits in the Anthropic console.
 // ═══════════════════════════════════════════════════════════════════
 
-exports.handler = async (event) => {
+export default async (req) => {
   // Only allow POST
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   }
 
   const API_KEY = process.env.ANTHROPIC_API_KEY;
   if (!API_KEY) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'AI key not configured on server' }) };
+    return new Response(JSON.stringify({ error: 'AI key not configured on server' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 
   let answers, lang;
   try {
-    const body = JSON.parse(event.body || '{}');
+    const body = await req.json();
     answers = body.answers || {};
     lang = body.lang === 'sl' ? 'sl' : 'en';   // default to English
   } catch (e) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Bad request body' }) };
+    return new Response(JSON.stringify({ error: 'Bad request body' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
   const langName = 'English';   // app is English-only; always respond in English
@@ -124,7 +124,7 @@ exports.handler = async (event) => {
 
     const data = await resp.json();
     if (!resp.ok) {
-      return { statusCode: 502, body: JSON.stringify({ error: 'AI request failed', detail: data }) };
+      return new Response(JSON.stringify({ error: 'AI request failed', detail: data }), { status: 502, headers: { 'Content-Type': 'application/json' } });
     }
 
     // Extract the text content and parse the JSON the model returned
@@ -138,15 +138,11 @@ exports.handler = async (event) => {
     try {
       plan = JSON.parse(text);
     } catch (e) {
-      return { statusCode: 502, body: JSON.stringify({ error: 'AI returned non-JSON', raw: text }) };
+      return new Response(JSON.stringify({ error: 'AI returned non-JSON', raw: text }), { status: 502, headers: { 'Content-Type': 'application/json' } });
     }
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(plan)
-    };
+    return new Response(JSON.stringify(plan), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'Server error', detail: String(e) }) };
+    return new Response(JSON.stringify({ error: 'Server error', detail: String(e) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 };
