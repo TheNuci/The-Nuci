@@ -411,6 +411,9 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <!-- ROADMAP - full screen, no scroll -->
 <section class="screen" id="screen-roadmap">
   <div class="roadmap-inner">
+    <div onclick="showScreen('screen-entry')" role="button" aria-label="The Nuci - back to start" style="text-align:center;margin-bottom:20px;cursor:pointer;font-family:'Sora',-apple-system,sans-serif;font-weight:700;letter-spacing:-0.04em;font-size:20px;line-height:1;user-select:none;">
+      <span style="color:#6B8F71;">The</span> <span style="color:#111111;">Nuci</span><span style="color:#6B8F71;">.</span>
+    </div>
     <button class="back-btn" id="roadmapBackBtn" onclick="state.fromUpsell=false;showScreen('screen-app');showTab('profile');" style="display:none;margin-bottom:14px;">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Back to profile
@@ -1719,16 +1722,30 @@ function buildRoadmapAnalysis(){
   ensureRoadmapPlan();
 }
 
-// Generate the AI plan (once) while the user is on the roadmap, so the Day 1
-// preview is real. Stores result in state.planOverrides via generatePlanAI.
+// Generate the AI plan (once per pet) while the user is on the roadmap, so the
+// Day 1 preview is real AND specific to THIS pet. The cache is keyed to the
+// current pet's answers - if the pet/problem changes, we regenerate instead of
+// reusing the previous pet's plan.
 let _roadmapPlanPromise=null;
+let _roadmapPlanKey=null;
+function _answersSignature(a){
+  a = a || state.answers || {};
+  return [a.petName, a.petType, a.mainIssue||a.issue||a.behaviour||a.entry, a.severity].join('||');
+}
 function ensureRoadmapPlan(){
-  if(state.planOverrides && state.planOverrides[1]) return Promise.resolve();   // already have it
-  if(_roadmapPlanPromise) return _roadmapPlanPromise;
+  const sig=_answersSignature();
+  // If we already have a plan but it was built for a DIFFERENT pet/problem,
+  // clear it so we generate a fresh one for the current pet.
+  if(_roadmapPlanKey && _roadmapPlanKey!==sig){
+    _roadmapPlanPromise=null;
+    try{ state.planOverrides={}; state.aiDays=null; state.aiPlan=null; }catch(e){}
+  }
+  if(state.planOverrides && state.planOverrides[1] && _roadmapPlanKey===sig) return Promise.resolve();
+  if(_roadmapPlanPromise && _roadmapPlanKey===sig) return _roadmapPlanPromise;
+  _roadmapPlanKey=sig;
   _roadmapPlanPromise = (async()=>{
     try{ await generatePlanAI(state.answers); }
     catch(e){ try{ generatePlan(state.answers); }catch(_){ } }
-    // refresh the Day 1 title with the real plan title if available
     try{
       const d1=getPlanDays()[0];
       const tEl=document.getElementById('anDay1Title');
