@@ -2130,7 +2130,8 @@ async function generatePlanAI(answers){
     if(!res.ok){
       let errBody=''; try{ errBody=await res.text(); }catch(e){}
       console.error('[Nuci AI] endpoint returned error', res.status, errBody);
-      throw new Error('AI endpoint '+res.status);
+      // Show the FULL raw response so we can see exactly what the function said.
+      throw new Error('HTTP '+res.status+' | RAW: '+String(errBody).slice(0,400));
     }
     const plan = await res.json();
     console.log('[Nuci AI] got plan. days:', plan && plan.days && plan.days.length, 'day1 title:', plan && plan.days && plan.days[0] && plan.days[0].title);
