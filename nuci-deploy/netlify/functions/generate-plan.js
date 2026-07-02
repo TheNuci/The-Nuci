@@ -23,12 +23,34 @@
 // ═══════════════════════════════════════════════════════════════════
 
 export default async (req) => {
-  // Only allow POST
+  const API_KEY = process.env.ANTHROPIC_API_KEY;
+
+  // SELF-TEST: open this function in a browser with ?selftest=1 to see exactly
+  // what happens with the AI call - key presence, status, and raw response.
+  let selftest = false;
+  try{ selftest = new URL(req.url).searchParams.get('selftest') === '1'; }catch(e){}
+  if (req.method === 'GET' && selftest) {
+    if (!API_KEY) {
+      return new Response('SELFTEST: ANTHROPIC_API_KEY is NOT set in Netlify env vars.', { status: 200 });
+    }
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 50, messages: [{ role: 'user', content: 'Reply with the single word: OK' }] })
+      });
+      const raw = await r.text();
+      return new Response('SELFTEST status=' + r.status + '\nKEY starts: ' + API_KEY.slice(0,8) + '...\nRAW:\n' + raw, { status: 200 });
+    } catch (e) {
+      return new Response('SELFTEST fetch threw: ' + String(e), { status: 200 });
+    }
+  }
+
+  // Only allow POST for the real endpoint
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   }
 
-  const API_KEY = process.env.ANTHROPIC_API_KEY;
   if (!API_KEY) {
     return new Response(JSON.stringify({ error: 'AI key not configured on server' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
