@@ -116,7 +116,7 @@ export default async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1000,
+        max_tokens: 4000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
@@ -128,17 +128,20 @@ export default async (req) => {
     }
 
     // Extract the text content and parse the JSON the model returned
-    const text = (data.content || [])
+    let text = (data.content || [])
       .map(b => (b.type === 'text' ? b.text : ''))
       .join('')
       .replace(/```json|```/g, '')
       .trim();
+    // If the model wrapped the JSON in any prose, grab the object itself.
+    const first = text.indexOf('{'), last = text.lastIndexOf('}');
+    if(first > 0 && last > first) text = text.slice(first, last + 1);
 
     let plan;
     try {
       plan = JSON.parse(text);
     } catch (e) {
-      return new Response(JSON.stringify({ error: 'AI returned non-JSON', raw: text }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'AI returned non-JSON', raw: text.slice(0,200) }), { status: 502, headers: { 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify(plan), { status: 200, headers: { 'Content-Type': 'application/json' } });

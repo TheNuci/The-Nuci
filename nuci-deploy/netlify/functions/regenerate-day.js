@@ -80,7 +80,7 @@ export default async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1200,
+        max_tokens: 3000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
@@ -91,17 +91,19 @@ export default async (req) => {
       return new Response(JSON.stringify({ error: 'AI request failed', detail: data }), { status: 502, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const text = (data.content || [])
+    let text = (data.content || [])
       .map(b => (b.type === 'text' ? b.text : ''))
       .join('')
       .replace(/```json|```/g, '')
       .trim();
+    const first = text.indexOf('{'), last = text.lastIndexOf('}');
+    if(first > 0 && last > first) text = text.slice(first, last + 1);
 
     let result;
     try {
       result = JSON.parse(text);
     } catch (e) {
-      return new Response(JSON.stringify({ error: 'AI returned non-JSON', raw: text }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'AI returned non-JSON', raw: text.slice(0,200) }), { status: 502, headers: { 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
