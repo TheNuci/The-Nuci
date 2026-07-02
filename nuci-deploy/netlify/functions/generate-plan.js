@@ -22,52 +22,9 @@
 // directly based on usage. Set usage limits in the Anthropic console.
 // ═══════════════════════════════════════════════════════════════════
 
-export default async (req) => {
-  const API_KEY = process.env.ANTHROPIC_API_KEY;
-
-  // SELF-TEST: open this function in a browser with ?selftest=1 to see exactly
-  // what happens with the AI call - key presence, status, and raw response.
-  let selftest = false;
-  try{ selftest = new URL(req.url).searchParams.get('selftest') === '1'; }catch(e){}
-  if (req.method === 'GET' && selftest) {
-    if (!API_KEY) {
-      return new Response('SELFTEST: ANTHROPIC_API_KEY is NOT set in Netlify env vars.', { status: 200 });
-    }
-    try {
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 50, messages: [{ role: 'user', content: 'Reply with the single word: OK' }] })
-      });
-      const raw = await r.text();
-      return new Response('SELFTEST status=' + r.status + '\nKEY starts: ' + API_KEY.slice(0,8) + '...\nRAW:\n' + raw, { status: 200 });
-    } catch (e) {
-      return new Response('SELFTEST fetch threw: ' + String(e), { status: 200 });
-    }
-  }
-
-  // Only allow POST for the real endpoint
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
-  }
-
-  if (!API_KEY) {
-    return new Response(JSON.stringify({ error: 'AI key not configured on server' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-  }
-
-  let answers, lang;
-  try {
-    const body = await req.json();
-    answers = body.answers || {};
-    lang = body.lang === 'sl' ? 'sl' : 'en';   // default to English
-  } catch (e) {
-    return new Response(JSON.stringify({ error: 'Bad request body' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-  }
-
-  const langName = 'English';   // app is English-only; always respond in English
-
-  // The instruction we give the AI. It must return STRICT JSON only.
-  const systemPrompt =
+// System prompt for the AI - defined once, reused by the endpoint and self-test.
+function buildSystemPrompt(){
+  return (
     `You are a highly experienced veterinary behaviourist - the equivalent of a clinician who has ` +
     `spent many years assessing and treating animal behaviour. You combine the rigour of veterinary ` +
     `medicine with practical, force-free, evidence-based behaviour modification (positive reinforcement, ` +
@@ -124,7 +81,88 @@ export default async (req) => {
     `    {"title":"short title","sub":"short subtitle","desc":"one short sentence","tasks":["task1","task2","task3","task4","task5"]}\n` +
     `    // EXACTLY 3 entries (day 1, day 2, day 3)\n` +
     `  ]\n` +
-    `}`;
+    `}`
+  );
+}
+
+export default async (req) => {
+  const API_KEY = process.env.ANTHROPIC_API_KEY;
+
+  // SELF-TEST: open this function in a browser with ?selftest=1 to see exactly
+  // what happens with the AI call - key presence, status, and raw response.
+  let selftest = false;
+  try{ selftest = new URL(req.url).searchParams.get('selftest') === '1'; }catch(e){}
+  if (req.method === 'GET' && selftest) {
+    if (!API_KEY) {
+      return new Response('SELFTEST: ANTHROPIC_API_KEY is NOT set in Netlify env vars.', { status: 200 });
+    }
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 50, messages: [{ role: 'user', content: 'Reply with the single word: OK' }] })
+      });
+      const raw = await r.text();
+      return new Response('SELFTEST status=' + r.status + '\nKEY starts: ' + API_KEY.slice(0,8) + '...\nRAW:\n' + raw, { status: 200 });
+    } catch (e) {
+      return new Response('SELFTEST fetch threw: ' + String(e), { status: 200 });
+    }
+  }
+
+  // SELF-TEST 2: ?selftest=2 runs the FULL real plan generation (same prompt,
+  // same max_tokens) and reports whether the JSON parses - the real test.
+  let selftest2 = false;
+  try{ selftest2 = new URL(req.url).searchParams.get('selftest') === '2'; }catch(e){}
+  if (req.method === 'GET' && selftest2) {
+    if (!API_KEY) return new Response('SELFTEST2: no API key', { status: 200 });
+    try {
+      const testAnswers = { petName:'Testko', petType:'dog', mainIssue:'dog pees in the house when left alone' };
+      const sp = buildSystemPrompt();
+      const up = 'Owner intake answers:\n' + JSON.stringify(testAnswers, null, 2);
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 4000, system: sp, messages: [{ role: 'user', content: up }] })
+      });
+      const data = await r.json();
+      let text = (data.content || []).map(b => (b.type==='text'?b.text:'')).join('').replace(/```json|```/g,'').trim();
+      const f=text.indexOf('{'), l=text.lastIndexOf('}'); if(f>0&&l>f) text=text.slice(f,l+1);
+      let parsed=null, perr=null;
+      try{ parsed=JSON.parse(text); }catch(e){ perr=String(e); }
+      return new Response(
+        'SELFTEST2 status='+r.status+'\noutput_tokens='+(data.usage&&data.usage.output_tokens)+
+        '\nstop_reason='+data.stop_reason+
+        '\nJSON parsed: '+(parsed?'YES ✓':'NO ✗ '+perr)+
+        '\ndays: '+(parsed&&parsed.days?parsed.days.length:'n/a')+
+        '\nday1 title: '+(parsed&&parsed.days&&parsed.days[0]?parsed.days[0].title:'n/a')+
+        '\n\nRAW (first 600):\n'+text.slice(0,600), { status: 200 });
+    } catch (e) {
+      return new Response('SELFTEST2 threw: '+String(e), { status: 200 });
+    }
+  }
+
+  // Only allow POST for the real endpoint
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  if (!API_KEY) {
+    return new Response(JSON.stringify({ error: 'AI key not configured on server' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  let answers, lang;
+  try {
+    const body = await req.json();
+    answers = body.answers || {};
+    lang = body.lang === 'sl' ? 'sl' : 'en';   // default to English
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'Bad request body' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  const langName = 'English';   // app is English-only; always respond in English
+
+  // The instruction we give the AI. It must return STRICT JSON only.
+  const systemPrompt = buildSystemPrompt();
 
   const userPrompt = `Owner intake answers (JSON):\n${JSON.stringify(answers, null, 2)}\n\nCreate the plan that best helps THIS specific pet resolve THIS specific problem.`;
 
