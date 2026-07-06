@@ -447,6 +447,23 @@ p{color:var(--secondary)}
 @media (prefers-reduced-motion: reduce){
   body::before,.screen.active,.tab-content,.v2-cascade,.v2-word,.nav-item.active::before,.celebration-overlay.show > div{animation:none!important;opacity:1!important;transform:none!important}
   .card,.btn,.nav-item,.nav-item svg{transition:none!important}
+  .save-badge{animation:none!important}
+}
+/* Burgundy "save" badges that gently bounce to catch the eye */
+.save-badge{
+  font-size:0.72rem;font-weight:800;letter-spacing:0.02em;color:#fff;
+  background:linear-gradient(180deg,#9B2D3F,#7A1F2E);
+  padding:3px 10px;border-radius:99px;align-self:center;white-space:nowrap;
+  box-shadow:0 3px 10px rgba(122,31,46,0.35);
+  animation:saveBounce 1.6s var(--spring,ease-in-out) infinite;
+  transform-origin:center bottom;
+}
+@keyframes saveBounce{
+  0%,100%{transform:translateY(0) scale(1)}
+  15%{transform:translateY(-5px) scale(1.06)}
+  30%{transform:translateY(0) scale(1)}
+  45%{transform:translateY(-2px) scale(1.02)}
+  60%{transform:translateY(0) scale(1)}
 }
 </style>
 </head>
@@ -635,6 +652,7 @@ p{color:var(--secondary)}
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:16px;">
           <span style="font-size:1rem;color:var(--secondary);text-decoration:line-through;opacity:0.6;">€19.95</span>
           <span id="pkgPriceSingle" style="font-family:'Inter Tight',sans-serif;font-size:2.4rem;font-weight:600;letter-spacing:-0.03em;">€9.95</span>
+          <span class="save-badge">SAVE €10</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:9px;">
           <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">A personalized 7-day behaviour plan</span></div>
@@ -643,14 +661,14 @@ p{color:var(--secondary)}
           <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Progress tracking over time</span></div>
         </div>
       </div>
-      <!-- Triple (best value) -->
+      <!-- Triple -->
       <div class="pkg-card" data-pkg="triple" onclick="selectPackage('triple')">
-        <div class="pkg-badge">Best value</div>
         <div style="font-family:'Inter Tight',sans-serif;font-size:1.15rem;font-weight:600;margin-bottom:2px;">3 plans</div>
         <div style="font-size:0.82rem;color:var(--secondary);margin-bottom:14px;">For multiple pets or future issues</div>
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:16px;">
           <span style="font-size:1rem;color:var(--secondary);text-decoration:line-through;opacity:0.6;">€59.95</span>
           <span id="pkgPriceTriple" style="font-family:'Inter Tight',sans-serif;font-size:2.4rem;font-weight:600;letter-spacing:-0.03em;">€19.95</span>
+          <span class="save-badge">SAVE €40</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:9px;">
           <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;"><strong>Three</strong> 7-day behaviour plans</span></div>
@@ -659,8 +677,25 @@ p{color:var(--secondary)}
           <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Save €10 versus buying separately</span></div>
         </div>
       </div>
+      <!-- Five (best value) -->
+      <div class="pkg-card" data-pkg="five" onclick="selectPackage('five')">
+        <div class="pkg-badge">Best value</div>
+        <div style="font-family:'Inter Tight',sans-serif;font-size:1.15rem;font-weight:600;margin-bottom:2px;">5 plans</div>
+        <div style="font-size:0.82rem;color:var(--secondary);margin-bottom:14px;">Best for households with several pets</div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:16px;">
+          <span style="font-size:1rem;color:var(--secondary);text-decoration:line-through;opacity:0.6;">€99.95</span>
+          <span id="pkgPriceFive" style="font-family:'Inter Tight',sans-serif;font-size:2.4rem;font-weight:600;letter-spacing:-0.03em;">€29.95</span>
+          <span class="save-badge">SAVE €70</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;"><strong>Five</strong> 7-day behaviour plans</span></div>
+          <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Use them for different pets or issues</span></div>
+          <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Daily check-ins with AI insights</span></div>
+          <div style="display:flex;gap:9px;"><span style="color:var(--success);font-weight:600;">✓</span><span style="font-size:0.87rem;line-height:1.35;">Best price per plan</span></div>
+        </div>
+      </div>
     </div>
-    <div class="pkg-dots" id="pkgDots"><div class="pkg-dot on"></div><div class="pkg-dot"></div></div>
+    <div class="pkg-dots" id="pkgDots"><div class="pkg-dot on"></div><div class="pkg-dot"></div><div class="pkg-dot"></div></div>
 
     <button onclick="goToStripeFromRoadmap()" id="roadmapUnlockBtn" style="width:100%;padding:15px;background:var(--text);color:white;border:none;border-radius:14px;font-family:'Inter',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.2s;margin-top:16px;" onmouseenter="this.style.opacity='0.9'" onmouseleave="this.style.opacity='1'">
       Unlock My Plan
@@ -1013,7 +1048,7 @@ p{color:var(--secondary)}
         <div class="profile-row" onclick="openProfileDetail('history')"><span style="font-size:0.9rem;font-weight:500;">Assessment History</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <div class="profile-row" onclick="openProfileDetail('plans')"><span style="font-size:0.9rem;font-weight:500;">Previous Plans</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <div class="profile-row" onclick="openArchive()"><span style="font-size:0.9rem;font-weight:500;">Archive</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="profile-row" onclick="openProfileDetail('referral')"><span style="font-size:0.9rem;font-weight:500;display:flex;align-items:center;gap:8px;">Invite &amp; Earn <span style="font-size:0.62rem;font-weight:700;letter-spacing:0.04em;background:rgba(107,143,113,0.16);color:var(--forest);padding:2px 7px;border-radius:99px;text-transform:uppercase;">Earn €50</span></span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="profile-row" onclick="openProfileDetail('referral')"><span style="font-size:0.9rem;font-weight:500;display:flex;align-items:center;gap:8px;">Invite &amp; Earn <span style="font-size:0.62rem;font-weight:700;letter-spacing:0.04em;background:rgba(107,143,113,0.16);color:var(--forest);padding:2px 7px;border-radius:99px;text-transform:uppercase;">Earn €30</span></span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <div class="profile-row" style="border-bottom:none;" onclick="openProfileDetail('settings')"><span style="font-size:0.9rem;font-weight:500;">Account Settings</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       </div>
       <div class="card" style="padding:8px 20px;margin-bottom:16px;">
@@ -1334,11 +1369,11 @@ function openLegal(kind){
        <p><strong>1. Service provider</strong><br>The Nuci service (the "service"), available at thenuci.com, is provided by ${companyFull}. Contact: ${email}.</p>
        <p><strong>2. Description of the service</strong><br>The Nuci is a digital tool that uses your input to generate a personalized behaviour plan for your pet and lets you track daily progress. The plan is created and adapted by artificial intelligence, which applies general, force-free behavioural principles to the information you provide, and updates each upcoming day based on your daily check-ins and notes. The service provides general behavioural guidance only and is <strong>not a substitute for professional veterinary or behavioural care, diagnosis, or treatment</strong>. The AI does not examine your pet, cannot diagnose medical or psychological conditions, and does not prescribe medication or medical treatment. Where your input suggests a possible medical cause, a serious or escalating problem, aggression or risk of injury, or any situation beyond safe self-help, the service may recommend that you consult a qualified veterinarian or in-person professional - and you should do so. For any medical, urgent, or serious behavioural concern, always consult a qualified veterinarian first.</p>
        <p><strong>3. Eligibility</strong><br>You must be at least 18 years old and able to enter into a binding contract to use the service.</p>
-       <p><strong>4. Plans, credits and payment</strong><br>Access to a behaviour plan is a one-time purchase at the price shown at checkout. One purchase provides one plan (one pet); multi-plan packages provide credits to create additional pets, up to a maximum of six pets per account. Payments are processed securely by Stripe; we never see or store your full card details. Prices are shown in euros. The provider is not liable for VAT ("DDV se ne obračunava" - not a VAT payer under Slovenian law); any taxes are handled by the provider as required.</p>
+       <p><strong>4. Plans, credits and payment</strong><br>Access to a behaviour plan is a one-time purchase at the price shown at checkout. One purchase provides one plan (one pet); multi-plan packages (currently 3-plan and 5-plan bundles) provide credits to create additional pets. There is no limit on the number of pets or plans on an account; older completed plans are archived automatically. Payments are processed securely by Stripe; we never see or store your full card details. Prices are shown in euros. The provider is not liable for VAT ("DDV se ne obračunava" - not a VAT payer under Slovenian law); any taxes are handled by the provider as required.</p>
        <p><strong>5. Right of withdrawal (digital content)</strong><br>The plan is digital content that is supplied immediately. By completing the purchase, you expressly request immediate performance and <strong>acknowledge that you thereby lose your statutory 14-day right of withdrawal</strong> under the Slovenian Consumer Protection Act (ZVPot) and EU Directive 2011/83/EU. Outside this, refunds are provided only where required by law.</p>
        <p><strong>6. Emails</strong><br>As part of the service we send transactional emails (e.g. account, password reset, daily check-in reminders) and, based on your consent or our legitimate interest, occasional helpful or promotional emails. You can opt out of non-essential emails at any time in your profile or via the unsubscribe option.</p>
        <p><strong>7. Acceptable use</strong><br>Your account is personal. You may not resell, redistribute, or publicly republish the generated content without permission, nor misuse the service or attempt to disrupt it.</p>
-       <p><strong>8. Referral program</strong><br>You may share your personal invite link. When people you refer create their own account and complete their first purchase, they count toward reward milestones shown in your profile (currently 5 friends = €10, 8 = €20, 10 = €50). Only genuine, completed purchases by distinct new users qualify; self-referrals, duplicate or fake accounts, refunded purchases, and any attempt to game the system do not count and may lead to removal from the program. Rewards are paid manually after you reach a milestone and contact us to claim; please allow reasonable time for verification and payout. We may change, suspend, or end the referral program and its reward tiers at any time, and we may withhold rewards where we reasonably suspect abuse. Any tax arising on a reward you receive is your responsibility.</p>
+       <p><strong>8. Referral program</strong><br>You may share your personal invite link. When people you refer create their own account and complete their first purchase, they count toward reward milestones shown in your profile (currently 5 friends = €9.95, 8 = €19.95, 10 = €29.95). Only genuine, completed purchases by distinct new users qualify; self-referrals, duplicate or fake accounts, refunded purchases, and any attempt to game the system do not count and may lead to removal from the program. Rewards are paid manually after you reach a milestone and contact us to claim; please allow reasonable time for verification and payout. We may change, suspend, or end the referral program and its reward tiers at any time, and we may withhold rewards where we reasonably suspect abuse. Any tax arising on a reward you receive is your responsibility.</p>
        <p><strong>9. Liability</strong><br>The service is provided "as is" and is used at your own discretion and risk. We do not guarantee specific outcomes in animal behaviour, and behaviour change depends on many factors outside our control. You remain solely responsible for your pet, for the safety of yourself and others, and for any decision to act on the guidance provided. To the maximum extent permitted by law, we are not liable for any injury, loss, or damage - to people, animals, or property - arising from your use of the service or from following any AI-generated suggestion, nor for indirect or consequential damages. Nothing in these terms limits liability that cannot be limited by law, including liability for death or personal injury caused by our negligence.</p>
        <p><strong>10. Changes</strong><br>We may update these terms from time to time. Material changes will be reflected by the "last updated" date. Continued use after changes constitutes acceptance.</p>
        <p><strong>11. Governing law and disputes</strong><br>These terms are governed by the laws of the Republic of Slovenia. Mandatory consumer rights in your country of residence remain unaffected. Consumers may also use the EU Online Dispute Resolution platform at ec.europa.eu/consumers/odr.</p>
@@ -1432,9 +1467,9 @@ window.__landingURL = window.location.href;
 // 5 paid = 10 EUR, 8 paid = 20 EUR, 10 paid = 50 EUR. Payouts are manual.
 // ═══════════════════════════════════════════════════════════════════
 const REFERRAL_TIERS = [
-  { count:5,  reward:10 },
-  { count:8,  reward:20 },
-  { count:10, reward:50 },
+  { count:5,  reward:9.95,  label:'€10' },
+  { count:8,  reward:19.95, label:'€20' },
+  { count:10, reward:29.95, label:'€30' },
 ];
 // Deterministic short code from an email (stable per user, no DB needed to derive).
 function refCodeFor(email){
@@ -2298,12 +2333,14 @@ function closeDay1Preview(){ const s=document.getElementById('day1PreviewSheet')
 
 function updateRoadmapPrices(){
   const disc = state.pendingDiscount || 0;
-  const single = 9.95, triple = 19.95;
+  const single = 9.95, triple = 19.95, five = 29.95;
   const fmt = v => '€'+(Math.round(v*(1-disc)*100)/100).toFixed(2);
   const sEl=document.getElementById('pkgPriceSingle');
   const tEl=document.getElementById('pkgPriceTriple');
+  const fEl=document.getElementById('pkgPriceFive');
   if(sEl) sEl.textContent = fmt(single);
   if(tEl) tEl.textContent = fmt(triple);
+  if(fEl) fEl.textContent = fmt(five);
   const banner=document.getElementById('roadmapDiscountBanner');
   if(banner) banner.style.display = disc ? 'block' : 'none';
   const backBtn=document.getElementById('roadmapBackBtn');
@@ -2789,12 +2826,14 @@ function formatExp(el){
 // ═══════════════════════════════════════════════════════════════════
 const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/test_28EaEQ8Pd27K9DW7ULcwg00'; // TEST mode link (1 plan)
 const STRIPE_PAYMENT_LINK_3PACK = 'https://buy.stripe.com/test_fZu00c9ThcMo5nGdf5cwg01'; // TEST link (3-plan bundle €19.95)
+const STRIPE_PAYMENT_LINK_5PACK = 'REPLACE_WITH_5PACK_STRIPE_LINK'; // TODO: create Stripe link for 5-plan bundle €29.95
 
 // ─── Packages ───────────────────────────────────────────────────────
 // credits = how many plans the purchase unlocks.
 const PACKAGES = [
   { id:'single', credits:1, price:9.95,  anchor:19.95, link:STRIPE_PAYMENT_LINK },
-  { id:'triple', credits:3, price:19.95, anchor:59.95, link:STRIPE_PAYMENT_LINK_3PACK, best:true },
+  { id:'triple', credits:3, price:19.95, anchor:59.95, link:STRIPE_PAYMENT_LINK_3PACK },
+  { id:'five',   credits:5, price:29.95, anchor:99.95, link:STRIPE_PAYMENT_LINK_5PACK, best:true },
 ];
 let selectedPackage = PACKAGES[0];
 
@@ -3785,13 +3824,7 @@ function renderAssessmentSwitcher(){
 // Start a new pet using one available credit (from an empty dropdown slot).
 function addPetFromCredit(){
   if((state.planCredits||0)<=0) return;
-  // Max 6 pets per account.
-  if((state.assessments||[]).length>=6){
-    const dd=document.getElementById('assessDropdown'); if(dd) dd.style.display='none';
-    const ch=document.getElementById('assessChevron'); if(ch) ch.style.transform='rotate(0deg)';
-    showCelebration('🐾','Maximum reached','You can track up to 6 pets on one account.','Got it',()=>{});
-    return;
-  }
+  // No pet limit - older completed plans are archived automatically.
   // close dropdown
   const dd=document.getElementById('assessDropdown'); if(dd) dd.style.display='none';
   const ch=document.getElementById('assessChevron'); if(ch) ch.style.transform='rotate(0deg)';
@@ -3887,11 +3920,7 @@ function updateCreditsHint(){
 }
 
 function buyNewPlan(){
-  // Max 6 pets per account - no point buying more credits beyond that.
-  if((state.assessments||[]).length>=6 && (state.planCredits||0)<=0){
-    showCelebration('🐾','Maximum reached','You can track up to 6 pets on one account.','Got it',()=>{});
-    return;
-  }
+  // No pet limit - buy as many plans as wanted; older plans archive automatically.
   // Open the package picker modal over a blurred profile.
   const t=document.getElementById('buyPlanTitle'); if(t) t.textContent='Buy a new plan';
   const s=document.getElementById('buyPlanSub'); if(s) s.textContent='Choose your package';
@@ -4410,7 +4439,7 @@ function referralBarHTML(paid){
     <div style="position:relative;height:20px;margin-top:8px;">
       <div style="position:absolute;left:45%;transform:translateX(-50%);">${label('€10',paid>=5,false)}</div>
       <div style="position:absolute;left:75%;transform:translateX(-50%);">${label('€20',paid>=8,false)}</div>
-      <div style="position:absolute;left:97%;transform:translateX(-50%);">${label('€50',paid>=10,true)}</div>
+      <div style="position:absolute;left:97%;transform:translateX(-50%);">${label('€30',paid>=10,true)}</div>
     </div>`;
 }
 
@@ -4424,11 +4453,11 @@ async function loadReferralProgress(){
   if(barEl) barEl.innerHTML = referralBarHTML(paid);
   if(msgEl){
     // Highest tier reached + next target.
-    let reached=0; REFERRAL_TIERS.forEach(t=>{ if(paid>=t.count) reached=t.reward; });
+    let reached=null; REFERRAL_TIERS.forEach(t=>{ if(paid>=t.count) reached=t; });
     const next = REFERRAL_TIERS.find(t=>paid<t.count);
     let m='';
-    if(reached>0) m+=`<span style="color:var(--forest);font-weight:700;">You've earned €${reached}!</span> `;
-    if(next){ const need=next.count-paid; m+=`${need} more ${need===1?'friend':'friends'} to reach €${next.reward}.`; }
+    if(reached) m+=`<span style="color:var(--forest);font-weight:700;">You've earned ${reached.label}!</span> `;
+    if(next){ const need=next.count-paid; m+=`${need} more ${need===1?'friend':'friends'} to reach ${next.label}.`; }
     else m+='You\'ve hit the top reward. Amazing!';
     if(paid===0) m='Share your link to get started.';
     msgEl.innerHTML=m;
