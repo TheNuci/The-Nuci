@@ -102,9 +102,10 @@ export default async (req) => {
   // Fetch candidate profiles via PostgREST using the service_role key (bypasses RLS).
   // Only pull rows that have a timezone and haven't opted out.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
-    `?select=email,timezone,last_checkin_date,email_reminders,last_reminder_sent` +
+    `?select=email,timezone,last_checkin_date,email_reminders,last_reminder_sent,marketing_opt_out` +
     `&timezone=not.is.null` +
-    `&email_reminders=not.eq.false`;
+    `&email_reminders=not.eq.false` +
+    `&marketing_opt_out=not.eq.true`;
 
   let profiles;
   try {
@@ -126,19 +127,24 @@ export default async (req) => {
   }
 
   let sent = 0, skipped = 0, failed = 0;
+  const diag = [];
+  let wantDebug = false;
+  try{ wantDebug = new URL(req.url).searchParams.get('debug') === '1'; }catch(e){}
 
   for (const p of profiles) {
     const lp = localParts(p.timezone);
-    if (!lp) { skipped++; continue; }
+    if (!lp) { skipped++; diag.push(`${p.email}: bad/no timezone (${p.timezone})`); continue; }
 
     // Only the 20:00 hour, in the user's own timezone.
-    if (lp.hour !== REMINDER_HOUR) { skipped++; continue; }
+    if (lp.hour !== REMINDER_HOUR) { skipped++; diag.push(`${p.email}: local hour ${lp.hour} (need ${REMINDER_HOUR}), tz=${p.timezone}`); continue; }
 
     // Already checked in today (in their local date)? No reminder needed.
-    if (p.last_checkin_date === lp.date) { skipped++; continue; }
+    if (p.last_checkin_date === lp.date) { skipped++; diag.push(`${p.email}: already checked in today`); continue; }
 
     // Already reminded today? Don't double-send (cron runs hourly).
-    if (p.last_reminder_sent === lp.date) { skipped++; continue; }
+    if (p.last_reminder_sent === lp.date) { skipped++; diag.push(`${p.email}: already reminded today`); continue; }
+
+    if (wantDebug) { diag.push(`${p.email}: WOULD SEND (local ${lp.hour}:xx, tz=${p.timezone})`); continue; }
 
     try {
       await sendEmail(RESEND_API_KEY, p.email);
@@ -162,6 +168,11 @@ export default async (req) => {
 
   const summary = `Reminder run: sent=${sent} skipped=${skipped} failed=${failed} total=${profiles.length}`;
   console.log(summary);
+  if (wantDebug) {
+    return new Response(summary + '\n\n' + (diag.length ? diag.join('\n') : 'No profiles with timezone + reminders on.') +
+      '\n\nNote: emails only actually send at 20:00 in each user\'s timezone; this debug view lists why each row is or isn\'t eligible right now.',
+      { status: 200, headers: { 'Content-Type': 'text/plain' } });
+  }
   return new Response(summary, { status: 200 });
 };
 

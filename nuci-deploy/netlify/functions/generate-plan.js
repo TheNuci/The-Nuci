@@ -65,11 +65,13 @@ function buildSystemPrompt(){
     `should be involved, and explain why in "professionalNote". ` +
 
     `ALWAYS respond in English, even if the owner wrote in another language - translate their meaning. ` +
-    `Be CONCISE: tasks are short imperative phrases (max ~10 words each), subtitles max ~6 words, ` +
-    `day desc one short sentence. ` +
+    `Be CONCISE and keep the whole response compact so it is never cut off: ` +
+    `behaviorExplain max 2 sentences, assessment max 3 sentences, professionalNote max 2 sentences, ` +
+    `each task a short imperative phrase (max ~10 words), subtitles max ~6 words, day desc one short sentence, ` +
+    `each day has AT MOST 5 tasks. ` +
     `Generate the meta info plus ONLY the FIRST 3 DAYS (day 1 first concrete steps, day 2 builds, ` +
     `day 3 first progression). The remaining days are handled separately, so do NOT include them. ` +
-    `Return ONLY valid JSON (no markdown, no prose) with this exact shape:\n` +
+    `Return ONLY valid JSON. Your entire response MUST start with { and end with } - no preamble, no "Here is", no markdown, no text before or after. Use this exact shape:\n` +
     `{\n` +
     `  "behaviorExplain": "2 sentence likely cause for THIS pet and problem, in plain language",\n` +
     `  "assessment": "2-3 warm sentences to the owner: what you see, honest expectations, any boundary/safety note",\n` +
@@ -122,11 +124,11 @@ export default async (req) => {
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 4000, system: sp, messages: [{ role: 'user', content: up }] })
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 8000, system: sp, messages: [{ role: 'user', content: up }] })
       });
       const data = await r.json();
       let text = (data.content || []).map(b => (b.type==='text'?b.text:'')).join('').replace(/```json|```/g,'').trim();
-      const f=text.indexOf('{'), l=text.lastIndexOf('}'); if(f>0&&l>f) text=text.slice(f,l+1);
+      const f=text.indexOf('{'), l=text.lastIndexOf('}'); if(f>=0&&l>f) text=text.slice(f,l+1);
       let parsed=null, perr=null;
       try{ parsed=JSON.parse(text); }catch(e){ perr=String(e); }
       return new Response(
@@ -176,7 +178,7 @@ export default async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
+        max_tokens: 8000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
@@ -195,13 +197,29 @@ export default async (req) => {
       .trim();
     // If the model wrapped the JSON in any prose, grab the object itself.
     const first = text.indexOf('{'), last = text.lastIndexOf('}');
-    if(first > 0 && last > first) text = text.slice(first, last + 1);
+    if(first >= 0 && last > first) text = text.slice(first, last + 1);
 
     let plan;
     try {
       plan = JSON.parse(text);
     } catch (e) {
-      return new Response(JSON.stringify({ error: 'AI returned non-JSON', raw: text.slice(0,200) }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      // Last-resort repair: if the JSON got truncated, try closing open brackets.
+      let repaired = null;
+      try {
+        let t = text;
+        // remove a trailing incomplete line and dangling comma
+        t = t.replace(/,\s*$/, '').replace(/:\s*"[^"]*$/, ': ""').replace(/,\s*"[^"]*$/, '');
+        const opens = (t.match(/\{/g)||[]).length, closes = (t.match(/\}/g)||[]).length;
+        const aOpens = (t.match(/\[/g)||[]).length, aCloses = (t.match(/\]/g)||[]).length;
+        t += ']'.repeat(Math.max(0, aOpens - aCloses));
+        t += '}'.repeat(Math.max(0, opens - closes));
+        repaired = JSON.parse(t);
+      } catch(_) {}
+      if (repaired) {
+        plan = repaired;
+      } else {
+        return new Response(JSON.stringify({ error: 'AI returned non-JSON', raw: text.slice(0,200) }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      }
     }
 
     return new Response(JSON.stringify(plan), { status: 200, headers: { 'Content-Type': 'application/json' } });

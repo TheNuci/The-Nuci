@@ -78,6 +78,36 @@ export default async (req) => {
     return new Response('Missing configuration', { status: 500 });
   }
 
+  // debug=2: dump ALL profiles with raw columns, no filters, so we can see
+  // exactly what's in the table and which condition excludes each row.
+  let debugAll = false;
+  try{
+    const sp = new URL(req.url).searchParams;
+    debugAll = sp.get('debug') === '2' || sp.get('all') === '1';
+  }catch(e){}
+  if (debugAll) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=email,signup_at,purchased,cart_nudge_sent,marketing_opt_out,pet_name_pending`, {
+        headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` }
+      });
+      const txt = await r.text();
+      if (!r.ok) return new Response('[v2] DB error '+r.status+': '+txt, { status: 200 });
+      const rows = JSON.parse(txt);
+      const now = Date.now();
+      const lines = rows.map(p => {
+        const t = Date.parse(p.signup_at);
+        const age = isNaN(t) ? 'no-date' : Math.round((now-t)/60000)+'min';
+        return `${p.email} | signup_at=${p.signup_at||'NULL'} (${age}) | purchased=${p.purchased} | cart_nudge_sent=${p.cart_nudge_sent} | marketing_opt_out=${p.marketing_opt_out}`;
+      });
+      return new Response(
+        `[v2 debug] ALL profiles (${rows.length}):\n\n` + (lines.join('\n') || 'table empty') +
+        `\n\nWindow needed: signup between ${MIN_AGE_MIN}min and ${MAX_AGE_MIN}min ago, purchased!=true, cart_nudge_sent!=true, marketing_opt_out!=true.`,
+        { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    } catch (e) {
+      return new Response('[v2] debug2 error: '+String(e), { status: 200 });
+    }
+  }
+
   // Candidates: signed up, not purchased, not yet nudged, opted in.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
     `?select=email,signup_at,pet_name_pending,purchased,cart_nudge_sent,marketing_opt_out` +

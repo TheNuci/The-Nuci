@@ -80,7 +80,7 @@ export default async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 3000,
+        max_tokens: 8000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
@@ -97,13 +97,22 @@ export default async (req) => {
       .replace(/```json|```/g, '')
       .trim();
     const first = text.indexOf('{'), last = text.lastIndexOf('}');
-    if(first > 0 && last > first) text = text.slice(first, last + 1);
+    if(first >= 0 && last > first) text = text.slice(first, last + 1);
 
     let result;
     try {
       result = JSON.parse(text);
     } catch (e) {
-      return new Response(JSON.stringify({ error: 'AI returned non-JSON', raw: text.slice(0,200) }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      let repaired=null;
+      try{
+        let t=text.replace(/,\s*$/, '').replace(/:\s*"[^"]*$/, ': ""').replace(/,\s*"[^"]*$/, '');
+        const o=(t.match(/\{/g)||[]).length, c=(t.match(/\}/g)||[]).length;
+        const ao=(t.match(/\[/g)||[]).length, ac=(t.match(/\]/g)||[]).length;
+        t += ']'.repeat(Math.max(0,ao-ac)) + '}'.repeat(Math.max(0,o-c));
+        repaired=JSON.parse(t);
+      }catch(_){}
+      if(repaired){ result=repaired; }
+      else return new Response(JSON.stringify({ error: 'AI returned non-JSON', raw: text.slice(0,200) }), { status: 502, headers: { 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
