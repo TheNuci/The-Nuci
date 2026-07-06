@@ -16,8 +16,8 @@
 //   alter table profiles add column if not exists cart_nudge_sent boolean default false;
 
 const FROM = 'The Nuci <noreply@thenuci.com>';
-const MIN_AGE_MIN = 15;     // wait at least 15 minutes after signup
-const MAX_AGE_MIN = 180;    // ...but don't nudge people who signed up long ago (3h window)
+const MIN_AGE_MIN = 15;      // wait at least 15 minutes after signup
+const MAX_AGE_MIN = 2880;    // ...within 48h (was 3h - too narrow to ever fire)
 
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -78,6 +78,19 @@ export default async (req) => {
     return new Response('Missing configuration', { status: 500 });
   }
 
+  // test=EMAIL : send one abandoned-cart email right now to that address,
+  // bypassing all timing/DB filters. Proves the email pipeline works.
+  let testEmail = null;
+  try{ testEmail = new URL(req.url).searchParams.get('test'); }catch(e){}
+  if (testEmail) {
+    try{
+      await sendEmail(RESEND_API_KEY, testEmail, 'your pet');
+      return new Response('[test] Sent abandoned-cart email to ' + testEmail + '. Check inbox + spam.', { status: 200 });
+    }catch(e){
+      return new Response('[test] Send FAILED: ' + String(e), { status: 200 });
+    }
+  }
+
   // debug=2: dump ALL profiles with raw columns, no filters, so we can see
   // exactly what's in the table and which condition excludes each row.
   let debugAll = false;
@@ -108,12 +121,12 @@ export default async (req) => {
     }
   }
 
-  // Candidates: signed up, not purchased, not yet nudged, opted in.
+  // Candidates: signed up, not purchased, opted in. We fetch both nudge flags
+  // and decide per-profile whether the 15-min or the 48-h nudge is due.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
-    `?select=email,signup_at,pet_name_pending,purchased,cart_nudge_sent,marketing_opt_out` +
+    `?select=email,signup_at,pet_name_pending,purchased,cart_nudge_sent,cart_nudge2_sent,marketing_opt_out` +
     `&signup_at=not.is.null` +
     `&purchased=not.eq.true` +
-    `&cart_nudge_sent=not.eq.true` +
     `&marketing_opt_out=not.eq.true`;
 
   let profiles;
@@ -133,35 +146,51 @@ export default async (req) => {
   }
 
   const now = Date.now();
+  const SECOND_NUDGE_MIN = 2880;   // 48 hours
   let sent = 0, skipped = 0, failed = 0;
-  const diag = [];   // per-profile reason, returned when called with ?debug=1
+  const diag = [];
+
+  async function markFlag(email, field){
+    await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(email)}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ [field]: true })
+    });
+  }
 
   for (const p of profiles) {
     const t = Date.parse(p.signup_at);
     if (isNaN(t)) { skipped++; diag.push(`${p.email}: bad/empty signup_at (${p.signup_at})`); continue; }
     const ageMin = Math.round((now - t) / 60000);
-    // Only the 15min–3h window: old enough to count as "didn't buy", not ancient.
-    if (ageMin < MIN_AGE_MIN) { skipped++; diag.push(`${p.email}: too new (${ageMin}min, need >=${MIN_AGE_MIN})`); continue; }
-    if (ageMin > MAX_AGE_MIN) { skipped++; diag.push(`${p.email}: too old (${ageMin}min, max ${MAX_AGE_MIN})`); continue; }
 
-    try {
-      await sendEmail(RESEND_API_KEY, p.email, p.pet_name_pending);
-      await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(p.email)}`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`,
-          'Content-Type': 'application/json', 'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({ cart_nudge_sent: true })
-      });
-      sent++;
-      diag.push(`${p.email}: SENT (age ${ageMin}min)`);
-    } catch (e) {
-      console.error('Cart nudge failed for', p.email, e.message);
-      failed++;
-      diag.push(`${p.email}: send failed - ${e.message}`);
+    // Decide which nudge (if any) is due for this profile.
+    // Second nudge: 48h after signup, if not sent and still no purchase.
+    if (ageMin >= SECOND_NUDGE_MIN && p.cart_nudge2_sent !== true) {
+      try {
+        await sendEmail(RESEND_API_KEY, p.email, p.pet_name_pending);
+        await markFlag(p.email, 'cart_nudge2_sent');
+        // also set the first flag in case they somehow skipped it
+        if (p.cart_nudge_sent !== true) await markFlag(p.email, 'cart_nudge_sent');
+        sent++; diag.push(`${p.email}: SENT 2nd nudge (age ${ageMin}min / 48h)`);
+      } catch (e) { failed++; diag.push(`${p.email}: 2nd send failed - ${e.message}`); }
+      continue;
     }
+    // First nudge: 15min after signup, if not sent yet.
+    if (ageMin >= MIN_AGE_MIN && p.cart_nudge_sent !== true) {
+      try {
+        await sendEmail(RESEND_API_KEY, p.email, p.pet_name_pending);
+        await markFlag(p.email, 'cart_nudge_sent');
+        sent++; diag.push(`${p.email}: SENT 1st nudge (age ${ageMin}min)`);
+      } catch (e) { failed++; diag.push(`${p.email}: 1st send failed - ${e.message}`); }
+      continue;
+    }
+    // Nothing due.
+    if (ageMin < MIN_AGE_MIN) { skipped++; diag.push(`${p.email}: too new (${ageMin}min, need >=${MIN_AGE_MIN})`); }
+    else if (p.cart_nudge_sent === true && ageMin < SECOND_NUDGE_MIN) { skipped++; diag.push(`${p.email}: 1st sent, waiting for 48h (${ageMin}min)`); }
+    else { skipped++; diag.push(`${p.email}: both nudges already sent`); }
   }
+
+  const OLD_LOOP_DISABLED = false;
 
   const summary = `Cart nudge run: sent=${sent} skipped=${skipped} failed=${failed} total=${profiles.length}`;
   console.log(summary);
