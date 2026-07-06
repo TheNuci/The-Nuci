@@ -12,9 +12,9 @@
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="color-scheme" content="light only">
-<meta name="theme-color" content="#F1F1F1">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236B8F71'/%3E%3Ctext x='30' y='44' font-family='Sora,Arial,sans-serif' font-size='34' font-weight='700' fill='%23FAFAFA' text-anchor='middle'%3EN%3C/text%3E%3Ccircle cx='47' cy='42' r='3.5' fill='%23FAFAFA'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236B8F71'/%3E%3Ctext x='30' y='44' font-family='Sora,Arial,sans-serif' font-size='34' font-weight='700' fill='%23FAFAFA' text-anchor='middle'%3EN%3C/text%3E%3Ccircle cx='47' cy='42' r='3.5' fill='%23FAFAFA'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#F2F1EC">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23FAFAFA'/%3E%3Ctext x='28' y='45' font-family='Sora,Arial,sans-serif' font-size='38' font-weight='700' fill='%231A211C' text-anchor='middle'%3EN%3C/text%3E%3Crect x='44' y='38' width='7' height='7' fill='%236B8F71'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23FAFAFA'/%3E%3Ctext x='28' y='45' font-family='Sora,Arial,sans-serif' font-size='38' font-weight='700' fill='%231A211C' text-anchor='middle'%3EN%3C/text%3E%3Crect x='44' y='38' width='7' height='7' fill='%236B8F71'/%3E%3C/svg%3E">
 <title>The Nuci - Pet Behaviour & Wellbeing</title>
 <meta name="description" content="The Nuci helps you understand and improve your pet's behaviour with an AI-personalized 7-day plan, daily check-ins and progress tracking.">
 <meta property="og:title" content="The Nuci - Pet Behaviour & Wellbeing">
@@ -299,6 +299,156 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 #confettiCanvasOverlay{position:absolute;inset:0;pointer-events:none}
 @media(max-width:480px){.entry-headline{font-size:2rem}.q-title{font-size:1.4rem}}
 </style>
+<style id="v2-design">
+/* ═══════════════ "FOREST EDITORIAL" - FULL REDESIGN ═══════════════
+   Porcelain ground, deep forest ink, Sora display everywhere,
+   forest-green primaries, floating dock nav, breathing orb light.
+   DOM/IDs untouched - pure visual system swap. */
+:root{
+  --bg:#F2F1EC;
+  --card:#FBFBF8;
+  --text:#1A211C;
+  --secondary:#5C6660;
+  --border:rgba(26,33,28,0.09);
+  --success:#6B8F71;
+  --forest:#3E5A47;
+  --forest-deep:#2B4335;
+  --warning:#C8A16B;--danger:#C77A7A;
+  --radius:22px;--radius-sm:14px;
+  --shadow:0 1px 2px rgba(43,67,53,0.05),0 8px 24px rgba(43,67,53,0.07),0 20px 48px rgba(43,67,53,0.05);
+  --shadow-lift:0 2px 4px rgba(43,67,53,0.07),0 14px 36px rgba(43,67,53,0.11),0 32px 72px rgba(43,67,53,0.08);
+  --spring:cubic-bezier(0.34,1.4,0.64,1);
+  --ease-out:cubic-bezier(0.22,1,0.36,1);
+}
+html,body{background:var(--bg)!important}
+/* ── Breathing orb light (replaces the old busy aurora) ── */
+body::before{
+  content:'';position:fixed;inset:-40%;width:180%;height:180%;
+  background:
+    radial-gradient(ellipse 42% 34% at 22% 20%,rgba(107,143,113,0.32) 0%,transparent 62%),
+    radial-gradient(ellipse 50% 44% at 84% 82%,rgba(158,186,163,0.26) 0%,transparent 60%),
+    radial-gradient(ellipse 36% 30% at 70% 12%,rgba(200,178,140,0.14) 0%,transparent 55%);
+  animation:v2Breathe 26s ease-in-out infinite alternate;
+  pointer-events:none;z-index:0;filter:blur(20px);
+}
+@keyframes v2Breathe{
+  0%{transform:translate(0,0) scale(1)}
+  50%{transform:translate(2.5%,3%) scale(1.07)}
+  100%{transform:translate(-2%,1.5%) scale(1.02)}
+}
+/* ── Typography: Sora display voice everywhere ── */
+h1,h2,h3{font-family:'Sora',-apple-system,sans-serif;letter-spacing:-0.045em}
+h1{font-size:clamp(2.3rem,6vw,3.4rem);font-weight:700;line-height:1.06}
+h2{font-size:clamp(1.5rem,3.8vw,2.1rem);font-weight:700;line-height:1.15}
+h3{font-weight:600}
+[style*="Inter Tight"]{font-family:'Sora',-apple-system,sans-serif!important}
+p{color:var(--secondary)}
+.entry-headline{letter-spacing:-0.055em;font-family:'Sora',-apple-system,sans-serif!important;font-weight:700!important;font-size:clamp(2.1rem,6.2vw,3rem)!important;line-height:1.08!important}
+.entry-sub{font-size:1.02rem!important;max-width:34ch;margin-left:auto;margin-right:auto}
+/* ── Surfaces: porcelain glass ── */
+.card{
+  background:rgba(251,251,248,0.82);
+  backdrop-filter:blur(16px) saturate(1.2);
+  -webkit-backdrop-filter:blur(16px) saturate(1.2);
+  border:1px solid rgba(255,255,255,0.72);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,0.85);
+  transition:transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out);
+}
+@media (hover:hover){
+  .card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lift), inset 0 1px 0 rgba(255,255,255,0.9)}
+}
+/* ── Buttons: forest green is the action colour now ── */
+.btn{transition:transform 0.28s var(--spring), box-shadow 0.28s var(--ease-out), background 0.2s ease, opacity 0.2s ease;border-radius:16px}
+.btn:active{transform:scale(0.96)}
+.btn-primary{
+  background:linear-gradient(180deg,var(--forest) 0%,var(--forest-deep) 100%);
+  color:#F6F8F6;position:relative;overflow:hidden;
+  box-shadow:0 2px 8px rgba(43,67,53,0.28),0 10px 28px rgba(43,67,53,0.22), inset 0 1px 0 rgba(255,255,255,0.14);
+}
+.btn-primary::after{
+  content:'';position:absolute;top:0;left:-80%;width:55%;height:100%;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,0.16),transparent);
+  transform:skewX(-20deg);transition:left 0.65s var(--ease-out);pointer-events:none;
+}
+@media (hover:hover){
+  .btn-primary:hover{background:linear-gradient(180deg,#48684F 0%,#33503F 100%);transform:translateY(-1px);box-shadow:0 4px 12px rgba(43,67,53,0.32),0 16px 38px rgba(43,67,53,0.26)}
+  .btn-primary:hover::after{left:125%}
+}
+.btn-primary:active{transform:scale(0.96)}
+.btn-secondary{background:rgba(251,251,248,0.75);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border)}
+.btn-lg{border-radius:18px}
+/* ── Inputs ── */
+.input-field{border-radius:16px;transition:border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease}
+.input-field:focus{
+  border-color:rgba(107,143,113,0.6);
+  box-shadow:0 0 0 4px rgba(107,143,113,0.15),0 2px 14px rgba(107,143,113,0.12);
+  background:#fff;
+}
+.entry-textarea{border-radius:24px!important;background:rgba(251,251,248,0.85)!important;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.75)!important;box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,0.85)!important}
+.entry-textarea:focus{border-color:rgba(107,143,113,0.55)!important;box-shadow:0 0 0 4px rgba(107,143,113,0.14), var(--shadow)!important}
+/* Entry arrow → forest */
+#entryArrowBtn{background:linear-gradient(180deg,var(--forest),var(--forest-deep))!important;box-shadow:0 3px 10px rgba(43,67,53,0.35);transition:transform 0.26s var(--spring)}
+#entryArrowBtn:active{transform:scale(0.9)}
+/* Suggestion chips */
+#entrySuggestions button{
+  background:rgba(251,251,248,0.8)!important;border:1px solid rgba(26,33,28,0.1)!important;
+  border-radius:99px!important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 2px 10px rgba(43,67,53,0.06);transition:transform 0.26s var(--spring), border-color 0.2s ease;
+}
+#entrySuggestions button:hover{border-color:rgba(107,143,113,0.5)!important}
+#entrySuggestions button:active{transform:scale(0.94)}
+/* Eyebrow label above the headline */
+.entry-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:0.72rem;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--forest);margin-bottom:18px;
+}
+.entry-eyebrow::before,.entry-eyebrow::after{content:'';width:22px;height:1px;background:rgba(107,143,113,0.5)}
+/* ── Floating dock navigation ── */
+.app-nav{
+  left:14px!important;right:14px!important;bottom:max(12px,env(safe-area-inset-bottom))!important;
+  border-radius:26px;border:1px solid rgba(255,255,255,0.75);border-top:1px solid rgba(255,255,255,0.75);
+  background:rgba(251,251,248,0.72);
+  backdrop-filter:blur(30px) saturate(1.35);-webkit-backdrop-filter:blur(30px) saturate(1.35);
+  box-shadow:0 4px 14px rgba(43,67,53,0.10),0 18px 44px rgba(43,67,53,0.14), inset 0 1px 0 rgba(255,255,255,0.9);
+  padding:10px 6px!important;
+}
+#screen-app .tab-content::after{content:'';display:block;height:96px}
+.nav-item{position:relative;border-radius:18px;padding:7px 4px 6px!important;transition:color 0.25s ease, transform 0.28s var(--spring)}
+.nav-item:active{transform:scale(0.9)}
+.nav-item.active{color:var(--forest)}
+.nav-item.active::before{
+  content:'';position:absolute;inset:0 3px;border-radius:16px;
+  background:rgba(107,143,113,0.15);z-index:-1;animation:v2NavPill 0.4s var(--spring);
+}
+@keyframes v2NavPill{from{transform:scale(0.6);opacity:0}to{transform:scale(1);opacity:1}}
+.nav-item svg{transition:transform 0.32s var(--spring)}
+.nav-item.active svg{transform:translateY(-1px) scale(1.1)}
+/* Back buttons → glass circles */
+.back-btn{background:rgba(251,251,248,0.8);border:1px solid var(--border);border-radius:99px;padding:9px 16px 9px 13px!important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:transform 0.26s var(--spring), background 0.2s ease}
+.back-btn.back-btn-box{display:inline-flex;align-self:flex-start;width:auto;border-radius:14px;padding:10px 18px 10px 14px!important;font-weight:600;color:var(--text);box-shadow:0 2px 8px rgba(43,67,53,0.06)}
+.back-btn.back-btn-box svg{width:16px;height:16px}
+@media (hover:hover){.back-btn.back-btn-box:hover{background:#fff;border-color:rgba(107,143,113,0.4)}}
+.back-btn:active{transform:scale(0.92)}
+/* ── Motion system (screen entrances + card cascade + word rise) ── */
+.screen.active{animation:v2ScreenIn 0.55s var(--ease-out)}
+.tab-content{animation:v2ScreenIn 0.5s var(--ease-out)}
+@keyframes v2ScreenIn{from{opacity:0;transform:translateY(14px) scale(0.992)}to{opacity:1;transform:translateY(0) scale(1)}}
+.v2-cascade{opacity:0;animation:v2Rise 0.6s var(--ease-out) forwards;animation-delay:var(--v2d,0ms)}
+@keyframes v2Rise{from{opacity:0;transform:translateY(18px) scale(0.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.v2-word{display:inline-block;opacity:0;transform:translateY(0.5em);animation:v2Word 0.7s var(--ease-out) forwards}
+@keyframes v2Word{to{opacity:1;transform:translateY(0)}}
+.th-tab,.th-btab{transition:transform 0.26s var(--spring), border-color 0.2s ease, background 0.2s ease}
+.th-tab:active,.th-btab:active{transform:scale(0.94)}
+:focus-visible{outline:2px solid rgba(107,143,113,0.7);outline-offset:2px;border-radius:8px}
+.celebration-overlay.show > div{animation:v2Pop 0.45s var(--spring)}
+@keyframes v2Pop{from{opacity:0;transform:scale(0.92) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@media (prefers-reduced-motion: reduce){
+  body::before,.screen.active,.tab-content,.v2-cascade,.v2-word,.nav-item.active::before,.celebration-overlay.show > div{animation:none!important;opacity:1!important;transform:none!important}
+  .card,.btn,.nav-item,.nav-item svg{transition:none!important}
+}
+</style>
 </head>
 <body>
 
@@ -312,9 +462,10 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4l-4 4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Back
   </button>
   <div aria-label="The Nuci" style="position:fixed;top:max(20px,calc(env(safe-area-inset-top) + 7px));left:50%;transform:translateX(-50%);z-index:20;font-family:'Sora',-apple-system,sans-serif;font-weight:700;letter-spacing:-0.04em;font-size:20px;line-height:1;white-space:nowrap;">
-    <span style="color:#6B8F71;">The</span> <span style="color:#111111;">Nuci</span><span style="color:#6B8F71;">.</span>
+    <span style="color:#6B8F71;">The</span> <span style="color:#1A211C;">Nuci</span><span style="color:#6B8F71;">.</span>
   </div>
   <div class="entry-center fade-up">
+    <div class="entry-eyebrow">AI behaviour plans</div>
     <h1 class="entry-headline" data-i18n="entry_headline">Learn how to help your pet in 7 days</h1>
     <p class="entry-sub" data-i18n="entry_sub">Describe the behaviour and our AI builds a personalized 7-day plan for your pet.</p>
     <div class="entry-field-wrap" id="entryFieldWrap" style="margin-bottom:14px;">
@@ -345,7 +496,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <!-- ABOUT / HOW IT WORKS -->
 <section class="screen" id="screen-about">
   <div style="max-width:480px;margin:0 auto;width:100%;padding:40px 24px;display:flex;flex-direction:column;min-height:100vh;">
-    <button class="back-btn" onclick="showScreen('screen-entry')" style="margin-bottom:32px;">
+    <button class="back-btn back-btn-box" onclick="showScreen('screen-entry')" style="margin-bottom:32px;">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Back
     </button>
@@ -373,6 +524,10 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         <div style="width:34px;height:34px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.9rem;font-weight:600;color:var(--success);font-family:'Inter Tight',sans-serif;">5</div>
         <div><div style="font-size:0.95rem;font-weight:600;margin-bottom:3px;">Plan extends if needed</div><p style="font-size:0.86rem;">If the issue hasn't resolved after 7 days, your plan extends so you can keep working toward a calmer pet.</p></div>
       </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;">
+        <div style="width:34px;height:34px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.9rem;font-weight:600;color:var(--success);font-family:'Inter Tight',sans-serif;">6</div>
+        <div><div style="font-size:0.95rem;font-weight:600;margin-bottom:3px;">Invite friends &amp; earn</div><p style="font-size:0.86rem;">Share your personal invite link from your profile. When friends start their own plan, you unlock cash rewards.</p></div>
+      </div>
     </div>
 
     <div class="warning-box" style="margin-top:28px;">
@@ -387,8 +542,9 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <!-- LEGAL (terms / privacy) -->
 <section class="screen" id="screen-legal" style="overflow-y:auto;-webkit-overflow-scrolling:touch;">
   <div style="max-width:560px;margin:0 auto;padding:24px 24px max(40px,env(safe-area-inset-bottom));width:100%;">
-    <button class="back-btn" onclick="showScreen('screen-entry')" style="margin-bottom:20px;">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <button class="back-btn back-btn-box" onclick="showScreen('screen-entry')" style="margin-bottom:20px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Back
     </button>
     <div id="legalContent" style="font-size:0.9rem;line-height:1.6;color:var(--text);"></div>
   </div>
@@ -414,7 +570,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
 <section class="screen" id="screen-roadmap">
   <div class="roadmap-inner">
     <div onclick="showScreen('screen-entry')" role="button" aria-label="The Nuci - back to start" style="text-align:center;margin-bottom:20px;cursor:pointer;font-family:'Sora',-apple-system,sans-serif;font-weight:700;letter-spacing:-0.04em;font-size:20px;line-height:1;user-select:none;">
-      <span style="color:#6B8F71;">The</span> <span style="color:#111111;">Nuci</span><span style="color:#6B8F71;">.</span>
+      <span style="color:#6B8F71;">The</span> <span style="color:#1A211C;">Nuci</span><span style="color:#6B8F71;">.</span>
     </div>
     <button class="back-btn" id="roadmapBackBtn" onclick="state.fromUpsell=false;showScreen('screen-app');showTab('profile');" style="display:none;margin-bottom:14px;">
       <svg viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -857,6 +1013,7 @@ html.kb-nudge-on #checkinBody{transform:translateY(var(--kb-nudge,0px));animatio
         <div class="profile-row" onclick="openProfileDetail('history')"><span style="font-size:0.9rem;font-weight:500;">Assessment History</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <div class="profile-row" onclick="openProfileDetail('plans')"><span style="font-size:0.9rem;font-weight:500;">Previous Plans</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <div class="profile-row" onclick="openArchive()"><span style="font-size:0.9rem;font-weight:500;">Archive</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="profile-row" onclick="openProfileDetail('referral')"><span style="font-size:0.9rem;font-weight:500;display:flex;align-items:center;gap:8px;">Invite &amp; Earn <span style="font-size:0.62rem;font-weight:700;letter-spacing:0.04em;background:rgba(107,143,113,0.16);color:var(--forest);padding:2px 7px;border-radius:99px;text-transform:uppercase;">Earn €50</span></span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <div class="profile-row" style="border-bottom:none;" onclick="openProfileDetail('settings')"><span style="font-size:0.9rem;font-weight:500;">Account Settings</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       </div>
       <div class="card" style="padding:8px 20px;margin-bottom:16px;">
@@ -1181,16 +1338,17 @@ function openLegal(kind){
        <p><strong>5. Right of withdrawal (digital content)</strong><br>The plan is digital content that is supplied immediately. By completing the purchase, you expressly request immediate performance and <strong>acknowledge that you thereby lose your statutory 14-day right of withdrawal</strong> under the Slovenian Consumer Protection Act (ZVPot) and EU Directive 2011/83/EU. Outside this, refunds are provided only where required by law.</p>
        <p><strong>6. Emails</strong><br>As part of the service we send transactional emails (e.g. account, password reset, daily check-in reminders) and, based on your consent or our legitimate interest, occasional helpful or promotional emails. You can opt out of non-essential emails at any time in your profile or via the unsubscribe option.</p>
        <p><strong>7. Acceptable use</strong><br>Your account is personal. You may not resell, redistribute, or publicly republish the generated content without permission, nor misuse the service or attempt to disrupt it.</p>
-       <p><strong>8. Liability</strong><br>The service is provided "as is" and is used at your own discretion and risk. We do not guarantee specific outcomes in animal behaviour, and behaviour change depends on many factors outside our control. You remain solely responsible for your pet, for the safety of yourself and others, and for any decision to act on the guidance provided. To the maximum extent permitted by law, we are not liable for any injury, loss, or damage - to people, animals, or property - arising from your use of the service or from following any AI-generated suggestion, nor for indirect or consequential damages. Nothing in these terms limits liability that cannot be limited by law, including liability for death or personal injury caused by our negligence.</p>
-       <p><strong>9. Changes</strong><br>We may update these terms from time to time. Material changes will be reflected by the "last updated" date. Continued use after changes constitutes acceptance.</p>
-       <p><strong>10. Governing law and disputes</strong><br>These terms are governed by the laws of the Republic of Slovenia. Mandatory consumer rights in your country of residence remain unaffected. Consumers may also use the EU Online Dispute Resolution platform at ec.europa.eu/consumers/odr.</p>
+       <p><strong>8. Referral program</strong><br>You may share your personal invite link. When people you refer create their own account and complete their first purchase, they count toward reward milestones shown in your profile (currently 5 friends = €10, 8 = €20, 10 = €50). Only genuine, completed purchases by distinct new users qualify; self-referrals, duplicate or fake accounts, refunded purchases, and any attempt to game the system do not count and may lead to removal from the program. Rewards are paid manually after you reach a milestone and contact us to claim; please allow reasonable time for verification and payout. We may change, suspend, or end the referral program and its reward tiers at any time, and we may withhold rewards where we reasonably suspect abuse. Any tax arising on a reward you receive is your responsibility.</p>
+       <p><strong>9. Liability</strong><br>The service is provided "as is" and is used at your own discretion and risk. We do not guarantee specific outcomes in animal behaviour, and behaviour change depends on many factors outside our control. You remain solely responsible for your pet, for the safety of yourself and others, and for any decision to act on the guidance provided. To the maximum extent permitted by law, we are not liable for any injury, loss, or damage - to people, animals, or property - arising from your use of the service or from following any AI-generated suggestion, nor for indirect or consequential damages. Nothing in these terms limits liability that cannot be limited by law, including liability for death or personal injury caused by our negligence.</p>
+       <p><strong>10. Changes</strong><br>We may update these terms from time to time. Material changes will be reflected by the "last updated" date. Continued use after changes constitutes acceptance.</p>
+       <p><strong>11. Governing law and disputes</strong><br>These terms are governed by the laws of the Republic of Slovenia. Mandatory consumer rights in your country of residence remain unaffected. Consumers may also use the EU Online Dispute Resolution platform at ec.europa.eu/consumers/odr.</p>
        <p style="margin-top:20px;color:var(--secondary);font-size:0.82rem;">For questions, contact us at ${email}.</p>`;
   } else {
     html = `<h1 style="font-size:1.5rem;margin-bottom:6px;">Privacy Policy</h1>
        <p style="color:var(--secondary);font-size:0.82rem;margin-bottom:20px;">${updated}</p>
        <p><strong>1. Data controller</strong><br>The controller of your personal data is ${companyFull}. Contact: ${email}.</p>
-       <p><strong>2. What data we collect</strong><br>• <strong>Account data:</strong> your email address and password (stored encrypted by our auth provider).<br>• <strong>Pet & behaviour data:</strong> the information you enter about your pet - name, species, breed, age, sex, neutering status, living environment, household, the behaviour issue, its frequency/duration/location, what you've tried, and any warning signs.<br>• <strong>Optional pet photo</strong> you choose to upload.<br>• <strong>Progress & notes data:</strong> your daily check-ins, the free-text daily notes/observations you write, streaks and plan progress. Your notes are used as an input to generate and adapt your plan.<br>• <strong>Email & contact data:</strong> we store your email address, your email preferences, your time zone and signup time, and records of which emails we've sent you, so we can send reminders and updates at the right time and respect your opt-out. <br>• <strong>Technical data:</strong> check-in dates and basic analytics.<br>Payment card details are entered directly with Stripe - <strong>we never receive or store your card number</strong>.</p>
-       <p><strong>3. Purposes and legal bases</strong><br>• To provide the service, create and adapt your plan, and store progress - <em>performance of a contract</em> (Art. 6(1)(b) GDPR).<br>• To send transactional emails (account, password reset, check-in reminders) - <em>contract / legitimate interest</em>.<br>• To send occasional helpful or promotional emails - <em>your consent or legitimate interest</em>; you can opt out anytime.<br>• To understand and improve the service via analytics - <em>your consent</em> (cookie banner).</p>
+       <p><strong>2. What data we collect</strong><br>• <strong>Account data:</strong> your email address and password (stored encrypted by our auth provider).<br>• <strong>Pet & behaviour data:</strong> the information you enter about your pet - name, species, breed, age, sex, neutering status, living environment, household, the behaviour issue, its frequency/duration/location, what you've tried, and any warning signs.<br>• <strong>Optional pet photo</strong> you choose to upload.<br>• <strong>Progress & notes data:</strong> your daily check-ins, the free-text daily notes/observations you write, streaks and plan progress. Your notes are used as an input to generate and adapt your plan.<br>• <strong>Email & contact data:</strong> we store your email address, your email preferences, your time zone and signup time, and records of which emails we've sent you, so we can send reminders and updates at the right time and respect your opt-out. <br>• <strong>Referral data:</strong> if you take part in the referral program, we store your personal invite code and, for people who sign up via an invite link, which code referred them and whether they have purchased, so we can count qualifying referrals and reward you.<br>• <strong>Technical data:</strong> check-in dates and basic analytics.<br>Payment card details are entered directly with Stripe - <strong>we never receive or store your card number</strong>.</p>
+       <p><strong>3. Purposes and legal bases</strong><br>• To provide the service, create and adapt your plan, and store progress - <em>performance of a contract</em> (Art. 6(1)(b) GDPR).<br>• To send transactional emails (account, password reset, check-in reminders) - <em>contract / legitimate interest</em>.<br>• To send occasional helpful or promotional emails - <em>your consent or legitimate interest</em>; you can opt out anytime.<br>• To understand and improve the service via analytics - <em>your consent</em> (cookie banner).<br>• To operate the referral program and calculate rewards - <em>performance of a contract / legitimate interest</em>.</p>
        <p><strong>4. Processors we use</strong><br>We rely on trusted providers who process data on our behalf under GDPR-compliant data processing agreements:<br>• <strong>Supabase</strong> - database and authentication (data hosting).<br>• <strong>Stripe</strong> - payment processing.<br>• <strong>Resend</strong> - sending emails.<br>• <strong>Anthropic</strong> - AI generation of your plan and insights.<br>• <strong>Netlify</strong> - website hosting.<br>• <strong>Google Analytics</strong> - usage analytics (only with your consent).<br>Some providers may process data outside the EU/EEA; where they do, transfers are covered by appropriate safeguards such as the EU Standard Contractual Clauses.</p>
        <p><strong>5. Use of artificial intelligence</strong><br>We use AI (Anthropic) to generate your behaviour plan and daily insights, and to adapt each upcoming day based on your check-ins and the daily notes you write. Only the pet and behaviour information you enter (including your notes) is sent to the AI - <strong>we do not send identifying personal data such as your name, email or payment details</strong>. Your inputs are not used to train third-party models and are used solely to create your content.<br><br>The AI generates guidance based only on the information you provide and may be incomplete or inaccurate, especially if your input is unclear, incomplete, or describes a complex or clinical situation. The AI cannot see or examine your pet and does not replace the judgement of a qualified professional. You are responsible for deciding whether and how to apply any suggestion, for supervising your pet's safety at all times, and for seeking in-person professional help when the service recommends it or when you have any doubt. Never apply a suggestion that seems unsafe for you, your pet, or others.</p>
        <p><strong>6. Retention</strong><br>We keep your data for as long as you have an account or as needed to provide the service and meet legal obligations (e.g. tax records for purchases). When you request account deletion, your personal and pet data are removed; purchase records may be retained where law requires.</p>
@@ -1257,16 +1415,81 @@ window.__landingURL = window.location.href;
       if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(apply,300));
       else setTimeout(apply,300);
     }
+    // Capture a referral code (?ref=CODE) so we can credit the referrer when
+    // this visitor later signs up AND pays. Stored until used.
+    const ref = params.get('ref');
+    if(ref && /^[A-Za-z0-9]{4,12}$/.test(ref)){
+      try{ localStorage.setItem('nuci_ref', ref.toUpperCase()); }catch(e){}
+    }
   }catch(e){}
 })();
 
+// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// REFERRAL SYSTEM
+// Each user gets a stable code derived from their email. When someone signs
+// up via ?ref=CODE and later PAYS, the referrer gets credit. Rewards:
+// 5 paid = 10 EUR, 8 paid = 20 EUR, 10 paid = 50 EUR. Payouts are manual.
+// ═══════════════════════════════════════════════════════════════════
+const REFERRAL_TIERS = [
+  { count:5,  reward:10 },
+  { count:8,  reward:20 },
+  { count:10, reward:50 },
+];
+// Deterministic short code from an email (stable per user, no DB needed to derive).
+function refCodeFor(email){
+  if(!email) return '';
+  const s = email.trim().toLowerCase();
+  let h = 0x811c9dc5;
+  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  h = (h>>>0).toString(36).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  return ('NUCI' + h).slice(0,8).padEnd(6,'X');
+}
+function myRefCode(){ return refCodeFor(state.userEmail); }
+function myRefLink(){
+  const base = (location.origin && location.origin.indexOf('http')===0)
+    ? location.origin + location.pathname
+    : 'https://thenuci.com/';
+  return base.replace(/\/$/, '/') + '?ref=' + myRefCode();
+}
+// Persist this user's own code + who referred them (called at signup).
+async function saveReferralOnSignup(email){
+  try{
+    if(typeof supa==='undefined' || !supa || !email) return;
+    let referredBy = null;
+    try{ referredBy = localStorage.getItem('nuci_ref') || null; }catch(e){}
+    const myCode = refCodeFor(email);
+    // Don't let a user refer themselves.
+    if(referredBy && referredBy === myCode) referredBy = null;
+    const patch = { ref_code: myCode };
+    if(referredBy) patch.referred_by = referredBy;
+    await supa.from('profiles').update(patch).eq('email', email.toLowerCase());
+  }catch(e){ console.warn('referral save failed', e); }
+}
+// Count how many people this user referred who have PAID.
+async function fetchReferralStats(){
+  const out = { total:0, paid:0 };
+  try{
+    if(typeof supa==='undefined' || !supa || !state.userEmail) return out;
+    const code = myRefCode();
+    const { data, error } = await supa
+      .from('profiles')
+      .select('purchased')
+      .eq('referred_by', code);
+    if(error){ console.warn('referral stats', error); return out; }
+    out.total = (data||[]).length;
+    out.paid  = (data||[]).filter(r=>r.purchased===true).length;
+  }catch(e){ console.warn('referral stats failed', e); }
+  return out;
+}
+
 async function processUnsubscribe(email){
-  // Set the marketing opt-out flag. This stops ALL emails EXCEPT the daily
-  // check-in reminder (which is part of the service and controlled by the
-  // reminder toggle in the profile). Works even if not logged in.
+  // A user who unsubscribes must stop receiving ALL emails (GDPR). Set both the
+  // marketing opt-out AND turn off daily reminders, so no scheduled function
+  // (marketing OR reminder) will email them again.
   try{
     if(typeof supa!=='undefined' && supa && email){
-      await supa.from('profiles').update({ marketing_opt_out:true }).eq('email', email);
+      await supa.from('profiles').update({ marketing_opt_out:true, email_reminders:false }).eq('email', email);
     }
   }catch(e){ console.warn('unsubscribe update failed', e); }
   // Show a simple confirmation overlay.
@@ -2337,6 +2560,8 @@ async function doAuth(method){
             );
           }
         }catch(e){}
+        // Record this user's referral code + who referred them (if any).
+        try{ saveReferralOnSignup(state.userEmail); }catch(e){}
         // Fire-and-forget welcome email (server-side function holds the key).
         try{
           fetch('/.netlify/functions/welcome-email', {
@@ -3363,9 +3588,27 @@ function buildPlanDaysList(){
 function toggleAcc(i){
   const items=document.querySelectorAll('#planAccordion .acc-item');
   const item=items[i];const body=document.getElementById('accBody-'+i);
+  if(!item||!body) return;
   const isOpen=item.classList.contains('open');
-  if(isOpen){ item.classList.remove('open'); body.style.maxHeight='0px'; }
-  else { item.classList.add('open'); body.style.maxHeight=body.scrollHeight+'px'; }
+  if(isOpen){
+    // Close this one.
+    item.classList.remove('open');
+    body.style.maxHeight='0px';
+  } else {
+    // Accordion behaviour: close any other open day first, then open this one.
+    items.forEach((it,j)=>{
+      if(j!==i && it.classList.contains('open')){
+        it.classList.remove('open');
+        const ob=document.getElementById('accBody-'+j);
+        if(ob) ob.style.maxHeight='0px';
+      }
+    });
+    item.classList.add('open');
+    // Set to a large value so it opens reliably even if scrollHeight was 0
+    // while hidden; then settle to the exact height next frame.
+    body.style.maxHeight='2000px';
+    requestAnimationFrame(()=>{ body.style.maxHeight=body.scrollHeight+'px'; });
+  }
 }
 
 function buildPlanDetail(){/* handled by accordion now */}
@@ -3439,6 +3682,16 @@ function showTab(tab){
   const navEl=document.getElementById('nav-'+navTab);if(navEl)navEl.classList.add('active');
   if(tab==='progress'){buildPeriodButtons();recomputeStats();}      // refresh windows + live numbers
   if(tab==='today'){ checkMissedWindow(); updateCheckinButtonState(); }
+  if(tab==='plan'){
+    // The accordion may have been built while hidden (scrollHeight 0), so the
+    // current day looked collapsed. Re-apply heights now that it's visible.
+    requestAnimationFrame(()=>{
+      document.querySelectorAll('#planAccordion .acc-item.open').forEach((it,idx)=>{
+        const body=it.querySelector('.acc-body');
+        if(body){ body.style.maxHeight='2000px'; requestAnimationFrame(()=>{ body.style.maxHeight=body.scrollHeight+'px'; }); }
+      });
+    });
+  }
   if(tab==='profile'){ try{ updateCreditsHint(); }catch(e){} }
   window.scrollTo(0,0);
   try{ history.pushState({app:true,tab}, ''); }catch(e){}
@@ -4101,9 +4354,188 @@ function openProfileDetail(kind){
         <div class="profile-row" style="border-bottom:none;"><span style="font-size:0.9rem;font-weight:500;">${'Need help?'}</span><a href="mailto:hello@thenuci.com" style="font-size:0.85rem;color:var(--success);text-decoration:none;font-weight:500;">hello@thenuci.com</a></div>
       </div>
       <p style="font-size:0.78rem;color:var(--secondary);margin-top:14px;line-height:1.5;">${'Payments are processed securely by Stripe. These are one-time purchases - there is no subscription.'}</p>`;
+  }else if(kind==='referral'){
+    const link = myRefLink();
+    const code = myRefCode();
+    html=`
+      <h2 style="font-size:1.5rem;margin-bottom:6px;">Invite &amp; Earn</h2>
+      <p style="font-size:0.88rem;color:var(--secondary);line-height:1.55;margin-bottom:20px;">Share your link. When a friend gets their first plan, they count toward your rewards. The more friends who start, the more you earn.</p>
+
+      <div class="card" style="padding:20px;margin-bottom:16px;">
+        <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--secondary);margin-bottom:10px;">Your invite link</div>
+        <div style="display:flex;gap:8px;align-items:stretch;">
+          <input id="refLinkInput" readonly value="${link}" onclick="this.select()" style="flex:1;min-width:0;font-size:0.82rem;font-family:'Inter',sans-serif;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,0.7);color:var(--text);">
+          <button onclick="copyRefLink()" id="refCopyBtn" class="btn btn-primary" style="padding:0 18px;white-space:nowrap;">Copy</button>
+        </div>
+        <button onclick="shareRefStory()" class="btn btn-primary btn-full" style="margin-top:10px;">Share to socials</button>
+      </div>
+
+      <div class="card" style="padding:22px 20px;margin-bottom:16px;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;">
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--secondary);">Friends joined</div>
+          <div style="font-size:0.8rem;color:var(--secondary);"><span id="refPaidCount" style="font-weight:700;color:var(--forest);font-size:1.05rem;">–</span> / 10</div>
+        </div>
+        <div id="refBarWrap" style="margin-top:16px;">${referralBarHTML(0)}</div>
+        <div id="refRewardMsg" style="font-size:0.84rem;color:var(--secondary);text-align:center;margin-top:16px;line-height:1.5;">Loading your progress…</div>
+      </div>
+
+      <div class="card" style="padding:16px 18px;">
+        <div style="font-size:0.82rem;color:var(--secondary);line-height:1.6;">
+          <strong style="color:var(--text);">How payouts work:</strong> reach a milestone and we send your reward by bank transfer. Rewards are cumulative at each tier. We count friends who complete their first purchase. Contact <a href="mailto:hello@thenuci.com" style="color:var(--forest);text-decoration:none;font-weight:600;">hello@thenuci.com</a> to claim.
+        </div>
+      </div>`;
   }
   c.innerHTML=html;
   showTab('profileDetail');
+  if(kind==='referral'){ loadReferralProgress(); }
+}
+
+// Builds the 10-segment reward bar. Milestones at 5 (10 EUR), 8 (20 EUR),
+// 10 (50 EUR) - the 50 EUR tier is emphasised.
+function referralBarHTML(paid){
+  let segs='';
+  for(let i=1;i<=10;i++){
+    const filled = i<=paid;
+    const isMilestone = (i===5||i===8||i===10);
+    const isBig = (i===10);
+    segs+=`<div style="flex:1;height:${isBig?'16px':'12px'};border-radius:5px;transition:background 0.5s var(--ease-out,ease);
+      background:${filled?(isBig?'var(--forest)':'var(--success)'):'rgba(107,143,113,0.14)'};
+      ${isMilestone?'box-shadow:0 0 0 2px rgba(107,143,113,'+(filled?'0.4':'0.22')+');':''}"></div>`;
+  }
+  const label=(txt,active,big)=>`<div style="text-align:center;font-size:${big?'0.8rem':'0.72rem'};font-weight:${big?'800':'700'};
+    color:${active?'var(--forest)':'var(--secondary)'};letter-spacing:-0.01em;">${txt}</div>`;
+  // position labels under segments 5, 8, 10
+  return `
+    <div style="display:flex;gap:4px;align-items:flex-end;">${segs}</div>
+    <div style="position:relative;height:20px;margin-top:8px;">
+      <div style="position:absolute;left:45%;transform:translateX(-50%);">${label('€10',paid>=5,false)}</div>
+      <div style="position:absolute;left:75%;transform:translateX(-50%);">${label('€20',paid>=8,false)}</div>
+      <div style="position:absolute;left:97%;transform:translateX(-50%);">${label('€50',paid>=10,true)}</div>
+    </div>`;
+}
+
+async function loadReferralProgress(){
+  const stats = await fetchReferralStats();
+  const paid = stats.paid;
+  const cntEl=document.getElementById('refPaidCount');
+  const barEl=document.getElementById('refBarWrap');
+  const msgEl=document.getElementById('refRewardMsg');
+  if(cntEl) cntEl.textContent = paid;
+  if(barEl) barEl.innerHTML = referralBarHTML(paid);
+  if(msgEl){
+    // Highest tier reached + next target.
+    let reached=0; REFERRAL_TIERS.forEach(t=>{ if(paid>=t.count) reached=t.reward; });
+    const next = REFERRAL_TIERS.find(t=>paid<t.count);
+    let m='';
+    if(reached>0) m+=`<span style="color:var(--forest);font-weight:700;">You've earned €${reached}!</span> `;
+    if(next){ const need=next.count-paid; m+=`${need} more ${need===1?'friend':'friends'} to reach €${next.reward}.`; }
+    else m+='You\'ve hit the top reward. Amazing!';
+    if(paid===0) m='Share your link to get started.';
+    msgEl.innerHTML=m;
+  }
+}
+
+function copyRefLink(){
+  const inp=document.getElementById('refLinkInput'); if(!inp) return;
+  try{
+    inp.select(); inp.setSelectionRange(0,99999);
+    navigator.clipboard.writeText(inp.value).then(()=>{
+      const b=document.getElementById('refCopyBtn'); if(b){ const o=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=o,1600); }
+    }).catch(()=>{ document.execCommand('copy'); });
+  }catch(e){}
+}
+function shareRefLink(){
+  const link=myRefLink();
+  const text='I\'m using The Nuci to understand my pet\'s behaviour - get your own 7-day plan:';
+  if(navigator.share){ navigator.share({title:'The Nuci', text, url:link}).catch(()=>{}); }
+  else { copyRefLink(); }
+}
+
+function roundRectPath(x,rx,ry,w,h,r){
+  if(x.roundRect){x.beginPath();x.roundRect(rx,ry,w,h,r);return;}
+  x.beginPath();x.moveTo(rx+r,ry);x.arcTo(rx+w,ry,rx+w,ry+h,r);x.arcTo(rx+w,ry+h,rx,ry+h,r);x.arcTo(rx,ry+h,rx,ry,r);x.arcTo(rx,ry,rx+w,ry,r);x.closePath();
+}
+
+// Premium 9:16 story template. No QR - the user adds an Instagram link sticker.
+// We copy their referral URL to the clipboard so they can paste it straight in.
+function shareRefStory(){
+  const btn=(typeof event!=='undefined')&&event.target;
+  const restore=(msg)=>{ if(btn){ const o=btn.dataset.o||'Share to socials'; btn.textContent=msg||o; if(msg) setTimeout(()=>{btn.textContent=o;btn.disabled=false;},2200); else btn.disabled=false; } };
+  if(btn){ btn.dataset.o=btn.textContent; btn.disabled=true; btn.textContent='Creating…'; }
+
+  const link=myRefLink();
+  // Copy the link first so it's ready to paste into the IG link sticker.
+  try{ navigator.clipboard && navigator.clipboard.writeText(link); }catch(e){}
+
+  try{
+    const W=1080,H=1920;
+    const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+    const x=cv.getContext('2d');
+    // porcelain ground + soft sage glows
+    x.fillStyle='#F2F1EC';x.fillRect(0,0,W,H);
+    let g=x.createRadialGradient(W*0.22,H*0.16,60,W*0.22,H*0.16,1000);
+    g.addColorStop(0,'rgba(107,143,113,0.30)');g.addColorStop(1,'rgba(107,143,113,0)');x.fillStyle=g;x.fillRect(0,0,W,H);
+    g=x.createRadialGradient(W*0.86,H*0.9,60,W*0.86,H*0.9,1000);
+    g.addColorStop(0,'rgba(158,186,163,0.24)');g.addColorStop(1,'rgba(158,186,163,0)');x.fillStyle=g;x.fillRect(0,0,W,H);
+    // thin frame
+    x.strokeStyle='rgba(43,67,53,0.12)';x.lineWidth=3;roundRectPath(x,54,54,W-108,H-108,54);x.stroke();
+
+    x.textAlign='center';x.textBaseline='alphabetic';
+    // wordmark
+    x.font='700 60px Sora, sans-serif';
+    const wm=[['The ','#6B8F71'],['Nuci','#1A211C'],['.','#6B8F71']];
+    let tw=0;wm.forEach(p=>tw+=x.measureText(p[0]).width);let sx=W/2-tw/2;
+    x.textAlign='left';wm.forEach(p=>{x.fillStyle=p[1];x.fillText(p[0],sx,220);sx+=x.measureText(p[0]).width;});
+    x.textAlign='center';
+    // eyebrow
+    x.fillStyle='#6B8F71';x.font='700 30px Inter, sans-serif';
+    x.fillText('A I   B E H A V I O U R   P L A N S',W/2,300);
+
+    // headline
+    x.fillStyle='#1A211C';x.font='700 108px Sora, sans-serif';
+    x.fillText('Every behavior',W/2,640);
+    x.fillText('has a cause.',W/2,770);
+    // sub
+    x.fillStyle='#5C6660';x.font='400 46px Inter, sans-serif';
+    x.fillText('A personalised 7-day plan for your',W/2,900);
+    x.fillText('pet, powered by AI.',W/2,962);
+
+    // pet illustration mark (simple paw in a soft circle)
+    x.save();
+    x.fillStyle='rgba(107,143,113,0.14)';x.beginPath();x.arc(W/2,1180,150,0,7);x.fill();
+    x.fillStyle='#6B8F71';
+    x.beginPath();x.ellipse(W/2,1210,58,46,0,0,7);x.fill();
+    [[-60,-40],[-22,-64],[22,-64],[60,-40]].forEach(o=>{x.beginPath();x.arc(W/2+o[0],1180+o[1],22,0,7);x.fill();});
+    x.restore();
+
+    // "your link" placeholder card - shows where the IG link sticker goes
+    const cw=760,ch=150,cx=W/2-cw/2,cy=1440;
+    x.save();
+    x.setLineDash([14,12]);x.strokeStyle='rgba(62,90,71,0.55)';x.lineWidth=4;
+    roundRectPath(x,cx,cy,cw,ch,36);x.stroke();
+    x.restore();
+    x.fillStyle='#3E5A47';x.font='700 44px Sora, sans-serif';
+    x.fillText('Add your link here', W/2, cy+70);
+    x.fillStyle='#5C6660';x.font='400 32px Inter, sans-serif';
+    x.fillText('Tap the sticker icon and paste your link', W/2, cy+118);
+
+    // footer
+    x.fillStyle='#6B8F71';x.font='600 38px Inter, sans-serif';
+    x.fillText('thenuci.com', W/2, H-120);
+
+    cv.toBlob(function(blob){
+      if(!blob){ restore('Try again'); return; }
+      const file=new File([blob],'the-nuci-invite.png',{type:'image/png'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        navigator.share({files:[file],title:'The Nuci',text:'Get your pet\'s 7-day behaviour plan: '+link})
+          .then(()=>restore('Link copied!')).catch(()=>restore('Link copied!'));
+      } else {
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='the-nuci-invite.png';document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+        restore('Saved · link copied!');
+      }
+    },'image/png');
+  }catch(e){ console.warn('story share failed',e); restore('Try again'); }
 }
 
 function toggleEmailReminders(wrap){
@@ -5584,6 +6016,68 @@ function handleInAppBack(){
   }
   return true;
 }
+</script>
+<script id="v2-motion">
+/* V2 motion orchestration. Purely additive: wraps navigation to cascade cards,
+   and raises the entry headline word by word. No data or logic touched. */
+(function(){
+  var reduced = false;
+  try{ reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(reduced) return;
+
+  // Cascade the cards of a newly shown root: each card rises in sequence.
+  function cascade(root){
+    if(!root) return;
+    try{
+      var cards = root.querySelectorAll('.card');
+      var i = 0;
+      cards.forEach(function(c){
+        if(i >= 14) return;                     // only what's near the viewport
+        c.classList.remove('v2-cascade');
+        void c.offsetWidth;                     // restart animation
+        c.style.setProperty('--v2d', (60 + i*55) + 'ms');
+        c.classList.add('v2-cascade');
+        i++;
+      });
+    }catch(e){}
+  }
+
+  // Wrap navigation AFTER everything is defined (this script runs last).
+  function wrap(){
+    try{
+      if(typeof showScreen === 'function'){
+        var s0 = showScreen;
+        showScreen = function(id){ s0.apply(this, arguments); cascade(document.getElementById(id)); };
+      }
+      if(typeof showTab === 'function'){
+        var t0 = showTab;
+        showTab = function(tab){ t0.apply(this, arguments); cascade(document.getElementById('tab-' + tab)); };
+      }
+    }catch(e){}
+  }
+
+  // Entry headline: split into words that rise one after another.
+  function headline(){
+    try{
+      var h = document.querySelector('.entry-headline');
+      if(!h || h.dataset.v2done) return;
+      var words = (h.textContent || '').trim().split(/\s+/);
+      if(words.length < 2) return;
+      h.dataset.v2done = '1';
+      h.innerHTML = words.map(function(w, i){
+        return '<span class="v2-word" style="animation-delay:' + (120 + i*70) + 'ms">' + w + '</span>';
+      }).join(' ');
+    }catch(e){}
+  }
+
+  function init(){
+    wrap();
+    headline();
+    cascade(document.querySelector('.screen.active'));
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
 </script>
 </body>
 </html>
