@@ -1,0 +1,13 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# SPA-ish: serve index for the root; functions handled automatically at /.netlify/functions/*
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false

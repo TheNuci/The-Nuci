@@ -1,0 +1,7 @@
+{
+  "name": "the-nuci",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "description": "The Nuci - AI pet behaviour plans"
+}
