@@ -1,3 +1,37 @@
+// ── Premium email shell (forest-editorial, matches the app) ──────────
+const NUCI = { bg:'#F2F1EC', card:'#FBFBF8', ink:'#1A211C', sec:'#5C6660', sage:'#6B8F71', forest:'#3E5A47', border:'#E6E3DA' };
+function nuciEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function nuciBtn(label, href){ return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 0"><tr><td style="background:${NUCI.forest};border-radius:14px"><a href="${href}" style="display:inline-block;padding:14px 26px;font-family:Arial,sans-serif;font-size:15px;color:#F4F1E9;text-decoration:none;font-weight:bold">${nuciEsc(label)}</a></td></tr></table>`; }
+function nuciAccent(t){ return `<span style="font-family:Georgia,serif;font-style:italic;color:${NUCI.forest}">${nuciEsc(t)}</span>`; }
+function nuciShell({ preheader='', eyebrow='', titleHtml='', bodyHtml='', unsubUrl='https://thenuci.com/' }){
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>The Nuci</title></head>
+<body style="margin:0;padding:0;background:${NUCI.bg};-webkit-font-smoothing:antialiased">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">${nuciEsc(preheader)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${NUCI.bg};padding:28px 0"><tr><td align="center">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%">
+    <tr><td style="padding:4px 32px 24px">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:25px;font-weight:400;letter-spacing:-0.01em"><span style="color:${NUCI.sage}">The</span> <span style="color:${NUCI.ink}">Nuci</span><span style="color:${NUCI.sage}">.</span></div>
+    </td></tr>
+    <tr><td style="padding:0 20px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${NUCI.card};border:1px solid ${NUCI.border};border-radius:22px;overflow:hidden">
+        <tr><td style="padding:30px 30px 28px">
+          ${eyebrow?`<div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:${NUCI.sage};font-family:Arial,sans-serif;font-weight:bold">${nuciEsc(eyebrow)}</div>`:''}
+          ${titleHtml?`<h1 style="margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.15;font-weight:normal;color:${NUCI.ink};letter-spacing:-0.01em">${titleHtml}</h1>`:''}
+          ${bodyHtml}
+        </td></tr>
+      </table>
+    </td></tr>
+    <tr><td style="padding:24px 32px 28px">
+      <div style="height:1px;background:${NUCI.border};margin:0 0 18px"></div>
+      <p style="margin:0;font-size:12px;line-height:1.7;color:${NUCI.sec};font-family:Arial,sans-serif">The Nuci, behaviour plans for calmer pets. Contact us at <a href="mailto:hello@thenuci.com" style="color:${NUCI.sec}">hello@thenuci.com</a>. You're receiving this because you have a plan with The Nuci. <a href="${unsubUrl}" style="color:${NUCI.sage};text-decoration:underline">Unsubscribe</a> from these emails.</p>
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>`;
+}
+function nuciPara(t,mt){ return `<p style="margin:${mt==null?14:mt}px 0 0;font-size:15px;line-height:1.6;color:${NUCI.sec};font-family:Arial,sans-serif">${t}</p>`; }
+function nuciBox(inner){ return `<table role="presentation" width="100%" style="margin-top:18px;background:${NUCI.bg};border-radius:14px" cellpadding="0" cellspacing="0"><tr><td style="padding:16px 18px">${inner}</td></tr></table>`; }
+
 // netlify/functions/abandoned-cart.js
 //
 // Scheduled function - runs every 5 minutes (see netlify.toml).
@@ -27,31 +61,16 @@ function emailHtml(petName, toEmail) {
   const unsubUrl = toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   const pet = petName ? escapeHtml(petName) : 'your pet';
   const headline = petName ? `${pet} is waiting for your help` : `Your pet is waiting for your help`;
-  return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;background:#F1F1F1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111111;">
-  <div style="max-width:440px;margin:0 auto;padding:40px 16px;">
-    <div style="background:#FAFAFA;border-radius:20px;padding:36px 32px;text-align:center;">
-      <img src="https://thenuci.com/email-logo.png" width="120" height="35" alt="The Nuci" style="display:block;margin:0 auto 18px;border:0;">
-      <h1 style="font-size:1.35rem;margin:0 0 14px;font-weight:600;letter-spacing:-0.02em;">${headline}</h1>
-      <p style="font-size:0.95rem;line-height:1.65;color:#555;margin:0 0 14px;">
-        You're one step away. Unlock ${pet}'s personalized 7-day plan and start understanding the behaviour - its likely causes, what to do, and what to avoid.
-      </p>
-      <p style="font-size:0.95rem;line-height:1.65;color:#555;margin:0 0 26px;">
-        Every behavior has a cause. Let's find ${pet}'s together.
-      </p>
-      <a href="https://thenuci.com/"
-         style="display:inline-block;background:#111111;color:#fff;text-decoration:none;
-                padding:14px 32px;border-radius:14px;font-size:0.95rem;font-weight:600;">
-        Get ${pet}'s 7-day plan
-      </a>
-      <p style="font-size:0.74rem;color:#aaa;margin:26px 0 0;line-height:1.5;">
-        You started a plan for ${pet} on The Nuci. You can finish anytime.
-      </p>
-    </div>
-    <p style="text-align:center;font-size:12px;color:#aaa;margin:20px 0 0;line-height:1.6;">The Nuci &middot; Every behavior has a cause<br><a href="${unsubUrl}" style="color:#aaa;text-decoration:underline;">Unsubscribe from these emails</a></p>
-  </div>
-</body></html>`;
+  return nuciShell({
+      preheader: `${pet}'s plan is ready whenever you are.`,
+      eyebrow: 'Still thinking?',
+      titleHtml: `${nuciAccent(pet)}'s plan<br>is ready.`,
+      bodyHtml: nuciPara(`You answered the questions, the hard part's done. ${pet}'s personalised 7-day plan is built and waiting for you.`)
+        + nuciPara("One calmer week could start today.",10)
+        + nuciBtn(`Get ${pet}'s plan`,"https://thenuci.com/")
+        + nuciBox(['A day-by-day plan built for '+pet,'Daily check-ins that adapt','Progress you can actually see'].map(function(x){return `<div style="font-size:14px;color:${NUCI.ink};font-family:Arial,sans-serif;padding:5px 0"><span style="color:${NUCI.sage}">&#10003;</span>&nbsp;&nbsp;${x}</div>`;}).join('')),
+      unsubUrl: toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/'
+    });
 }
 
 async function sendEmail(apiKey, to, petName) {

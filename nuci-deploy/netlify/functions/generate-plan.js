@@ -1,229 +1,159 @@
-// ═══════════════════════════════════════════════════════════════════
-// AI PLAN GENERATION - Netlify serverless function
-// ═══════════════════════════════════════════════════════════════════
-//
-// WHAT THIS IS:
-//   A secure backend endpoint that calls the AI (Anthropic Claude) to
-//   generate a personalised behaviour plan from the user's assessment
-//   answers. The browser NEVER sees your API key - it lives only here
-//   as an environment variable on Netlify.
-//
-// HOW TO ACTIVATE (one-time setup):
-//   1. Get an Anthropic API key at https://console.anthropic.com
-//   2. In Netlify → Site settings → Environment variables, add:
-//          ANTHROPIC_API_KEY = sk-ant-...
-//   3. Deploy. This file auto-becomes the endpoint:
-//          https://thenuci.com/.netlify/functions/generate-plan
-//   4. In the app (pawsense.html), set:
-//          const AI_ENDPOINT = '/.netlify/functions/generate-plan';
-//      and the app will call this instead of the local template.
-//
-// COST NOTE: each call costs a fraction of a cent. You pay Anthropic
-// directly based on usage. Set usage limits in the Anthropic console.
-// ═══════════════════════════════════════════════════════════════════
+// POST /.netlify/functions/generate-plan
+// body: { answers: {...}, lang: 'en' }
+// returns: { behaviorExplain, assessment, seekProfessional, professionalNote, causes[], whatNotToDo[], days[{title,sub,desc,tasks[]}] }
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
 
-// System prompt for the AI - defined once, reused by the endpoint and self-test.
-function buildSystemPrompt(){
-  return (
-    `You are a highly experienced veterinary behaviourist - the equivalent of a clinician who has ` +
-    `spent many years assessing and treating animal behaviour. You combine the rigour of veterinary ` +
-    `medicine with practical, force-free, evidence-based behaviour modification (positive reinforcement, ` +
-    `desensitisation, counter-conditioning, environmental management). You reason about the likely ` +
-    `underlying CAUSE (medical, emotional, environmental, learned), not just the surface symptom, and you ` +
-    `build a plan a real behaviourist would be proud to put their name on. ` +
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json'
+};
 
-    `UNDERSTAND THE OWNER FIRST: read what they actually wrote and respond to THEIR specific situation. ` +
-    `Build the ENTIRE plan around the ONE specific problem they described ` +
-    `(e.g. "dog hates car rides", "cat scratches the sofa", "dog barks at the doorbell"). ` +
-    `Every task must visibly relate to THAT exact situation - name the trigger, the place, the object, ` +
-    `the context. The reader must immediately see the plan is about THEIR problem, not generic advice. ` +
-    `Use the pet's name in at least one task per day. Make day 1 concrete and actionable, not just watching. ` +
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
+  if (event.httpMethod !== 'POST') return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
 
-    `CLEAR BOUNDARIES - CRITICAL FOR SAFETY: ` +
-    `(1) You provide behavioural guidance ONLY and are NOT a substitute for an in-person veterinary exam. ` +
-    `(2) If the problem may have MEDICAL causes (sudden behaviour change, new or severe aggression, ` +
-    `house-soiling in a previously trained pet, excessive licking/self-harm, signs of pain, seizures, ` +
-    `disorientation, appetite/weight change, lethargy), you MUST flag that a veterinary medical check is ` +
-    `needed FIRST - a behaviour plan cannot fix a medical problem. ` +
-    `(3) If the problem is genuinely SERIOUS or beyond safe self-help (severe aggression or bite history, ` +
-    `attacks on people/animals, resource guarding with injury risk, severe separation distress with ` +
-    `self-injury, any risk to a child or vulnerable person), you MUST recommend a qualified in-person ` +
-    `professional and keep the plan supportive and conservative rather than trying to "treat" it remotely. ` +
-    `NEVER give advice that could increase the risk of a bite or injury. ` +
-    `(4) NEVER recommend aversive, painful or fear-based methods (no shock/prong/choke collars, no "alpha"/ ` +
-    `dominance techniques, no punishment-based approaches) - they are outdated and harmful. ` +
-    `(5) NEVER suggest medications, dosages, supplements or medical procedures - that is the vet's domain. ` +
+  let answers = {}, lang = 'en';
+  try { const b = JSON.parse(event.body || '{}'); answers = b.answers || {}; lang = b.lang || 'en'; }
+  catch (e) { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Bad JSON' }) }; }
 
-    `WATCH INPUT QUALITY: if the owner's answers are contradictory, confusing or don't add up, gently note ` +
-    `this and build a careful observation-first plan rather than guessing. If the problem is too complex, ` +
-    `specialised or clinical to address responsibly with a 7-day self-help plan, say so honestly and point ` +
-    `them to a professional while still giving safe supportive steps. Do not over-promise; be honest that ` +
-    `behaviour change takes time and consistency. ` +
-
-    `Use "assessment" to speak directly and warmly to the owner about what you see, honest expectations, ` +
-    `and any boundary/safety note. Set "seekProfessional" to true whenever a vet or in-person professional ` +
-    `should be involved, and explain why in "professionalNote". ` +
-
-    `ALWAYS respond in English, even if the owner wrote in another language - translate their meaning. ` +
-    `Be CONCISE and keep the whole response compact so it is never cut off: ` +
-    `behaviorExplain max 2 sentences, assessment max 3 sentences, professionalNote max 2 sentences, ` +
-    `each task a short imperative phrase (max ~10 words), subtitles max ~6 words, day desc one short sentence, ` +
-    `each day has AT MOST 5 tasks. ` +
-    `Generate the meta info plus ONLY the FIRST 3 DAYS (day 1 first concrete steps, day 2 builds, ` +
-    `day 3 first progression). The remaining days are handled separately, so do NOT include them. ` +
-    `Return ONLY valid JSON. Your entire response MUST start with { and end with } - no preamble, no "Here is", no markdown, no text before or after. Use this exact shape:\n` +
-    `{\n` +
-    `  "behaviorExplain": "2 sentence likely cause for THIS pet and problem, in plain language",\n` +
-    `  "assessment": "2-3 warm sentences to the owner: what you see, honest expectations, any boundary/safety note",\n` +
-    `  "seekProfessional": false,\n` +
-    `  "professionalNote": "",\n` +
-    `  "whatNotToDo": ["short mistake to avoid", "...", "...", "..."],\n` +
-    `  "causes": ["cause 1", "cause 2", "cause 3"],\n` +
-    `  "days": [\n` +
-    `    {"title":"short title","sub":"short subtitle","desc":"one short sentence","tasks":["task1","task2","task3","task4","task5"]}\n` +
-    `    // EXACTLY 3 entries (day 1, day 2, day 3)\n` +
-    `  ]\n` +
-    `}`
-  );
-}
-
-export default async (req) => {
-  const API_KEY = process.env.ANTHROPIC_API_KEY;
-
-  // SELF-TEST: open this function in a browser with ?selftest=1 to see exactly
-  // what happens with the AI call - key presence, status, and raw response.
-  let selftest = false;
-  try{ selftest = new URL(req.url).searchParams.get('selftest') === '1'; }catch(e){}
-  if (req.method === 'GET' && selftest) {
-    if (!API_KEY) {
-      return new Response('SELFTEST: ANTHROPIC_API_KEY is NOT set in Netlify env vars.', { status: 200 });
-    }
-    try {
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 50, messages: [{ role: 'user', content: 'Reply with the single word: OK' }] })
-      });
-      const raw = await r.text();
-      return new Response('SELFTEST status=' + r.status + '\nKEY starts: ' + API_KEY.slice(0,8) + '...\nRAW:\n' + raw, { status: 200 });
-    } catch (e) {
-      return new Response('SELFTEST fetch threw: ' + String(e), { status: 200 });
-    }
+  if (!ANTHROPIC_API_KEY) {
+    // graceful fallback so the app still works without a key
+    return { statusCode: 200, headers: CORS, body: JSON.stringify(fallbackPlan(answers)) };
   }
 
-  // SELF-TEST 2: ?selftest=2 runs the FULL real plan generation (same prompt,
-  // same max_tokens) and reports whether the JSON parses - the real test.
-  let selftest2 = false;
-  try{ selftest2 = new URL(req.url).searchParams.get('selftest') === '2'; }catch(e){}
-  if (req.method === 'GET' && selftest2) {
-    if (!API_KEY) return new Response('SELFTEST2: no API key', { status: 200 });
-    try {
-      const testAnswers = { petName:'Testko', petType:'dog', mainIssue:'dog pees in the house when left alone' };
-      const sp = buildSystemPrompt();
-      const up = 'Owner intake answers:\n' + JSON.stringify(testAnswers, null, 2);
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 8000, system: sp, messages: [{ role: 'user', content: up }] })
-      });
-      const data = await r.json();
-      let text = (data.content || []).map(b => (b.type==='text'?b.text:'')).join('').replace(/```json|```/g,'').trim();
-      const f=text.indexOf('{'), l=text.lastIndexOf('}'); if(f>=0&&l>f) text=text.slice(f,l+1);
-      let parsed=null, perr=null;
-      try{ parsed=JSON.parse(text); }catch(e){ perr=String(e); }
-      return new Response(
-        'SELFTEST2 status='+r.status+'\noutput_tokens='+(data.usage&&data.usage.output_tokens)+
-        '\nstop_reason='+data.stop_reason+
-        '\nJSON parsed: '+(parsed?'YES ✓':'NO ✗ '+perr)+
-        '\ndays: '+(parsed&&parsed.days?parsed.days.length:'n/a')+
-        '\nday1 title: '+(parsed&&parsed.days&&parsed.days[0]?parsed.days[0].title:'n/a')+
-        '\n\nRAW (first 600):\n'+text.slice(0,600), { status: 200 });
-    } catch (e) {
-      return new Response('SELFTEST2 threw: '+String(e), { status: 200 });
-    }
-  }
+  const pet = answers.petName || 'the pet';
+  const sys = `You are an expert companion-animal behaviourist. Produce a practical, safe, 7-day behaviour plan.
+Return ONLY valid minified JSON (no markdown, no preamble) with EXACTLY these keys:
+{"behaviorExplain":string,"assessment":string,"seekProfessional":boolean,"professionalNote":string,"causes":string[],"whatNotToDo":string[],"days":[{"title":string,"sub":string,"desc":string,"tasks":[{"title":string,"detail":string}]}]}
+Rules:
+- "days" MUST contain exactly 7 items (day 1..7). Each day MUST have 5-7 tasks.
+- Each task is an OBJECT: "title" is a short imperative action (3-7 words), "detail" is one concrete sentence explaining HOW to do it or WHY it helps (12-24 words). Make details specific to this pet and issue, not generic.
+- Titles are 1-3 words. "sub" is a 2-4 word tag. "desc" is one sentence.
+- If any warning sign suggests a medical issue (aggression/biting, not eating or drinking, lethargy, vomiting/diarrhea), set seekProfessional=true and explain briefly in professionalNote.
+- "causes": 2-4 likely causes. "whatNotToDo": 2-4 concise items.
+- Base everything on the owner's answers. Be specific to ${pet}. Language: ${lang}.`;
 
-  // Only allow POST for the real endpoint
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
-  }
-
-  if (!API_KEY) {
-    return new Response(JSON.stringify({ error: 'AI key not configured on server' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-  }
-
-  let answers, lang;
-  try {
-    const body = await req.json();
-    answers = body.answers || {};
-    lang = body.lang === 'sl' ? 'sl' : 'en';   // default to English
-  } catch (e) {
-    return new Response(JSON.stringify({ error: 'Bad request body' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-  }
-
-  const langName = 'English';   // app is English-only; always respond in English
-
-  // The instruction we give the AI. It must return STRICT JSON only.
-  const systemPrompt = buildSystemPrompt();
-
-  const userPrompt = `Owner intake answers (JSON):\n${JSON.stringify(answers, null, 2)}\n\nCreate the plan that best helps THIS specific pet resolve THIS specific problem.`;
+  const user = `Owner's answers (JSON):\n${JSON.stringify(answers, null, 2)}`;
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }]
-      })
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: MODEL, max_tokens: 2000, system: sys, messages: [{ role: 'user', content: user }] })
     });
-
-    const data = await resp.json();
     if (!resp.ok) {
-      return new Response(JSON.stringify({ error: 'AI request failed', detail: data }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      const t = await resp.text();
+      console.error('Anthropic error', resp.status, t);
+      return { statusCode: 200, headers: CORS, body: JSON.stringify(fallbackPlan(answers)) };
     }
-
-    // Extract the text content and parse the JSON the model returned
-    let text = (data.content || [])
-      .map(b => (b.type === 'text' ? b.text : ''))
-      .join('')
-      .replace(/```json|```/g, '')
-      .trim();
-    // If the model wrapped the JSON in any prose, grab the object itself.
-    const first = text.indexOf('{'), last = text.lastIndexOf('}');
-    if(first >= 0 && last > first) text = text.slice(first, last + 1);
-
+    const data = await resp.json();
+    let text = (data.content || []).map(b => b.text || '').join('').trim();
+    text = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
     let plan;
-    try {
-      plan = JSON.parse(text);
-    } catch (e) {
-      // Last-resort repair: if the JSON got truncated, try closing open brackets.
-      let repaired = null;
-      try {
-        let t = text;
-        // remove a trailing incomplete line and dangling comma
-        t = t.replace(/,\s*$/, '').replace(/:\s*"[^"]*$/, ': ""').replace(/,\s*"[^"]*$/, '');
-        const opens = (t.match(/\{/g)||[]).length, closes = (t.match(/\}/g)||[]).length;
-        const aOpens = (t.match(/\[/g)||[]).length, aCloses = (t.match(/\]/g)||[]).length;
-        t += ']'.repeat(Math.max(0, aOpens - aCloses));
-        t += '}'.repeat(Math.max(0, opens - closes));
-        repaired = JSON.parse(t);
-      } catch(_) {}
-      if (repaired) {
-        plan = repaired;
-      } else {
-        return new Response(JSON.stringify({ error: 'AI returned non-JSON', raw: text.slice(0,200) }), { status: 502, headers: { 'Content-Type': 'application/json' } });
-      }
-    }
-
-    return new Response(JSON.stringify(plan), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    try { plan = JSON.parse(text); }
+    catch (e) { console.error('Parse fail', text.slice(0, 300)); return { statusCode: 200, headers: CORS, body: JSON.stringify(fallbackPlan(answers)) }; }
+    plan = normalize(plan, answers);
+    return { statusCode: 200, headers: CORS, body: JSON.stringify(plan) };
   } catch (e) {
-    return new Response(JSON.stringify({ error: 'Server error', detail: String(e) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    console.error('generate-plan failed', e);
+    return { statusCode: 200, headers: CORS, body: JSON.stringify(fallbackPlan(answers)) };
   }
 };
+
+function normalize(plan, answers) {
+  const fb = fallbackPlan(answers);
+  const out = {
+    behaviorExplain: str(plan.behaviorExplain) || fb.behaviorExplain,
+    assessment: str(plan.assessment) || fb.assessment,
+    seekProfessional: !!plan.seekProfessional,
+    professionalNote: str(plan.professionalNote) || '',
+    causes: arr(plan.causes) || fb.causes,
+    whatNotToDo: arr(plan.whatNotToDo) || fb.whatNotToDo,
+    days: Array.isArray(plan.days) ? plan.days.slice(0, 7).map((d, i) => ({
+      title: str(d.title) || fb.days[i].title,
+      sub: str(d.sub) || fb.days[i].sub,
+      desc: str(d.desc) || fb.days[i].desc,
+      tasks: normTasks(d.tasks, fb.days[i].tasks)
+    })) : fb.days
+  };
+  while (out.days.length < 7) out.days.push(fb.days[out.days.length]);
+  return out;
+}
+function normTasks(t, fbTasks){
+  if(!Array.isArray(t) || !t.length) return fbTasks;
+  const out = t.slice(0,7).map(function(x){
+    if(x && typeof x === 'object'){ const title=str(x.title)||str(x.task)||str(x.label); if(!title) return null; return {title:title, detail:str(x.detail)||str(x.how)||str(x.why)||''}; }
+    const title=str(x); return title?{title:title, detail:''}:null;
+  }).filter(Boolean);
+  return out.length? out : fbTasks;
+}
+const str = v => (typeof v === 'string' && v.trim()) ? v.trim() : null;
+const arr = v => (Array.isArray(v) && v.length) ? v.filter(x => typeof x === 'string' && x.trim()) : null;
+
+function fallbackPlan(a) {
+  const pet = (a && a.petName) || 'your pet';
+  const warn = Array.isArray(a && a.warningSigns) ? a.warningSigns : [];
+  const medical = warn.some(w => /aggress|eating|drinking|letharg|vomit|diarr/i.test(w));
+  return {
+    behaviorExplain: `Most behaviour changes in ${pet} come from a shift in routine, environment or an unmet need. This week focuses on observing the pattern, then gently reshaping it.`,
+    assessment: `Based on what you described, this looks like a manageable behaviour pattern that responds well to consistent routines and positive reinforcement.`,
+    seekProfessional: medical,
+    professionalNote: medical ? `Some of the signs you selected can have a medical cause. Please have ${pet} checked by a vet alongside this plan.` : '',
+    causes: ['Recent change in routine or environment', 'An unmet need (stimulation, security or comfort)', 'A learned response that gets reinforced unintentionally'],
+    whatNotToDo: ['Punish after the fact - it increases anxiety', 'Change several things at once', 'Give up if progress is gradual'],
+    days: [
+      { title: 'Foundation', sub: 'Observe the pattern', desc: 'Watch closely and note what triggers the behaviour.', tasks: [
+        { title: 'Log every incident today', detail: 'Note the time, place and what '+pet+' was doing each time the behaviour happens - patterns appear fast.' },
+        { title: 'Record the trigger', detail: 'Write down what happened in the 30 seconds right before, so you can spot the real cause.' },
+        { title: 'Keep the day identical', detail: 'Change nothing else today; a stable baseline makes the next changes easier to measure.' },
+        { title: 'Prepare a reward '+pet+' loves', detail: 'Pick a small treat or toy you will use only for calm behaviour this week.' },
+        { title: 'Set a calm zone', detail: 'Choose one quiet spot '+pet+' can retreat to, away from the main trigger.' },
+        { title: 'Note energy and mood', detail: 'A quick morning and evening note on mood helps link behaviour to sleep, food or activity.' } ] },
+      { title: 'Build calm', sub: 'First changes', desc: 'Introduce the first calming routine.', tasks: [
+        { title: 'Fix one feeding time', detail: 'Feed '+pet+' at the same time today; predictable routines lower baseline stress.' },
+        { title: 'Add a 10-minute enrichment session', detail: 'Sniffing, gentle play or a puzzle drains nervous energy that often fuels the behaviour.' },
+        { title: 'Reward the first calm moment', detail: 'The instant '+pet+' settles, reward within two seconds so the link is clear.' },
+        { title: 'Keep logging incidents', detail: 'Continue yesterday\u2019s log so you can compare intensity day to day.' },
+        { title: 'Shorten exposure to the trigger', detail: 'Where you can, reduce how long '+pet+' faces the trigger today.' },
+        { title: 'End the day with quiet time', detail: 'Ten calm minutes before sleep helps '+pet+' wind down and reset.' } ] },
+      { title: 'First progress', sub: 'Reinforce', desc: 'Repeat what helped and reward generously.', tasks: [
+        { title: 'Repeat the calming routine', detail: 'Do exactly what worked yesterday; repetition is what turns it into a habit.' },
+        { title: 'Reward immediately after calm', detail: 'Timing matters more than size - a fast small reward beats a slow big one.' },
+        { title: 'Avoid the main trigger where possible', detail: 'Give '+pet+'\u2019s nervous system a lighter day to recover.' },
+        { title: 'Note any change in intensity', detail: 'Even a small drop means the plan is working - write it down.' },
+        { title: 'Practise one calm cue', detail: 'Pair a soft word or hand signal with calm so you can use it later.' },
+        { title: 'Keep the reward special', detail: 'Only use the chosen reward for calm behaviour so it keeps its value.' } ] },
+      { title: 'Reinforce', sub: 'Make it stick', desc: 'Consistency turns change into habit.', tasks: [
+        { title: 'Same routine, same times', detail: 'Consistency this week is what locks in the change - keep the timings steady.' },
+        { title: 'Increase rewards for good moments', detail: 'Catch '+pet+' being calm more often today and reward each time.' },
+        { title: 'Introduce the trigger briefly and calmly', detail: 'A short, low-intensity exposure while '+pet+' is relaxed builds tolerance safely.' },
+        { title: 'Reward the calm response', detail: 'If '+pet+' stays settled during the trigger, reward instantly.' },
+        { title: 'Note the reaction', detail: 'Record how '+pet+' handled the trigger so you can adjust tomorrow.' },
+        { title: 'Protect rest and sleep', detail: 'A well-rested pet copes far better with triggers.' } ] },
+      { title: 'Challenge', sub: 'Test gently', desc: 'A controlled test of the situation.', tasks: [
+        { title: 'Recreate the trigger in a mild form', detail: 'Set up a gentle version you fully control, so you can stop any time.' },
+        { title: 'Reward the calm response instantly', detail: 'Mark and reward the moment '+pet+' chooses calm over reacting.' },
+        { title: 'Stop early if stress appears', detail: 'Ending before '+pet+' is overwhelmed keeps the progress intact.' },
+        { title: 'Note how far you got', detail: 'Record the distance, duration or intensity '+pet+' handled today.' },
+        { title: 'Finish on a win', detail: 'End every session with something easy so '+pet+' feels successful.' },
+        { title: 'Decompress afterwards', detail: 'Give '+pet+' quiet time to settle after the challenge.' } ] },
+      { title: 'Consolidate', sub: 'Lock it in', desc: 'Repeat the successful pattern.', tasks: [
+        { title: 'Repeat the successful setup from day 5', detail: 'Do the version that worked, exactly the same way, to strengthen it.' },
+        { title: 'Keep rewards frequent', detail: 'Don\u2019t fade rewards yet - the habit is still forming.' },
+        { title: 'Let '+pet+' set the pace', detail: 'If '+pet+' seems ready for more, add a little; if not, hold steady.' },
+        { title: 'Compare with day 1', detail: 'Look back at your first log - seeing the change keeps you motivated.' },
+        { title: 'Reinforce the calm cue', detail: 'Use your calm word or signal and reward the response.' },
+        { title: 'Note what works best', detail: 'Write down the one or two things that help '+pet+' most.' } ] },
+      { title: 'New normal', sub: 'Life after', desc: 'Keep the wins and plan ahead.', tasks: [
+        { title: 'Run the full new routine start to finish', detail: 'Do the whole day the new way to prove it has become normal.' },
+        { title: 'Celebrate the progress', detail: 'Mark how far you and '+pet+' have come - it matters.' },
+        { title: 'Write down what worked best', detail: 'Keep a short summary you can return to if the behaviour ever returns.' },
+        { title: 'Decide what to keep weekly', detail: 'Choose the routines worth keeping so the change lasts.' },
+        { title: 'Plan for setbacks', detail: 'Know which two steps to repeat if a hard day happens.' },
+        { title: 'Keep the calm zone', detail: 'Leave '+pet+'\u2019s retreat spot in place for ongoing security.' } ] }
+    ]
+  };
+}
