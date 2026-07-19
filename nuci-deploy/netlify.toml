@@ -5,20 +5,9 @@
 [functions]
   node_bundler = "esbuild"
 
-# Homepage = landing page
-[[redirects]]
-  from = "/"
-  to = "/landing.html"
-  status = 200
-
-# App entry (Get started / Login point here via index.html?...)
+# index.html (the landing page) is served automatically at "/".
+# Clean URL for the app:
 [[redirects]]
   from = "/app"
-  to = "/index.html"
-  status = 200
-
-# Clean URL for landing
-[[redirects]]
-  from = "/landing"
-  to = "/landing.html"
+  to = "/app.html"
   status = 200
