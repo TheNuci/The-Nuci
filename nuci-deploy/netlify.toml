@@ -5,9 +5,20 @@
 [functions]
   node_bundler = "esbuild"
 
-# SPA-ish: serve index for the root; functions handled automatically at /.netlify/functions/*
+# Homepage = landing page
 [[redirects]]
-  from = "/*"
+  from = "/"
+  to = "/landing.html"
+  status = 200
+
+# App entry (Get started / Login point here via index.html?...)
+[[redirects]]
+  from = "/app"
   to = "/index.html"
   status = 200
-  force = false
+
+# Clean URL for landing
+[[redirects]]
+  from = "/landing"
+  to = "/landing.html"
+  status = 200

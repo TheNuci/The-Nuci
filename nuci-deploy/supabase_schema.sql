@@ -28,3 +28,33 @@ create policy "anon can insert profiles" on public.profiles
 drop policy if exists "anon can update profiles" on public.profiles;
 create policy "anon can update profiles" on public.profiles
   for update using (true) with check (true);
+
+-- ============ REFERRALS ============
+-- who referred this user (their referral code), and how many CONFIRMED PURCHASES
+-- this user has driven. referral_count only ever increments on a real purchase.
+alter table public.profiles add column if not exists referral_code text unique;
+alter table public.profiles add column if not exists referred_by text;   -- referrer's referral_code
+alter table public.profiles add column if not exists referral_count int default 0;
+alter table public.profiles add column if not exists referral_rewarded_at timestamptz;
+
+create index if not exists idx_profiles_referral_code on public.profiles(referral_code);
+create index if not exists idx_profiles_referred_by on public.profiles(referred_by);
+
+-- Atomic increment of a referrer's count. Called by the server (service role) ONLY
+-- after a purchase is confirmed. Returns the new count.
+create or replace function public.increment_referral(referrer_code text)
+returns int
+language plpgsql
+security definer
+as $$
+declare
+  new_count int;
+begin
+  update public.profiles
+     set referral_count = coalesce(referral_count,0) + 1,
+         updated_at = now()
+   where referral_code = referrer_code
+   returning referral_count into new_count;
+  return new_count;
+end;
+$$;
