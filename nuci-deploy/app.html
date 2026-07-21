@@ -197,6 +197,10 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .field{width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:14px;box-shadow:var(--shadow);
   padding:16px 18px;font-size:1rem;display:flex;align-items:center;gap:10px}
 .field input,.field textarea{border:none;outline:none;background:transparent;flex:1;font-size:16px;resize:none}
+.micbtn{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:none;background:rgba(107,143,113,0.12);color:var(--forest);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,transform .2s ease;margin-left:6px}
+.micbtn:active{transform:scale(.94)}
+.micbtn.rec{background:var(--forest);color:#fff;animation:micPulse 1.2s ease-in-out infinite}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(62,90,71,.5)}50%{box-shadow:0 0 0 8px rgba(62,90,71,0)}}
 .field:focus-within{border-color:var(--sage)}
 .field .eye{color:var(--secondary);width:22px;height:22px;flex-shrink:0}
 /* age slider */
@@ -239,6 +243,9 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .warncard .nicon{color:var(--danger);flex-shrink:0;margin-top:1px}
 
 /* auth screens */
+
+.auth-back{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--secondary);font-family:inherit;font-size:.9rem;cursor:pointer;padding:6px 0;margin-bottom:18px}
+.auth-back svg{display:block}
 .auth-wrap{padding:calc(env(safe-area-inset-top) + 30px) 26px 0}
 .auth-h{font-size:1.95rem;letter-spacing:-0.04em;line-height:1.12;margin-bottom:24px}
 .checkrow{display:flex;align-items:flex-start;gap:11px;font-size:0.9rem;color:var(--secondary);line-height:1.45;cursor:pointer}
@@ -263,7 +270,7 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .pk::after{content:'';position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;
   background:linear-gradient(155deg,#43604B 0%,#3E5A47 45%,#2E4436 100%);
   opacity:0;transition:opacity .9s ease}
-.pk.sel{cursor:default;border-color:rgba(46,68,54,0.9);box-shadow:0 18px 44px rgba(46,68,54,0.36)}
+.pk.sel{cursor:default;border-color:transparent;box-shadow:0 18px 44px rgba(46,68,54,0.30)}
 .pk.sel::after{opacity:1}
 .pk .cmp,.pk .exp{position:relative;z-index:1}
 .pk .cmp{display:block;padding:17px 20px}
@@ -619,6 +626,10 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 <!-- LOGIN -->
 <section class="screen" id="screen-login">
   <div class="auth-wrap">
+    <button class="auth-back" onclick="backToLanding()" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M15 18l-6-6 6-6"/></svg>
+      <span>Back</span>
+    </button>
     <h1 class="auth-h"><span class="accent">Welcome</span> back.</h1>
     <div class="field" style="margin-bottom:12px"><input id="logEmail" type="email" placeholder="Email" autocomplete="email"></div>
     <div class="field" style="margin-bottom:14px"><input id="logPass" type="password" placeholder="Password" autocomplete="current-password">
@@ -719,6 +730,36 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 const SUPABASE_URL = 'https://dsuiqkcjfayazzvfwdqk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzdWlxa2NqZmF5YXp6dmZ3ZHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTA3NDksImV4cCI6MjA5NjI4Njc0OX0.WFQe-Vs3tbCemGKvNF-aQd_a1THR9C8kww9hA-LCgbE';
 let DEMO=(function(){ try{ return new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
+// ===== Voice input (speech-to-text) — works in any language the user speaks =====
+var __rec=null, __recTarget=null;
+function speechSupported(){ return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window); }
+function micBtnHTML(targetId){
+  if(!speechSupported()) return '';
+  return '<button type="button" class="micbtn" data-target="'+targetId+'" onclick="toggleMic(this)" aria-label="Speak your answer">'
+    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg></button>';
+}
+function toggleMic(btn){
+  var input=document.getElementById(btn.getAttribute('data-target'));
+  if(!input) return;
+  // stop if already recording
+  if(__rec){ try{__rec.stop();}catch(e){} __rec=null; document.querySelectorAll('.micbtn.rec').forEach(function(b){b.classList.remove('rec');}); return; }
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  var r=new SR();
+  // no forced language -> uses the device/browser language; user can speak ANY language
+  r.lang = (navigator.language||'');   // device language as a hint; recognizer still accepts speech
+  r.interimResults=true; r.continuous=false; r.maxAlternatives=1;
+  var base=input.value?input.value.trim()+' ':'';
+  r.onresult=function(ev){
+    var txt='';
+    for(var i=0;i<ev.results.length;i++){ txt+=ev.results[i][0].transcript; }
+    input.value=base+txt;
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+  };
+  r.onerror=function(){ btn.classList.remove('rec'); __rec=null; };
+  r.onend=function(){ btn.classList.remove('rec'); __rec=null; };
+  __rec=r; btn.classList.add('rec');
+  try{ r.start(); }catch(e){ __rec=null; btn.classList.remove('rec'); }
+}
 function enableDemo(){
   DEMO=true;
   if(!state.answers||!state.answers.petName){
@@ -965,13 +1006,15 @@ function liftWithKeyboard(el){
 }
 
 // ═══════ INTRO SLIDES ═══════
+const ART4='<svg viewBox="0 0 200 150" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="86" cy="75" r="42" fill="rgba(107,143,113,0.08)"/><ellipse cx="86" cy="75" rx="18" ry="42"/><path d="M44 75h84M50 55h72M50 95h72"/><circle cx="140" cy="104" r="20" fill="#FBFBF8"/><g transform="translate(140,104)" stroke="#6B8F71" stroke-width="2.4"><rect x="-4" y="-11" width="8" height="15" rx="4"/><path d="M-8 -1v1a8 8 0 0 0 16 0v-1M0 8v4"/></g></svg>';
 const ART1='<svg viewBox="0 0 200 150" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="46" y="22" width="98" height="106" rx="13" fill="rgba(107,143,113,0.08)"/><path d="M64 50h46M64 68h62M64 86h40M64 104h54"/><circle cx="146" cy="38" r="19" fill="#FBFBF8"/><g transform="translate(146,38)" stroke-width="2.4"><ellipse cx="0" cy="5" rx="6.5" ry="5"/><ellipse cx="-6.5" cy="-3" rx="2.5" ry="3.2"/><ellipse cx="-2.2" cy="-7.5" rx="2.3" ry="3.2"/><ellipse cx="2.2" cy="-7.5" rx="2.3" ry="3.2"/><ellipse cx="6.5" cy="-3" rx="2.5" ry="3.2"/></g></svg>';
 const ART2='<svg viewBox="0 0 200 150" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="44" y="36" width="104" height="88" rx="12" fill="rgba(107,143,113,0.08)"/><path d="M44 60h104"/><path d="M68 30v14M124 30v14"/><g fill="#6B8F71" stroke="none"><circle cx="66" cy="78" r="3.4"/><circle cx="88" cy="78" r="3.4"/><circle cx="110" cy="78" r="3.4"/><circle cx="66" cy="100" r="3.4"/></g><circle cx="110" cy="100" r="9" fill="none" stroke="#6B8F71" stroke-width="2.6"/><path d="M164 44a15 15 0 1 1-12-17 11 11 0 0 0 12 17z" fill="#FBFBF8" stroke="currentColor" stroke-width="2.4"/></svg>';
 const ART3='<svg viewBox="0 0 200 150" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="42" y="28" width="116" height="98" rx="12" fill="rgba(107,143,113,0.06)"/><path d="M60 108h84" opacity="0.45"/><path d="M60 108V48" opacity="0.45"/><path d="M60 100c14-2 24-10 34-26s20-26 40-30" stroke="#6B8F71" stroke-width="3.2"/><g fill="#6B8F71" stroke="none"><circle cx="60" cy="100" r="4"/><circle cx="94" cy="74" r="4"/><circle cx="134" cy="44" r="4.5"/></g><path d="M126 40l10-4-2 10" stroke="#6B8F71" stroke-width="2.6"/></svg>';
 const INTRO=[
   {art:ART1,h:'A plan built <span class="accent">for your pet</span>',p:'Describe the behaviour and our AI creates a personalized 7-day plan - likely causes, what to do, and what to avoid.'},
   {art:ART2,h:'It <span class="accent">adapts</span> every day',p:"A quick evening check-in reshapes tomorrow's plan around what actually happened that day."},
-  {art:ART3,h:'Watch the <span class="accent">change</span>',p:'Streaks, gentle insights and real, visible progress across the week - so you know it is working.'}
+  {art:ART3,h:'Watch the <span class="accent">change</span>',p:'Streaks, gentle insights and real, visible progress across the week - so you know it is working.'},
+  {art:ART4,h:'Your words, <span class="accent">any language</span>',p:'Write or speak in whatever language feels natural - Nuci understands them all. Tap the mic to talk instead of typing.'}
 ];
 let introIdx=0;
 function welcomeNew(){ introIdx=0; renderIntro(); showScreen('screen-intro'); }
@@ -1060,7 +1103,7 @@ function renderQ(){
     body.scrollTop=0; });
   if(q.type==='text'||q.type==='textarea'){
     const multi=q.type==='textarea';
-    mid.innerHTML='<div class="field"><input id="qInput" placeholder="'+esc(q.placeholder||'')+'"></div>'
+    mid.innerHTML='<div class="field"><input id="qInput" placeholder="'+esc(q.placeholder||'')+'">'+micBtnHTML('qInput')+'</div>'
       +'<div class="qinline"><button class="rback" onclick="assessBack()" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button><button class="btn btn-primary" style="flex:1" type="button" onclick="assessNext()">Next</button></div>';
     const inp=$('qInput'); inp.value=state.answers[q.id]||'';
     inp.addEventListener('input',e=>state.answers[q.id]=e.target.value);
@@ -1599,6 +1642,7 @@ function selectTodayPet(i){ toggleTodayPets(); if(i!==state.activePet) switchToP
   var startX=0, startY=0, tracking=false, t0=0;
   var EDGE=32;      // must start within 32px of the left edge
   var THRESH=64;    // must travel at least 64px right
+  window.backToLanding=function(){ window.location.href='/'; };
   function goBack(){
     // pick the most relevant back action for the current state
     var warn=document.getElementById('warnModal'); if(warn&&warn.classList.contains('open')){ closeWarnModal(); return true; }
@@ -2493,7 +2537,7 @@ function renderCI(){
     var __lastSev=v; r.addEventListener('input',e=>{ var x=parseInt(e.target.value,10); if(x!==__lastSev){ __lastSev=x; haptic(x>=8?14:7); } ap(x); }); ap(v);
   }else{
     const multi=s.type==='textarea';
-    mid.innerHTML='<div class="field"><input id="ciInput" placeholder="'+esc(s.placeholder||'')+'"></div>'
+    mid.innerHTML='<div class="field"><input id="ciInput" placeholder="'+esc(s.placeholder||'')+'">'+micBtnHTML('ciInput')+'</div>'
       +'<div class="qinline"><button class="rback" onclick="ciBack()" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button><button class="btn btn-primary" style="flex:1" type="button" onclick="ciNext()">'+((ciStep>=flow.length-1)?'Finish check-in':'Next')+'</button></div>';
     const inp=$('ciInput'); inp.value=ciData[s.id]||'';
     inp.addEventListener('input',e=>ciData[s.id]=e.target.value);
@@ -2653,6 +2697,7 @@ async function adaptNextDay(nextDay){
   const isPaid=params.get('paid')==='true'||params.get('paid')==='1';
   const wantLogin=params.get('login')==='1';
   const wantStart=params.get('start')==='1';
+  const wantDemo=params.get('demo')==='1';
   // capture referral code from ?ref= (store until the user registers)
   try{ var _ref=params.get('ref'); if(_ref){ localStorage.setItem('nuci_ref', _ref.slice(0,40)); } }catch(e){}
   const route=async()=>{
@@ -2670,6 +2715,7 @@ async function adaptNextDay(nextDay){
       if(had&&state.answers&&state.answers.petName){ buildOffer(); showScreen('screen-offer'); return; }
     }
     if(wantLogin){ showScreen('screen-login'); return; }
+    if(wantDemo){ try{ demoEnterApp(); }catch(e){ welcomeNew(); } return; }
     if(wantStart){ welcomeNew(); return; }
     showScreen('screen-welcome');
   };

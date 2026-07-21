@@ -55,7 +55,7 @@ function nuciBox(inner){ return `<table role="presentation" width="100%" style="
 //   alter table profiles add column if not exists last_weekly_sent text;
 
 const SEND_HOUR = 13;                 // 13:00 local time
-const FROM = 'The Nuci <noreply@thenuci.com>';
+const FROM = 'The Nuci <team@thenuci.com>';
 
 // ── local time helper ───────────────────────────────────────────────
 function localParts(tz) {

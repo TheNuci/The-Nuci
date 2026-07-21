@@ -48,7 +48,7 @@ function nuciBox(inner){ return `<table role="presentation" width="100%" style="
 //   alter table profiles add column if not exists last_morning_sent text;
 
 const MORNING_HOUR = 9;              // 09:00 local time
-const FROM = 'The Nuci <noreply@thenuci.com>';
+const FROM = 'The Nuci <team@thenuci.com>';
 
 function localParts(tz) {
   try {

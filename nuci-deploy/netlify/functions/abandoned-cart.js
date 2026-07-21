@@ -49,7 +49,7 @@ function nuciBox(inner){ return `<table role="presentation" width="100%" style="
 //   alter table profiles add column if not exists purchased boolean default false;
 //   alter table profiles add column if not exists cart_nudge_sent boolean default false;
 
-const FROM = 'The Nuci <noreply@thenuci.com>';
+const FROM = 'The Nuci <team@thenuci.com>';
 const MIN_AGE_MIN = 15;      // wait at least 15 minutes after signup
 const MAX_AGE_MIN = 2880;    // ...within 48h (was 3h - too narrow to ever fire)
 

@@ -42,7 +42,7 @@ function nuciBox(inner){ return `<table role="presentation" width="100%" style="
 //
 // The Resend key lives only here (server-side), never in index.html.
 
-const FROM = 'The Nuci <noreply@thenuci.com>';
+const FROM = 'The Nuci <hello@thenuci.com>';
 
 function welcomeHtml(name, toEmail) {
   const unsubUrl = toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
