@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%20width%3D%22100%22%20height%3D%22100%22%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%2292%22%20height%3D%2292%22%20rx%3D%2222%22%20fill%3D%22%23FBFBF8%22%20stroke%3D%22rgba%280%2C0%2C0%2C0.06%29%22%20stroke-width%3D%221.5%22/%3E%3Cg%20transform%3D%22translate%2816.86%2068%29%20scale%280.0324%20-0.0324%29%22%3E%3Cpath%20d%3D%22M995%200%20381%201085Q399%20927%20399%20831V0H137V1409H474L1097%20315Q1079%20466%201079%20590V1409H1341V0Z%22%20fill%3D%22%231A211C%22/%3E%3C/g%3E%3Cg%20transform%3D%22translate%2864.72%2068%29%20scale%280.0324%20-0.0324%29%22%3E%3Cpath%20d%3D%22M139%200V305H428V0Z%22%20fill%3D%22%236B8F71%22/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="the-nuci-favicon-180.png">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light">
@@ -9,11 +12,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="The Nuci">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%233E5A47'/%3E%3Ctext x='90' y='120' font-size='96' text-anchor='middle' fill='%23F2F1EC' font-family='Georgia' font-style='italic'%3EN%3C/text%3E%3C/svg%3E">
-<link rel="manifest" href='data:application/manifest+json,{"name":"The Nuci","short_name":"The Nuci","start_url":".","display":"standalone","background_color":"#F2F1EC","theme_color":"#F2F1EC","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 512 512%27%3E%3Crect width=%27512%27 height=%27512%27 rx=%27112%27 fill=%27%233E5A47%27/%3E%3Ctext x=%27256%27 y=%27340%27 font-size=%27280%27 text-anchor=%27middle%27 fill=%27%23F2F1EC%27 font-family=%27Georgia%27 font-style=%27italic%27%3EN%3C/text%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml"}]}'>
+<link rel="manifest" href='data:application/manifest+json,{"name":"The Nuci","short_name":"The Nuci","start_url":".","display":"standalone","background_color":"#F2F1EC","theme_color":"#F2F1EC","icons":[{"src":"the-nuci-favicon-512.png","sizes":"512x512","type":"image/png"}]}'>
 <title>The Nuci - Understand your pet</title>
 <meta name="description" content="A personalized 7-day pet behaviour plan, built by AI. Every behaviour has a cause.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,500&display=swap" rel="stylesheet">
@@ -197,6 +198,33 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .field{width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:14px;box-shadow:var(--shadow);
   padding:16px 18px;font-size:1rem;display:flex;align-items:center;gap:10px}
 .field input,.field textarea{border:none;outline:none;background:transparent;flex:1;font-size:16px;resize:none}
+.field-grow{align-items:flex-start}
+.field-grow textarea{flex:1;min-height:24px;line-height:1.5;overflow-y:auto;padding:0;font-family:inherit;color:var(--text);word-break:break-word;white-space:pre-wrap}
+.field-grow .mic-wrap{align-self:flex-end}
+#qrModal{position:fixed;inset:0;z-index:3000;display:none;align-items:center;justify-content:center}
+#qrModal.open{display:flex}
+#qrModal .qrm-dim{position:absolute;inset:0;background:rgba(26,33,28,.5);backdrop-filter:blur(3px)}
+#qrModal .qrm-card{position:relative;z-index:1;background:var(--card);border-radius:24px;padding:32px 28px;max-width:320px;width:calc(100% - 48px);box-shadow:0 30px 80px rgba(35,39,31,.3);animation:qrmIn .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes qrmIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+#qrModal .qrm-x{position:absolute;top:12px;right:16px;background:none;border:none;font-size:1.6rem;line-height:1;color:var(--secondary);cursor:pointer}
+.mic-wrap{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;margin-left:6px}
+#langModal{position:fixed;inset:0;z-index:3200;display:none}
+#langModal.open{display:block}
+#langModal .lm-dim{position:absolute;inset:0;background:rgba(26,33,28,.5);backdrop-filter:blur(3px)}
+#langModal .lm-sheet{position:absolute;left:50%;bottom:0;transform:translateX(-50%) translateY(100%);width:min(440px,100%);max-height:70vh;background:var(--card);border-radius:24px 24px 0 0;box-shadow:0 -20px 60px rgba(35,39,31,.3);display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+#langModal.open .lm-sheet{transform:translateX(-50%) translateY(0)}
+#langModal .lm-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 12px;border-bottom:1px solid var(--border)}
+#langModal .lm-x{background:none;border:none;font-size:1.7rem;line-height:1;color:var(--secondary);cursor:pointer}
+#langModal .lm-list{overflow-y:auto;padding:8px 12px 24px;-webkit-overflow-scrolling:touch}
+#langModal .lang-row{display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;border:none;background:none;border-radius:12px;cursor:pointer;font-family:inherit;text-align:left}
+#langModal .lang-row:active{background:rgba(107,143,113,.08)}
+#langModal .lang-row.sel{background:rgba(107,143,113,.12)}
+#langModal .lang-name{flex:1;font-size:.98rem;color:var(--text)}
+#langModal .lang-code{font-size:.72rem;font-weight:600;color:var(--secondary);letter-spacing:.04em}
+#langModal .lang-check{width:18px;color:var(--forest);opacity:0;font-weight:700}
+#langModal .lang-row.sel .lang-check{opacity:1}
+.mic-lang{flex:0 0 auto;min-width:34px;height:38px;padding:0 8px;border-radius:19px;border:1px solid var(--border);background:var(--card);color:var(--forest);font-family:inherit;font-size:.74rem;font-weight:600;letter-spacing:.03em;cursor:pointer}
+.mic-lang:active{transform:scale(.95)}
 .micbtn{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:none;background:rgba(107,143,113,0.12);color:var(--forest);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,transform .2s ease;margin-left:6px}
 .micbtn:active{transform:scale(.94)}
 .micbtn.rec{background:var(--forest);color:#fff;animation:micPulse 1.2s ease-in-out infinite}
@@ -377,7 +405,8 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
   -webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);
   background:linear-gradient(to top,rgba(242,241,236,0.65),rgba(242,241,236,0));
   -webkit-mask-image:linear-gradient(to top,#000 60%,transparent);mask-image:linear-gradient(to top,#000 60%,transparent)}
-.nav{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(30px)}
+.nav{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);transition:opacity .2s ease,transform .2s ease;
   width:min(356px,calc(100% - 34px));z-index:901;
   background:rgba(248,247,243,0.45);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);
   border:1px solid rgba(255,255,255,0.55);border-radius:32px;
@@ -546,7 +575,7 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
     <div class="wel-btns">
       <button class="btn btn-primary" onclick="welcomeNew()">Begin</button>
       <button class="wel-textlink" onclick="showScreen('screen-login')">I already have an account</button>
-      <div class="wel-trust">Trusted by owners of <span>2,400</span> pets</div>
+      <div class="wel-trust">Trusted by owners of <span>1,724</span> pets</div>
       <button class="btn btn-ghost" id="demoBtn" style="display:none;margin-top:2px;font-size:0.85rem" onclick="enableDemo();welcomeNew()">Preview the app - no account needed</button>
       <button class="btn btn-ghost" style="display:none;margin-top:0;font-size:0.85rem" onclick="demoEnterApp()">Skip straight to the app (preview)</button>
       <div id="devButtons" style="display:none;gap:8px;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
@@ -578,7 +607,7 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 <!-- HELLO -->
 <section class="screen" id="screen-hello">
   <div class="hello-wrap">
-    <svg class="hello-hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V6.2a1.3 1.3 0 0 1 2.6 0V11m0-.4V5a1.3 1.3 0 0 1 2.6 0v5.6m0-.3V6.4a1.3 1.3 0 0 1 2.6 0V13c0 4-2.4 6.8-6 6.8-2.2 0-3.6-1-4.7-2.8L6 13.6c-.6-1 .1-2.2 1.2-2.2.6 0 1.1.3 1.4.8z"/></svg>
+    <svg class="hello-hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V6.2a1.3 1.3 0 0 1 2.6 0V11m0-.4V5a1.3 1.3 0 0 1 2.6 0v5.6m0-.3V6.4a1.3 1.3 0 0 1 2.6 0V13c0 4-2.4 6.8-6 6.8-2.2 0-3.6-1-4.7-2.8L6 13.6c-.6-1 .1-2.2 1.2-2.2.6 0 1.1.3 1.4.9z"/></svg>
     <div class="hello-h">Hello.</div>
     <p class="hello-p">To get started, we'd like to ask you <span class="accent">a few questions</span> about your pet.</p>
     <p class="hello-p" style="margin-top:14px">Your answers help our AI craft the right 7-day plan.</p>
@@ -731,22 +760,84 @@ const SUPABASE_URL = 'https://dsuiqkcjfayazzvfwdqk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzdWlxa2NqZmF5YXp6dmZ3ZHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTA3NDksImV4cCI6MjA5NjI4Njc0OX0.WFQe-Vs3tbCemGKvNF-aQd_a1THR9C8kww9hA-LCgbE';
 let DEMO=(function(){ try{ return new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) — works in any language the user speaks =====
-var __rec=null, __recTarget=null;
+var __rec=null;
+// grow a textarea downward to fit its content (content above stays put, box expands)
+function autoGrow(el){
+  if(!el) return;
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight, Math.round(window.innerHeight*0.4))+'px';
+}
+
+// Hide bottom nav while typing so it doesn't jump above the mobile keyboard
+(function(){
+  function isText(el){ return el && (el.tagName==='TEXTAREA' || (el.tagName==='INPUT' && !/^(button|checkbox|radio|range|submit)$/i.test(el.type||''))); }
+  document.addEventListener('focusin', function(e){ if(isText(e.target)) document.body.classList.add('kb-open'); });
+  document.addEventListener('focusout', function(e){ if(isText(e.target)) setTimeout(function(){ if(!isText(document.activeElement)) document.body.classList.remove('kb-open'); }, 60); });
+})();
+
+// Web Speech API cannot auto-detect language, so the user picks one. Remembered across the app.
+var VOICE_LANGS=[
+  ['sl-SI','Slovenščina','SL'],['en-US','English','EN'],['de-DE','Deutsch','DE'],
+  ['it-IT','Italiano','IT'],['hr-HR','Hrvatski','HR'],['sr-RS','Srpski','SR'],
+  ['bs-BA','Bosanski','BS'],['es-ES','Español','ES'],['fr-FR','Français','FR'],
+  ['pt-PT','Português','PT'],['pt-BR','Português (BR)','BR'],['nl-NL','Nederlands','NL'],
+  ['pl-PL','Polski','PL'],['cs-CZ','Čeština','CS'],['sk-SK','Slovenčina','SK'],
+  ['hu-HU','Magyar','HU'],['ro-RO','Română','RO'],['bg-BG','Български','BG'],
+  ['el-GR','Ελληνικά','EL'],['ru-RU','Русский','RU'],['uk-UA','Українська','UK'],
+  ['tr-TR','Türkçe','TR'],['sv-SE','Svenska','SV'],['da-DK','Dansk','DA'],
+  ['nb-NO','Norsk','NO'],['fi-FI','Suomi','FI'],['is-IS','Íslenska','IS'],
+  ['ar-SA','العربية','AR'],['he-IL','עברית','HE'],['fa-IR','فارسی','FA'],
+  ['hi-IN','हिन्दी','HI'],['zh-CN','中文 (简)','ZH'],['zh-TW','中文 (繁)','TW'],
+  ['ja-JP','日本語','JA'],['ko-KR','한국어','KO'],['th-TH','ไทย','TH'],
+  ['vi-VN','Tiếng Việt','VI'],['id-ID','Indonesia','ID'],['ms-MY','Melayu','MS'],
+  ['en-GB','English (UK)','GB'],['es-MX','Español (MX)','MX'],['ca-ES','Català','CA'],
+  ['et-EE','Eesti','ET'],['lv-LV','Latviešu','LV'],['lt-LT','Lietuvių','LT']
+];
+function voiceLang(){ try{ return localStorage.getItem('nuci_voice_lang')||'sl-SI'; }catch(e){ return 'sl-SI'; } }
+function setVoiceLang(code){ try{ localStorage.setItem('nuci_voice_lang',code); }catch(e){}; document.querySelectorAll('.mic-lang').forEach(function(el){ el.textContent=voiceLabel(); }); }
+function voiceLabel(){ var c=voiceLang(); var f=VOICE_LANGS.find(function(x){return x[0]===c;}); return f?f[2]:'SL'; }
 function speechSupported(){ return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window); }
 function micBtnHTML(targetId){
   if(!speechSupported()) return '';
-  return '<button type="button" class="micbtn" data-target="'+targetId+'" onclick="toggleMic(this)" aria-label="Speak your answer">'
-    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg></button>';
+  return '<div class="mic-wrap">'
+    +'<button type="button" class="mic-lang" onclick="openVoiceLangPicker(event)" aria-label="Voice language">'+voiceLabel()+'</button>'
+    +'<button type="button" class="micbtn" data-target="'+targetId+'" onclick="toggleMic(this)" aria-label="Speak your answer">'
+    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg></button>'
+    +'</div>';
 }
+function openVoiceLangPicker(ev){
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+  var cur=voiceLang();
+  var m=document.getElementById('langModal');
+  if(!m){
+    m=document.createElement('div'); m.id='langModal';
+    var rows=VOICE_LANGS.map(function(l){
+      return '<button type="button" class="lang-row" data-code="'+l[0]+'" onclick="pickVoiceLang(\''+l[0]+'\')">'
+        +'<span class="lang-name">'+l[1]+'</span><span class="lang-code">'+l[2]+'</span>'
+        +'<span class="lang-check">\u2713</span></button>';
+    }).join('');
+    m.innerHTML='<div class="lm-dim" onclick="closeVoiceLangPicker()"></div>'
+      +'<div class="lm-sheet">'
+      +'<div class="lm-head"><div class="d-eb" style="color:var(--sage)">Voice language</div>'
+      +'<button class="lm-x" onclick="closeVoiceLangPicker()" aria-label="Close">&times;</button></div>'
+      +'<div class="lm-list">'+rows+'</div></div>';
+    document.body.appendChild(m);
+  }
+  // mark current selected
+  m.querySelectorAll('.lang-row').forEach(function(r){ r.classList.toggle('sel', r.getAttribute('data-code')===cur); });
+  requestAnimationFrame(function(){ m.classList.add('open'); });
+  // scroll selected into view
+  var selEl=m.querySelector('.lang-row.sel'); if(selEl) selEl.scrollIntoView({block:'center'});
+}
+function pickVoiceLang(code){ setVoiceLang(code); closeVoiceLangPicker(); }
+function closeVoiceLangPicker(){ var m=document.getElementById('langModal'); if(m) m.classList.remove('open'); }
 function toggleMic(btn){
   var input=document.getElementById(btn.getAttribute('data-target'));
   if(!input) return;
-  // stop if already recording
   if(__rec){ try{__rec.stop();}catch(e){} __rec=null; document.querySelectorAll('.micbtn.rec').forEach(function(b){b.classList.remove('rec');}); return; }
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   var r=new SR();
-  // no forced language -> uses the device/browser language; user can speak ANY language
-  r.lang = (navigator.language||'');   // device language as a hint; recognizer still accepts speech
+  r.lang = voiceLang();               // user-selected language (SL by default)
   r.interimResults=true; r.continuous=false; r.maxAlternatives=1;
   var base=input.value?input.value.trim()+' ':'';
   r.onresult=function(ev){
@@ -754,6 +845,7 @@ function toggleMic(btn){
     for(var i=0;i<ev.results.length;i++){ txt+=ev.results[i][0].transcript; }
     input.value=base+txt;
     input.dispatchEvent(new Event('input',{bubbles:true}));
+    autoGrow(input);
   };
   r.onerror=function(){ btn.classList.remove('rec'); __rec=null; };
   r.onend=function(){ btn.classList.remove('rec'); __rec=null; };
@@ -901,7 +993,7 @@ const NI={
  bird:'<path d="M6 13.5c0-3 2.4-5.2 5.4-5.2 2 0 3.3.9 4.1 2l2.4-.4-1.4 2c.3 3-2 5.6-5.1 5.6-.9 0-1.7-.2-2.4-.6"/><path d="M6 13.5C5 13.7 4 13.4 3.4 12.6c1-.2 1.6-.2 2.6.1"/><circle cx="14" cy="11.3" r="0.7" fill="currentColor" stroke="none"/><path d="M9.5 17.3l-.6 2.2M12 17.9l.2 2.2"/>',
  hamster:'<ellipse cx="12" cy="13.4" rx="5.4" ry="4.6"/><circle cx="7.4" cy="9.4" r="1.6"/><circle cx="16.6" cy="9.4" r="1.6"/><circle cx="9.9" cy="12.6" r="0.8" fill="currentColor" stroke="none"/><circle cx="14.1" cy="12.6" r="0.8" fill="currentColor" stroke="none"/><path d="M12 14.2v.9M10.6 15.1c.9.7 1.9.7 2.8 0"/>',
  reptile:'<path d="M4 15c1.5.4 2.8-.2 3.6-1.2C8.7 12.4 10 11.6 12 11.6c2.4 0 3.6-1.4 4.2-2.6.6-1.2 1.8-2 3.8-1.6"/><path d="M12 11.6c.4 1.8 1.8 3 3.8 3.2 1.6.2 2.7 1.2 3.2 2.6"/><circle cx="18.4" cy="7.9" r="0.7" fill="currentColor" stroke="none"/>',
- fish:'<path d="M4.5 12c2.2-3.2 5.2-4.8 8.4-4.8 2.4 0 4.4.9 5.7 2.1l2.9-2.1v9.6l-2.9-2.1c-1.3 1.2-3.3 2.1-5.7 2.1-3.2 0-6.2-1.6-8.4-4.8z"/><path d="M4.5 12c1.6.3 2.9.3 4.3 0M13 9.2c.6 1.8.6 3.8 0 5.6"/><circle cx="16.6" cy="10.8" r="0.7" fill="currentColor" stroke="none"/>',
+ fish:'<path d="M4.5 12c2.2-3.2 5.2-4.9 8.4-4.9 2.4 0 4.4.9 5.7 2.1l2.9-2.1v9.6l-2.9-2.1c-1.3 1.2-3.3 2.1-5.7 2.1-3.2 0-6.2-1.6-8.4-4.9z"/><path d="M4.5 12c1.6.3 2.9.3 4.3 0M13 9.2c.6 1.8.6 3.8 0 5.6"/><circle cx="16.6" cy="10.8" r="0.7" fill="currentColor" stroke="none"/>',
  home:'<path d="M4.5 11.5L12 5l7.5 6.5"/><path d="M6.5 10v8.5h11V10"/><path d="M10 18.5v-4h4v4"/>',
  tree:'<path d="M12 20v-4"/><path d="M12 16c3.6 0 5.5-2.3 5.5-5.2 0-1.6-.7-3-1.8-3.9C15.4 4.5 13.9 3.5 12 3.5S8.6 4.5 8.3 6.9C7.2 7.8 6.5 9.2 6.5 10.8 6.5 13.7 8.4 16 12 16z"/>',
  swap:'<path d="M6 9h11l-3-3M18 15H7l3 3"/>',
@@ -1014,7 +1106,7 @@ const INTRO=[
   {art:ART1,h:'A plan built <span class="accent">for your pet</span>',p:'Describe the behaviour and our AI creates a personalized 7-day plan - likely causes, what to do, and what to avoid.'},
   {art:ART2,h:'It <span class="accent">adapts</span> every day',p:"A quick evening check-in reshapes tomorrow's plan around what actually happened that day."},
   {art:ART3,h:'Watch the <span class="accent">change</span>',p:'Streaks, gentle insights and real, visible progress across the week - so you know it is working.'},
-  {art:ART4,h:'Your words, <span class="accent">any language</span>',p:'Write or speak in whatever language feels natural - Nuci understands them all. Tap the mic to talk instead of typing.'}
+  {art:ART4,h:'Your words, <span class="accent">any language</span>',p:'Write or speak in whatever language feels natural - The Nuci understands them all. Tap the mic to talk instead of typing.'}
 ];
 let introIdx=0;
 function welcomeNew(){ introIdx=0; renderIntro(); showScreen('screen-intro'); }
@@ -1026,7 +1118,7 @@ function renderIntro(){
   $('introBtn').textContent=introIdx>=INTRO.length-1?'Continue':'Next';
 }
 function introNext(){ if(introIdx>=INTRO.length-1){ showScreen('screen-hello'); return; } introIdx++; renderIntro(); }
-function introBack(){ if(introIdx<=0){ showScreen('screen-welcome'); return; } introIdx--; renderIntro(); }
+function introBack(){ if(introIdx<=0){ window.location.href='/'; return; } introIdx--; renderIntro(); }
 function helloBack(){ introIdx=INTRO.length-1; renderIntro(); showScreen('screen-intro'); }
 function helloReady(){ try{localStorage.setItem('nuci_intro_seen','1');}catch(e){} kbPrime(); state.currentQ=0; showScreen('screen-assessment'); renderQ(); setTimeout(function(){ var i=document.getElementById('qInput'); if(i){ try{i.focus({preventScroll:true});}catch(e){} } },30); }
 
@@ -1103,10 +1195,11 @@ function renderQ(){
     body.scrollTop=0; });
   if(q.type==='text'||q.type==='textarea'){
     const multi=q.type==='textarea';
-    mid.innerHTML='<div class="field"><input id="qInput" placeholder="'+esc(q.placeholder||'')+'">'+micBtnHTML('qInput')+'</div>'
+    mid.innerHTML='<div class="field field-grow"><textarea id="qInput" rows="1" placeholder="'+esc(q.placeholder||'')+'"></textarea>'+micBtnHTML('qInput')+'</div>'
       +'<div class="qinline"><button class="rback" onclick="assessBack()" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button><button class="btn btn-primary" style="flex:1" type="button" onclick="assessNext()">Next</button></div>';
     const inp=$('qInput'); inp.value=state.answers[q.id]||'';
-    inp.addEventListener('input',e=>state.answers[q.id]=e.target.value);
+    inp.addEventListener('input',e=>{ state.answers[q.id]=e.target.value; autoGrow(inp); });
+    autoGrow(inp);
     if(!multi) inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); assessNext(); }});
     try{ inp.focus({preventScroll:true}); }catch(e){}
     requestAnimationFrame(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){} });
@@ -1402,7 +1495,7 @@ function renderPkgs(){
         +'<div class="a-card" style="display:flex;gap:14px;align-items:center;margin-top:0">'
           +'<div style="font-family:\'Fraunces\',Georgia,serif;font-size:2.3rem;color:var(--forest);line-height:1">'+sp.pct+'%</div>'
           +'<div style="font-size:.84rem;color:var(--secondary);line-height:1.45">of owners reported calmer behaviour within <b style="color:var(--text);font-weight:500">'+sp.days+' days</b> of starting.</div></div>'
-        +'<div style="display:flex;align-items:center;gap:6px;justify-content:center;margin:16px 0 10px"><span style="color:#D6A84E;font-size:15px;letter-spacing:2px">\u2605\u2605\u2605\u2605\u2605</span><span style="font-size:.78rem;color:var(--secondary)">4.8 average</span></div>'
+        +'<div style="display:flex;align-items:center;gap:6px;justify-content:center;margin:16px 0 10px"><span style="color:#D6A84E;font-size:15px;letter-spacing:2px">\u2605\u2605\u2605\u2605\u2605</span><span style="font-size:.78rem;color:var(--secondary)">4.9 average</span></div>'
         +reviews.map(function(r){ return '<div class="a-card" style="margin-top:10px"><div style="font-family:\'Fraunces\',Georgia,serif;font-style:italic;font-size:15px;line-height:1.5;color:var(--text)">\u201c'+esc(r.t)+'\u201d</div><div style="font-size:.76rem;color:var(--secondary);margin-top:8px">'+esc(r.a)+' \u00b7 verified</div></div>'; }).join('')
         +'</div>';
     }
@@ -2261,6 +2354,21 @@ function referralLink(){ return 'https://thenuci.com/?ref='+referralCode(); }
 function referralCount(){ return (state.referrals&&typeof state.referrals.count==='number')?state.referrals.count:0; }
 function nextTier(){ var c=referralCount(); for(var i=0;i<REFERRAL_TIERS.length;i++){ if(c<REFERRAL_TIERS[i].n) return REFERRAL_TIERS[i]; } return null; }
 function earnedReward(){ var c=referralCount(),eur=0; REFERRAL_TIERS.forEach(function(t){ if(c>=t.n) eur=t.eur; }); return eur; }
+function squaresHtml(c){
+  var total=10;
+  var tierN=REFERRAL_TIERS.map(function(t){return t.n;});
+  var cells='';
+  for(var i=1;i<=total;i++){
+    var filled=i<=c;
+    var isTier=tierN.indexOf(i)>=0;
+    var eur=''; for(var k=0;k<REFERRAL_TIERS.length;k++){ if(REFERRAL_TIERS[k].n===i){ eur=REFERRAL_TIERS[k].eur; } }
+    cells+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
+      +'<div style="width:100%;aspect-ratio:1;border-radius:7px;background:'+(filled?'var(--forest)':'rgba(0,0,0,.06)')+';border:'+(isTier?'2px solid '+(filled?'var(--forest)':'var(--sage)'):'1px solid rgba(0,0,0,.08)')+';transition:background .4s ease"></div>'
+      +(isTier?'<div style="font-size:.56rem;color:'+(filled?'var(--forest)':'var(--secondary)')+';font-weight:600">\u20ac'+eur+'</div>':'<div style="font-size:.56rem;color:transparent">.</div>')
+      +'</div>';
+  }
+  return '<div style="display:flex;gap:5px;margin:4px 2px 0">'+cells+'</div>';
+}
 function referralCardHtml(){
   var c=referralCount(), nt=nextTier(), earned=earnedReward();
   var maxN=REFERRAL_TIERS[REFERRAL_TIERS.length-1].n;
@@ -2280,26 +2388,31 @@ function referralCardHtml(){
       +(earned>0?'<div style="font-size:.72rem;background:rgba(107,143,113,.14);color:var(--forest);padding:3px 10px;border-radius:99px">\u20ac'+earned+' earned</div>':'')+'</div>'
     +'<div class="a-quote" style="font-style:normal;font-size:17px;margin-bottom:4px">Give a calmer pet, get rewarded.</div>'
     +'<p style="font-size:.84rem;color:var(--secondary);line-height:1.5;margin-bottom:20px">Share your link. When friends start a plan, you earn cash rewards: \u20ac10 at 5, \u20ac20 at 8, \u20ac30 at 10 friends.</p>'
-    +'<div style="position:relative;height:6px;background:rgba(0,0,0,.08);border-radius:9px;margin:0 6px 26px">'
-      +'<div style="position:absolute;left:0;top:0;bottom:0;width:'+pct+'%;background:var(--sage);border-radius:9px;transition:width .6s ease"></div>'
-      +ticks+'</div>'
-    +'<div style="text-align:center;font-size:.85rem;color:var(--secondary);margin-bottom:14px">'+esc(String(c))+' friend'+(c===1?'':'s')+' joined \u00b7 '+sub+'</div>'
+    +squaresHtml(c)
+    +'<div style="text-align:center;font-size:.85rem;color:var(--secondary);margin:16px 0 14px">'+esc(String(c))+' friend'+(c===1?'':'s')+' joined \u00b7 '+sub+'</div>'
     +'<button class="btn btn-primary" onclick="shareReferral()">Share your link</button>'
-    +'<button class="btn btn-ghost" style="margin-top:6px;font-size:.82rem" onclick="copyReferral()">Copy link</button>'
-    +'<button class="btn btn-ghost" style="margin-top:6px;font-size:.82rem" onclick="toggleReferralQR()">Show QR code</button>'
-    +'<div id="refQR" style="display:none;margin-top:16px;text-align:center"><div id="refQRImg" style="width:180px;height:180px;margin:0 auto;padding:12px;background:#fff;border-radius:16px;box-shadow:0 8px 24px rgba(35,39,31,.08)"></div><div style="font-size:.76rem;color:var(--secondary);margin-top:10px">Let a friend scan this to open The Nuci</div></div>'
+    +'<button class="btn btn-ghost" style="margin-top:6px;font-size:.82rem" onclick="openReferralQR()">Show QR code</button>'
     +'</div>';
 }
-function toggleReferralQR(){
-  var box=document.getElementById('refQR'); if(!box) return;
-  var open = box.style.display==='none';
-  box.style.display = open ? 'block' : 'none';
-  if(open){
-    var holder=document.getElementById('refQRImg'); holder.innerHTML='';
-    try{ var qr=qrcode(0,'M'); qr.addData(referralLink()); qr.make(); holder.innerHTML=qr.createImgTag(5,0); var img=holder.querySelector('img'); if(img){img.style.width='100%';img.style.height='100%';} }
-    catch(e){ holder.innerHTML='<div style="font-size:.75rem;color:var(--secondary);padding:20px">'+referralLink()+'</div>'; }
+function openReferralQR(){
+  var m=document.getElementById('qrModal');
+  if(!m){
+    m=document.createElement('div'); m.id='qrModal';
+    m.innerHTML='<div class="qrm-dim" onclick="closeReferralQR()"></div>'
+      +'<div class="qrm-card">'
+      +'<button class="qrm-x" onclick="closeReferralQR()" aria-label="Close">&times;</button>'
+      +'<div class="d-eb" style="color:var(--sage);text-align:center;margin-bottom:12px">Invite a friend</div>'
+      +'<div id="qrmImg" style="width:210px;height:210px;margin:0 auto;padding:14px;background:#fff;border-radius:18px;box-shadow:0 8px 24px rgba(35,39,31,.08)"></div>'
+      +'<div style="font-size:.8rem;color:var(--secondary);text-align:center;margin-top:14px;line-height:1.5">Let a friend scan this with their phone to open The Nuci</div>'
+      +'</div>';
+    document.body.appendChild(m);
   }
+  var holder=document.getElementById('qrmImg'); holder.innerHTML='';
+  try{ var qr=qrcode(0,'M'); qr.addData(referralLink()); qr.make(); holder.innerHTML=qr.createImgTag(5,0); var img=holder.querySelector('img'); if(img){img.style.width='100%';img.style.height='100%';} }
+  catch(e){ holder.innerHTML='<div style="font-size:.75rem;color:var(--secondary);padding:20px;word-break:break-all">'+referralLink()+'</div>'; }
+  requestAnimationFrame(function(){ m.classList.add('open'); });
 }
+function closeReferralQR(){ var m=document.getElementById('qrModal'); if(m) m.classList.remove('open'); }
 function shareReferral(){
   var url=referralLink();
   var text='I\u2019m using The Nuci to help my pet feel calmer. Get a personalised 7-day plan:';
@@ -2537,10 +2650,11 @@ function renderCI(){
     var __lastSev=v; r.addEventListener('input',e=>{ var x=parseInt(e.target.value,10); if(x!==__lastSev){ __lastSev=x; haptic(x>=8?14:7); } ap(x); }); ap(v);
   }else{
     const multi=s.type==='textarea';
-    mid.innerHTML='<div class="field"><input id="ciInput" placeholder="'+esc(s.placeholder||'')+'">'+micBtnHTML('ciInput')+'</div>'
+    mid.innerHTML='<div class="field field-grow"><textarea id="ciInput" rows="1" placeholder="'+esc(s.placeholder||'')+'"></textarea>'+micBtnHTML('ciInput')+'</div>'
       +'<div class="qinline"><button class="rback" onclick="ciBack()" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button><button class="btn btn-primary" style="flex:1" type="button" onclick="ciNext()">'+((ciStep>=flow.length-1)?'Finish check-in':'Next')+'</button></div>';
     const inp=$('ciInput'); inp.value=ciData[s.id]||'';
-    inp.addEventListener('input',e=>ciData[s.id]=e.target.value);
+    inp.addEventListener('input',e=>{ ciData[s.id]=e.target.value; autoGrow(inp); });
+    autoGrow(inp);
     if(!multi) inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); ciNext(); }});
     // proxy is already focused (keyboard up) from the tap; move focus to the real field ASAP
     try{ inp.focus({preventScroll:true}); }catch(e){}

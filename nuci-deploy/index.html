@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%20width%3D%22100%22%20height%3D%22100%22%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%2292%22%20height%3D%2292%22%20rx%3D%2222%22%20fill%3D%22%23FBFBF8%22%20stroke%3D%22rgba%280%2C0%2C0%2C0.06%29%22%20stroke-width%3D%221.5%22/%3E%3Cg%20transform%3D%22translate%2816.86%2068%29%20scale%280.0324%20-0.0324%29%22%3E%3Cpath%20d%3D%22M995%200%20381%201085Q399%20927%20399%20831V0H137V1409H474L1097%20315Q1079%20466%201079%20590V1409H1341V0Z%22%20fill%3D%22%231A211C%22/%3E%3C/g%3E%3Cg%20transform%3D%22translate%2864.72%2068%29%20scale%280.0324%20-0.0324%29%22%3E%3Cpath%20d%3D%22M139%200V305H428V0Z%22%20fill%3D%22%236B8F71%22/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="the-nuci-favicon-180.png">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>The Nuci — Every behaviour has a cause</title>
@@ -38,7 +41,7 @@ nav .nav-login{background:none;border:none;color:var(--secondary);font-family:in
 nav .nav-cta{background:var(--forest);color:#fff;border:none;padding:11px 20px;border-radius:14px;font-size:.9rem;font-family:inherit;cursor:pointer;letter-spacing:0;box-shadow:0 6px 18px rgba(62,90,71,.22)}
 
 /* ---- generic reveal ---- */
-.reveal{opacity:0;transform:translateY(24px);filter:blur(6px);transition:opacity 1s cubic-bezier(.2,.7,.2,1),transform 1s cubic-bezier(.2,.7,.2,1),filter 1s cubic-bezier(.2,.7,.2,1)}
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
 .reveal.in{opacity:1;transform:none;filter:none}
 .reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}.reveal.d4{transition-delay:.32s}
 
@@ -73,7 +76,7 @@ nav .nav-cta{background:var(--forest);color:#fff;border:none;padding:11px 20px;b
 .hero h1 .accent{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:400;color:var(--forest)}
 .cause-dot{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:330;color:var(--forest);position:relative;display:inline-block}
 .cause-dot .grow{display:none}
-#greenCurtain{position:fixed;top:0;left:0;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;background:var(--forest);
+#greenCurtain{position:fixed;top:0;left:0;width:300px;height:300px;border-radius:50%;background:var(--forest);will-change:transform,opacity;
   z-index:1;pointer-events:none;transform:scale(0);transform-origin:center;opacity:0}
 .hero-sub{color:var(--secondary);margin-top:26px;font-size:1.05rem;line-height:1.6;max-width:34ch}
 .hero-scroll{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:45;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--secondary);display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.7}
@@ -93,7 +96,7 @@ section{position:relative}
 .body{color:var(--secondary);font-size:1.05rem;line-height:1.7;margin-top:22px}
 
 /* ---- the 3D-ish rotating cause/effect wheel ---- */
-.wheel-sec{padding:20px 0}
+/* gpu */.wheel-sec{padding:20px 0}
 .wheel-stick{height:min(74svh,420px);display:flex;align-items:center;justify-content:center;overflow:visible}
 .wheel{position:relative;width:min(68vw,320px);aspect-ratio:1;perspective:900px}
 .wheel .ring{position:absolute;inset:0;border:1px solid rgba(255,255,255,.14);border-radius:50%}
@@ -309,7 +312,7 @@ footer .brand .g{color:var(--sage)}
   <div class="wrap" id="bandWrap">
     <div class="stat"><div class="n" data-count="83">0</div><div class="l">of owners saw calmer behaviour within five days of starting.</div></div>
     <div class="rule"></div>
-    <div class="stat"><div class="n" data-count="2400" data-suffix="+">0</div><div class="l">pets have started a Nuci plan and counting.</div></div>
+    <div class="stat"><div class="n" data-count="1724" data-suffix="+">0</div><div class="l">pets have started a plan with The Nuci.</div></div>
     <div class="rule"></div>
     <div class="stat"><div class="n" data-count="7">0</div><div class="l">days is all it takes to see the pattern change.</div></div>
   </div>
@@ -317,7 +320,7 @@ footer .brand .g{color:var(--sage)}
     <div class="wrap">
       <div class="stat"><div class="n">83</div><div class="l">of owners saw calmer behaviour within five days of starting.</div></div>
       <div class="rule"></div>
-      <div class="stat"><div class="n">2,400+</div><div class="l">pets have started a Nuci plan and counting.</div></div>
+      <div class="stat"><div class="n">1,724+</div><div class="l">pets have started a plan with The Nuci.</div></div>
       <div class="rule"></div>
       <div class="stat"><div class="n">7</div><div class="l">days is all it takes to see the pattern change.</div></div>
     </div>
@@ -370,7 +373,7 @@ footer .brand .g{color:var(--sage)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M4.5 8h15M4.5 16h15"/></svg>
       </div>
       <h3 class="lang-h">Write or speak in <span class="accent">any language</span></h3>
-      <p class="lang-p">Describe what is happening however feels natural - type it or tap the mic and just talk. Nuci understands every language, in the questions, the plan, and each evening check-in.</p>
+      <p class="lang-p">Describe what is happening however feels natural - type it or tap the mic and just talk. The Nuci understands every language, in the questions, the plan, and each evening check-in.</p>
     </div>
   </div>
 </section>
@@ -494,8 +497,6 @@ function greenCurtain(){
   if(first.top >= vh){ window.__curtainOrigin=null; }   // reset before it starts
   var o = window.__curtainOrigin || {x:c.x, y:c.y};
   var ox=o.x, oy=o.y;
-  curtain.style.left=ox+'px';
-  curtain.style.top=oy+'px';
   var cover=coverScaleFrom(ox,oy);
 
   // progress:
@@ -521,7 +522,9 @@ function greenCurtain(){
   // Fully hidden (scale 0, opacity 0) until the growth has meaningfully begun, and again
   // once it has fully retracted. Starts at 0, ends at 0 — no stray dot/circle at rest.
   var vis = (scale > 0.05);
-  curtain.style.transform='scale('+(vis?scale:0).toFixed(3)+')';
+  // position + scale in ONE transform (compositor-only, no per-frame layout -> smoother on Chrome mobile)
+  var tx=(ox-150), ty=(oy-150);  // -150 to offset the element's own 300px box center
+  curtain.style.transform='translate3d('+tx.toFixed(1)+'px,'+ty.toFixed(1)+'px,0) scale('+(vis?scale:0).toFixed(3)+')';
   curtain.style.opacity = vis ? '1' : '0';
 
 
