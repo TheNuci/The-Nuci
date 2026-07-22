@@ -54,3 +54,33 @@ Lahko kasneje avtomatiziramo, a za začetek je ročno najbolj varno.
 3. Opravi testni nakup kot B (Stripe test kartica 4242 4242 4242 4242).
 4. Preveri, da se `referral_count` pri A poveča za 1.
 5. Ponovni nakup istega B **ne sme** znova povečati (webhook to prepreči).
+
+---
+
+# Glasovni vnos (govor v katerem koli jeziku)
+
+App zdaj snema kratek posnetek in ga pošlje na strežnik, ki ga prepiše.
+Podpira 99+ jezikov **vključno s slovenščino** in **samodejno zazna jezik** —
+uporabnik samo govori, ničesar ne nastavlja.
+
+## Nastavitev
+
+1. Ustvari OpenAI API ključ na https://platform.openai.com (API keys → Create).
+2. V Netlify → Site settings → Environment variables dodaj:
+   - Key: `OPENAI_API_KEY`
+   - Obkljukaj **Contains secret values**
+   - Value: tvoj ključ (`sk-...`)
+3. To je vse — funkcija `transcribe.js` je že v paketu.
+
+## Cena
+
+Privzeti model je `gpt-4o-mini-transcribe` (najcenejši): **$0.003 na minuto**.
+
+- Tipičen glasovni vnos (15 sekund) ≈ **0,07 centa**
+- 1.000 glasovnih vnosov ≈ **$0.75**
+- Uporabnik s 7-dnevnim planom, ki govori 2× dnevno ≈ **1 cent skupaj**
+
+Ob registraciji na OpenAI dobiš $5 brezplačnih kreditov (≈ 27 ur govora).
+
+Če hočeš boljšo kakovost, nastavi še `TRANSCRIBE_MODEL` = `gpt-4o-transcribe`
+($0.006/min). Brez te spremenljivke se uporablja cenejši mini model.

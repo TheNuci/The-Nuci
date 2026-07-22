@@ -200,34 +200,18 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .field input,.field textarea{border:none;outline:none;background:transparent;flex:1;font-size:16px;resize:none}
 .field-grow{align-items:flex-start}
 .field-grow textarea{flex:1;min-height:24px;line-height:1.5;overflow-y:auto;padding:0;font-family:inherit;color:var(--text);word-break:break-word;white-space:pre-wrap}
-.field-grow .mic-wrap{align-self:flex-end}
-#qrModal{position:fixed;inset:0;z-index:3000;display:none;align-items:center;justify-content:center}
+.field-grow #qrModal{position:fixed;inset:0;z-index:3000;display:none;align-items:center;justify-content:center}
 #qrModal.open{display:flex}
 #qrModal .qrm-dim{position:absolute;inset:0;background:rgba(26,33,28,.5);backdrop-filter:blur(3px)}
 #qrModal .qrm-card{position:relative;z-index:1;background:var(--card);border-radius:24px;padding:32px 28px;max-width:320px;width:calc(100% - 48px);box-shadow:0 30px 80px rgba(35,39,31,.3);animation:qrmIn .35s cubic-bezier(.2,.8,.2,1)}
 @keyframes qrmIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
 #qrModal .qrm-x{position:absolute;top:12px;right:16px;background:none;border:none;font-size:1.6rem;line-height:1;color:var(--secondary);cursor:pointer}
-.mic-wrap{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;margin-left:6px}
-#langModal{position:fixed;inset:0;z-index:3200;display:none}
-#langModal.open{display:block}
-#langModal .lm-dim{position:absolute;inset:0;background:rgba(26,33,28,.5);backdrop-filter:blur(3px)}
-#langModal .lm-sheet{position:absolute;left:50%;bottom:0;transform:translateX(-50%) translateY(100%);width:min(440px,100%);max-height:70vh;background:var(--card);border-radius:24px 24px 0 0;box-shadow:0 -20px 60px rgba(35,39,31,.3);display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
-#langModal.open .lm-sheet{transform:translateX(-50%) translateY(0)}
-#langModal .lm-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 12px;border-bottom:1px solid var(--border)}
-#langModal .lm-x{background:none;border:none;font-size:1.7rem;line-height:1;color:var(--secondary);cursor:pointer}
-#langModal .lm-list{overflow-y:auto;padding:8px 12px 24px;-webkit-overflow-scrolling:touch}
-#langModal .lang-row{display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;border:none;background:none;border-radius:12px;cursor:pointer;font-family:inherit;text-align:left}
-#langModal .lang-row:active{background:rgba(107,143,113,.08)}
-#langModal .lang-row.sel{background:rgba(107,143,113,.12)}
-#langModal .lang-name{flex:1;font-size:.98rem;color:var(--text)}
-#langModal .lang-code{font-size:.72rem;font-weight:600;color:var(--secondary);letter-spacing:.04em}
-#langModal .lang-check{width:18px;color:var(--forest);opacity:0;font-weight:700}
-#langModal .lang-row.sel .lang-check{opacity:1}
-.mic-lang{flex:0 0 auto;min-width:34px;height:38px;padding:0 8px;border-radius:19px;border:1px solid var(--border);background:var(--card);color:var(--forest);font-family:inherit;font-size:.74rem;font-weight:600;letter-spacing:.03em;cursor:pointer}
-.mic-lang:active{transform:scale(.95)}
 .micbtn{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:none;background:rgba(107,143,113,0.12);color:var(--forest);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,transform .2s ease;margin-left:6px}
 .micbtn:active{transform:scale(.94)}
 .micbtn.rec{background:var(--forest);color:#fff;animation:micPulse 1.2s ease-in-out infinite}
+.micbtn.busy{background:rgba(107,143,113,.2);color:var(--sage);pointer-events:none}
+.micbtn.busy svg{animation:micSpin .9s linear infinite}
+@keyframes micSpin{to{transform:rotate(360deg)}}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(62,90,71,.5)}50%{box-shadow:0 0 0 8px rgba(62,90,71,0)}}
 .field:focus-within{border-color:var(--sage)}
 .field .eye{color:var(--secondary);width:22px;height:22px;flex-shrink:0}
@@ -760,7 +744,8 @@ const SUPABASE_URL = 'https://dsuiqkcjfayazzvfwdqk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzdWlxa2NqZmF5YXp6dmZ3ZHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTA3NDksImV4cCI6MjA5NjI4Njc0OX0.WFQe-Vs3tbCemGKvNF-aQd_a1THR9C8kww9hA-LCgbE';
 let DEMO=(function(){ try{ return new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) — works in any language the user speaks =====
-var __rec=null;
+var __mediaRec=null, __chunks=[], __micBtn=null;
+
 // grow a textarea downward to fit its content (content above stays put, box expands)
 function autoGrow(el){
   if(!el) return;
@@ -775,82 +760,81 @@ function autoGrow(el){
   document.addEventListener('focusout', function(e){ if(isText(e.target)) setTimeout(function(){ if(!isText(document.activeElement)) document.body.classList.remove('kb-open'); }, 60); });
 })();
 
-// Web Speech API cannot auto-detect language, so the user picks one. Remembered across the app.
-var VOICE_LANGS=[
-  ['sl-SI','Slovenščina','SL'],['en-US','English','EN'],['de-DE','Deutsch','DE'],
-  ['it-IT','Italiano','IT'],['hr-HR','Hrvatski','HR'],['sr-RS','Srpski','SR'],
-  ['bs-BA','Bosanski','BS'],['es-ES','Español','ES'],['fr-FR','Français','FR'],
-  ['pt-PT','Português','PT'],['pt-BR','Português (BR)','BR'],['nl-NL','Nederlands','NL'],
-  ['pl-PL','Polski','PL'],['cs-CZ','Čeština','CS'],['sk-SK','Slovenčina','SK'],
-  ['hu-HU','Magyar','HU'],['ro-RO','Română','RO'],['bg-BG','Български','BG'],
-  ['el-GR','Ελληνικά','EL'],['ru-RU','Русский','RU'],['uk-UA','Українська','UK'],
-  ['tr-TR','Türkçe','TR'],['sv-SE','Svenska','SV'],['da-DK','Dansk','DA'],
-  ['nb-NO','Norsk','NO'],['fi-FI','Suomi','FI'],['is-IS','Íslenska','IS'],
-  ['ar-SA','العربية','AR'],['he-IL','עברית','HE'],['fa-IR','فارسی','FA'],
-  ['hi-IN','हिन्दी','HI'],['zh-CN','中文 (简)','ZH'],['zh-TW','中文 (繁)','TW'],
-  ['ja-JP','日本語','JA'],['ko-KR','한국어','KO'],['th-TH','ไทย','TH'],
-  ['vi-VN','Tiếng Việt','VI'],['id-ID','Indonesia','ID'],['ms-MY','Melayu','MS'],
-  ['en-GB','English (UK)','GB'],['es-MX','Español (MX)','MX'],['ca-ES','Català','CA'],
-  ['et-EE','Eesti','ET'],['lv-LV','Latviešu','LV'],['lt-LT','Lietuvių','LT']
-];
-function voiceLang(){ try{ return localStorage.getItem('nuci_voice_lang')||'sl-SI'; }catch(e){ return 'sl-SI'; } }
-function setVoiceLang(code){ try{ localStorage.setItem('nuci_voice_lang',code); }catch(e){}; document.querySelectorAll('.mic-lang').forEach(function(el){ el.textContent=voiceLabel(); }); }
-function voiceLabel(){ var c=voiceLang(); var f=VOICE_LANGS.find(function(x){return x[0]===c;}); return f?f[2]:'SL'; }
-function speechSupported(){ return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window); }
+// ===== Voice input =====
+// Records a short clip and sends it to the server, which transcribes it in ANY language
+// and detects the language automatically. The user simply speaks - no language picker.
+function speechSupported(){
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+}
 function micBtnHTML(targetId){
   if(!speechSupported()) return '';
-  return '<div class="mic-wrap">'
-    +'<button type="button" class="mic-lang" onclick="openVoiceLangPicker(event)" aria-label="Voice language">'+voiceLabel()+'</button>'
-    +'<button type="button" class="micbtn" data-target="'+targetId+'" onclick="toggleMic(this)" aria-label="Speak your answer">'
-    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg></button>'
-    +'</div>';
+  return '<button type="button" class="micbtn" data-target="'+targetId+'" onclick="toggleMic(this)" aria-label="Speak your answer">'
+    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg></button>';
 }
-function openVoiceLangPicker(ev){
-  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
-  var cur=voiceLang();
-  var m=document.getElementById('langModal');
-  if(!m){
-    m=document.createElement('div'); m.id='langModal';
-    var rows=VOICE_LANGS.map(function(l){
-      return '<button type="button" class="lang-row" data-code="'+l[0]+'" onclick="pickVoiceLang(\''+l[0]+'\')">'
-        +'<span class="lang-name">'+l[1]+'</span><span class="lang-code">'+l[2]+'</span>'
-        +'<span class="lang-check">\u2713</span></button>';
-    }).join('');
-    m.innerHTML='<div class="lm-dim" onclick="closeVoiceLangPicker()"></div>'
-      +'<div class="lm-sheet">'
-      +'<div class="lm-head"><div class="d-eb" style="color:var(--sage)">Voice language</div>'
-      +'<button class="lm-x" onclick="closeVoiceLangPicker()" aria-label="Close">&times;</button></div>'
-      +'<div class="lm-list">'+rows+'</div></div>';
-    document.body.appendChild(m);
-  }
-  // mark current selected
-  m.querySelectorAll('.lang-row').forEach(function(r){ r.classList.toggle('sel', r.getAttribute('data-code')===cur); });
-  requestAnimationFrame(function(){ m.classList.add('open'); });
-  // scroll selected into view
-  var selEl=m.querySelector('.lang-row.sel'); if(selEl) selEl.scrollIntoView({block:'center'});
+function micReset(){
+  __mediaRec=null; __chunks=[]; __micBtn=null;
+  document.querySelectorAll('.micbtn').forEach(function(b){ b.classList.remove('rec'); b.classList.remove('busy'); });
 }
-function pickVoiceLang(code){ setVoiceLang(code); closeVoiceLangPicker(); }
-function closeVoiceLangPicker(){ var m=document.getElementById('langModal'); if(m) m.classList.remove('open'); }
 function toggleMic(btn){
+  // already recording -> stop and transcribe
+  if(__mediaRec && __mediaRec.state==='recording'){
+    try{ __mediaRec.stop(); }catch(e){ micReset(); }
+    return;
+  }
   var input=document.getElementById(btn.getAttribute('data-target'));
   if(!input) return;
-  if(__rec){ try{__rec.stop();}catch(e){} __rec=null; document.querySelectorAll('.micbtn.rec').forEach(function(b){b.classList.remove('rec');}); return; }
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  var r=new SR();
-  r.lang = voiceLang();               // user-selected language (SL by default)
-  r.interimResults=true; r.continuous=false; r.maxAlternatives=1;
-  var base=input.value?input.value.trim()+' ':'';
-  r.onresult=function(ev){
-    var txt='';
-    for(var i=0;i<ev.results.length;i++){ txt+=ev.results[i][0].transcript; }
-    input.value=base+txt;
-    input.dispatchEvent(new Event('input',{bubbles:true}));
-    autoGrow(input);
-  };
-  r.onerror=function(){ btn.classList.remove('rec'); __rec=null; };
-  r.onend=function(){ btn.classList.remove('rec'); __rec=null; };
-  __rec=r; btn.classList.add('rec');
-  try{ r.start(); }catch(e){ __rec=null; btn.classList.remove('rec'); }
+  if(!speechSupported()){ toast('Voice input is not supported in this browser'); return; }
+
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    var mime='';
+    var candidates=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'];
+    for(var i=0;i<candidates.length;i++){
+      if(window.MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(candidates[i])){ mime=candidates[i]; break; }
+    }
+    var rec = mime ? new MediaRecorder(stream,{mimeType:mime}) : new MediaRecorder(stream);
+    __chunks=[]; __mediaRec=rec; __micBtn=btn;
+    btn.classList.add('rec');
+
+    rec.ondataavailable=function(e){ if(e.data && e.data.size>0) __chunks.push(e.data); };
+    rec.onstop=function(){
+      try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+      var blob=new Blob(__chunks,{type: rec.mimeType || mime || 'audio/webm'});
+      btn.classList.remove('rec');
+      if(!blob.size){ micReset(); return; }
+      btn.classList.add('busy');
+      var fr=new FileReader();
+      fr.onloadend=function(){
+        var b64=String(fr.result||'').split(',')[1]||'';
+        fetch('/.netlify/functions/transcribe',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({audio:b64, mime:(rec.mimeType||mime||'audio/webm')})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          micReset();
+          if(d && d.text){
+            var base=input.value?input.value.trim()+' ':'';
+            input.value=base+d.text;
+            input.dispatchEvent(new Event('input',{bubbles:true}));
+            autoGrow(input);
+            input.focus();
+          } else {
+            toast((d && d.error) ? d.error : 'Could not transcribe that');
+          }
+        })
+        .catch(function(){ micReset(); toast('Could not reach the transcription service'); });
+      };
+      fr.readAsDataURL(blob);
+    };
+
+    // safety cap: stop automatically after 60s
+    setTimeout(function(){ if(__mediaRec===rec && rec.state==='recording'){ try{ rec.stop(); }catch(e){} } }, 60000);
+    rec.start();
+  }).catch(function(){
+    micReset();
+    toast('Microphone permission is needed for voice input');
+  });
 }
 function enableDemo(){
   DEMO=true;
@@ -1106,7 +1090,7 @@ const INTRO=[
   {art:ART1,h:'A plan built <span class="accent">for your pet</span>',p:'Describe the behaviour and our AI creates a personalized 7-day plan - likely causes, what to do, and what to avoid.'},
   {art:ART2,h:'It <span class="accent">adapts</span> every day',p:"A quick evening check-in reshapes tomorrow's plan around what actually happened that day."},
   {art:ART3,h:'Watch the <span class="accent">change</span>',p:'Streaks, gentle insights and real, visible progress across the week - so you know it is working.'},
-  {art:ART4,h:'Your words, <span class="accent">any language</span>',p:'Write or speak in whatever language feels natural - The Nuci understands them all. Tap the mic to talk instead of typing.'}
+  {art:ART4,h:'Your words, <span class="accent">any language</span>',p:'Write or speak in whatever language feels natural - just talk, and The Nuci understands. No settings, no switching.'}
 ];
 let introIdx=0;
 function welcomeNew(){ introIdx=0; renderIntro(); showScreen('screen-intro'); }
