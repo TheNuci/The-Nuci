@@ -663,6 +663,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <div style="margin-top:12px;pointer-events:auto;display:inline-block"><button type="button" onclick="openAnswers(true)" style="background:rgba(107,143,113,.12);color:var(--forest);border:none;border-radius:12px;padding:11px 18px;font-size:0.88rem;font-family:inherit;cursor:pointer;pointer-events:auto">Review my answers</button></div>
   </div>
   <div class="offer-scroll" id="offerScroll">
+    <div id="dayOnePreview"></div>
     <div id="pkgList"></div>
     <div id="offerProof"></div>
   </div>
@@ -926,6 +927,8 @@ const state={
   answers:{}, currentQ:0, currentDay:1, planLength:7,
   checkins:[], streak:0, lastCheckinDate:null, lastCheckinDay:0,
   planComplete:false, planStartDate:null, planOverrides:{}, aiPlan:null,
+  maintenance:false, maintenanceSince:null, maintenanceCheckins:[], lastMaintenanceDate:null,
+  previewDay1:null,
   aiBehaviorExplain:null, aiAssessment:null, aiSeekProfessional:false, aiProfessionalNote:null,
   aiCauses:null, aiWhatNotToDo:null, dayInsights:{}, dayNotes:{}, taskOverrides:{}, tasksDone:{},
   userEmail:null, userName:null, purchased:false, paid:false, planCredits:0, transactions:[],
@@ -936,6 +939,9 @@ function serializeState(){
   return {
     answers:state.answers, currentDay:state.currentDay, planLength:state.planLength,
     checkins:state.checkins, lastCheckinDay:state.lastCheckinDay, planComplete:state.planComplete,
+    previewDay1:state.previewDay1||null,
+    maintenance:state.maintenance, maintenanceSince:state.maintenanceSince,
+    maintenanceCheckins:state.maintenanceCheckins, lastMaintenanceDate:state.lastMaintenanceDate,
     planStartDate:state.planStartDate||null, taskOverrides:state.taskOverrides, planOverrides:state.planOverrides,
     aiPlan:state.aiPlan||null, aiBehaviorExplain:state.aiBehaviorExplain||null, aiAssessment:state.aiAssessment||null,
     aiSeekProfessional:state.aiSeekProfessional||false, aiProfessionalNote:state.aiProfessionalNote||null,
@@ -1369,6 +1375,21 @@ async function doRegister(){
   const err=$('regErr'); err.textContent='';
   if(!name){ err.textContent='Please enter your name.'; return; }
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ err.textContent='Please enter a valid email.'; return; }
+  // Correcting details after already registering in this session: no password needed.
+  if(state.userEmail && !pass){
+    var emailChanged = (email !== state.userEmail);
+    state.userName=name; state.userEmail=email;
+    try{
+      await supa.from('profiles').upsert({email, data:serializeState(), updated_at:new Date().toISOString(),
+        timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
+    }catch(e){}
+    if(emailChanged){ try{ await supa.auth.updateUser({email:email}); }catch(e){} }
+    var pwf=document.getElementById('regPass'); var pwfield=pwf?pwf.closest('.field'):null;
+    if(pwfield) pwfield.style.display='';
+    var b2=document.querySelector('#regCta .btn'); if(b2) b2.textContent='Create account';
+    buildOffer(); showScreen('screen-offer');
+    return;
+  }
   if(pass.length<6){ err.textContent='Password must be at least 6 characters.'; return; }
   if(!$('regAgree').classList.contains('on')){ err.textContent='Please accept the Terms & Privacy Policy to continue.'; return; }
   if(!supa){ err.textContent='Connection error - please try again.'; return; }
@@ -1467,6 +1488,26 @@ function dayData(n){
 }
 function offerBack(){
   if(state.purchased){ enterApp(); return; }
+  // Back from the plan/pricing screen returns to the registration details, so a
+  // mistyped email or name can be corrected before paying.
+  var reg=document.getElementById('screen-register');
+  if(reg){
+    var n=document.getElementById('regName'), e=document.getElementById('regEmail');
+    if(n && state.userName) n.value=state.userName;
+    if(e && state.userEmail) e.value=state.userEmail;
+    var err=document.getElementById('regErr'); if(err) err.textContent='';
+    var ag=document.getElementById('regAgree'); if(ag && state.userEmail) ag.classList.add('on');
+    // already registered in this session -> they are just correcting details,
+    // so don't force the password again; the button saves the change and returns.
+    var already = !!state.userEmail;
+    var pw=document.getElementById('regPass');
+    var pwField = pw ? pw.closest('.field') : null;
+    if(pwField) pwField.style.display = already ? 'none' : '';
+    var btn=document.querySelector('#regCta .btn');
+    if(btn) btn.textContent = already ? 'Save and continue' : 'Create account';
+    showScreen('screen-register');
+    return;
+  }
   state.currentQ=getQuestions().length-1; renderQ(); showScreen('screen-assessment');
 }
 function renderPkgs(){
@@ -1474,7 +1515,11 @@ function renderPkgs(){
   const CKS='<svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
   const PAW='<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15.6" rx="4.1" ry="3.2"/><ellipse cx="6.6" cy="11" rx="1.7" ry="2"/><ellipse cx="10" cy="8" rx="1.6" ry="2"/><ellipse cx="14" cy="8" rx="1.6" ry="2"/><ellipse cx="17.4" cy="11" rx="1.7" ry="2"/></svg>';
   const feats=['A personalized 7-day plan for '+esc(pet),'Likely causes - and what not to do',"Daily check-ins that adapt the plan"];
-  $('pkgList').innerHTML=PACKAGES.map((p,i)=>{
+  var multiNote = state.__multiPet
+    ? '<div style="background:rgba(107,143,113,.10);border:1px solid var(--border);border-radius:14px;padding:13px 15px;margin-bottom:14px;font-size:.86rem;line-height:1.5;color:var(--text)">'
+      +'You mentioned other pets at home. Each plan covers <b style="font-weight:500">one pet</b> - a pack lets you run a separate plan for each, whenever you are ready.</div>'
+    : '';
+  $('pkgList').innerHTML=multiNote+PACKAGES.map((p,i)=>{
     const sel=selectedPackage&&selectedPackage.id===p.id;
     const savePct=Math.round((1-p.price/p.anchor)*100);
     const per=(p.price/p.credits).toFixed(2);
@@ -1543,11 +1588,81 @@ function selectPkg(i){
   pkSwap(cards[i],true);
   setTimeout(()=>{ try{ cards[i].scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} },90);
 }
+// ===== Free preview of day 1, generated for real, before payment =====
+// Shows the actual quality of the plan instead of asking people to trust a description.
+// Generated once and reused after purchase, so the AI cost is a single call.
+async function renderDayOnePreview(){
+  var host=document.getElementById('dayOnePreview');
+  if(!host) return;
+  var pet=state.answers.petName||'your pet';
+
+  // already have it (either from a previous visit or a full plan)
+  var cached = state.previewDay1 || (state.aiPlan && state.aiPlan.days && state.aiPlan.days[0]);
+  if(cached){ host.innerHTML=dayOnePreviewHtml(cached, pet); return; }
+
+  host.innerHTML='<div class="card" style="margin-bottom:14px">'
+    +'<div class="d-eb" style="color:var(--sage);margin-bottom:8px">Your first day</div>'
+    +'<div style="display:flex;align-items:center;gap:10px;color:var(--secondary);font-size:.9rem">'
+    +'<span class="micbtn busy" style="width:26px;height:26px;pointer-events:none">'+icon('sparkle','14px',1.7)+'</span>'
+    +'Writing day one for '+esc(pet)+'...</div></div>';
+
+  try{
+    const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({answers:state.answers, planLength:state.planLength||7, previewOnly:true, lang:'en'})});
+    if(!res.ok) throw new Error('bad');
+    const plan=await res.json();
+    var d1 = (plan && plan.days && plan.days[0]) ? plan.days[0] : null;
+    if(plan && plan.behaviorExplain && !state.aiBehaviorExplain) state.aiBehaviorExplain=plan.behaviorExplain;
+    if(plan && plan.causes && !state.aiCauses) state.aiCauses=plan.causes;
+    if(d1){
+      state.previewDay1=d1;
+      // keep the whole plan if the endpoint returned one - saves a second call later
+      if(plan.days && plan.days.length>1) state.aiPlan=plan;
+      persistState();
+      host.innerHTML=dayOnePreviewHtml(d1, pet);
+    } else { host.innerHTML=''; }
+  }catch(e){
+    host.innerHTML='';   // quietly skip the preview rather than showing an error
+  }
+}
+function dayOnePreviewHtml(d, pet){
+  var tasks=(d.tasks||[]).slice(0,3);
+  var cause=state.aiBehaviorExplain||'';
+  return '<div class="card" style="margin-bottom:14px;border:1.5px solid rgba(107,143,113,.35)">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      +'<div class="d-eb" style="color:var(--sage)">Day one - free preview</div>'
+      +'<span style="font-size:.7rem;color:var(--forest);background:rgba(107,143,113,.14);padding:4px 9px;border-radius:99px">Written for '+esc(pet)+'</span>'
+    +'</div>'
+    +'<div style="font-size:1.1rem;letter-spacing:-.02em;margin-bottom:6px">'+esc(d.title||'Day 1')+'</div>'
+    +(d.sub?'<div style="font-size:.86rem;color:var(--secondary);margin-bottom:10px">'+esc(d.sub)+'</div>':'')
+    +(cause?'<p style="font-size:.9rem;color:var(--text);line-height:1.6;margin-bottom:12px">'+esc(String(cause).slice(0,220))+(String(cause).length>220?'...':'')+'</p>':'')
+    +(tasks.length
+      ? '<div style="border-top:1px solid var(--border);padding-top:10px">'
+        +tasks.map(function(t){
+          var label=(typeof t==='string')?t:(t.label||t.title||'');
+          return '<div style="display:flex;gap:9px;align-items:flex-start;padding:6px 0">'
+            +'<span style="flex:0 0 auto;width:17px;height:17px;border-radius:5px;border:1.5px solid var(--sage);margin-top:2px"></span>'
+            +'<span style="flex:1;font-size:.9rem;line-height:1.45">'+esc(label)+'</span></div>';
+        }).join('')
+        +'</div>'
+      : '')
+    +'<div style="font-size:.78rem;color:var(--secondary);margin-top:12px;line-height:1.5">This is day one of seven. The rest adapts each evening to what you report.</div>'
+    +'</div>';
+}
 function buildOffer(){
   const pet=state.answers.petName||'your pet';
   $('offerEyebrow').textContent='Unlock the full week';
   $('offerH').innerHTML='Choose <span class="accent">'+esc(pet)+"'s</span> plan.";
+  // If they told us there are other pets at home, say plainly that a pack covers them.
+  var hh=state.answers.household;
+  var hasOtherPets = Array.isArray(hh) ? hh.indexOf('Other pets')>-1 : (String(hh||'').indexOf('Other pets')>-1);
+  state.__multiPet = hasOtherPets;
+  if(hasOtherPets && !selectedPackage){
+    var triple=PACKAGES.filter(function(p){return p.id==='triple';})[0];
+    if(triple) selectedPackage=triple;     // sensible default, still fully changeable
+  }
   renderPkgs();
+  renderDayOnePreview();
   requestAnimationFrame(()=>{
     const th=$('offerTop').offsetHeight;
     const sc=$('offerScroll');
@@ -1558,6 +1673,11 @@ function buildOffer(){
 }
 // ═══════ AI PLAN GENERATION ═══════
 async function generatePlanAI(){
+  // Reuse the plan already generated for the free day-1 preview: same answers,
+  // so a second call would only cost money and time.
+  if(state.aiPlan && state.aiPlan.days && state.aiPlan.days.length>=(state.planLength||7)){
+    return;
+  }
   try{
     const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({answers:state.answers,lang:'en'})});
@@ -1589,8 +1709,19 @@ function runGenerating(next){
 }
 
 // ═══════ PAID RETURN ═══════
+function testMode(){
+  try{ return sessionStorage.getItem('nuci_test')==='1'; }catch(e){ return false; }
+}
 function completePayment(){
   const pkg=selectedPackage||PACKAGES[0];
+  // Test mode: unlock exactly as a real purchase would, without touching Stripe.
+  if(testMode()){
+    state.planCredits=(state.planCredits||0)+pkg.credits;
+    state.packageId=pkg.id; state.pricePaid=currentPrice();
+    toast('Test mode - payment skipped');
+    handlePaidReturn(true);
+    return;
+  }
   if(DEMO){ state.planCredits=(state.planCredits||0)+pkg.credits; state.packageId=pkg.id; state.pricePaid=currentPrice(); handlePaidReturn(true); return; }
   try{
     localStorage.setItem('pendingState',JSON.stringify({
@@ -1902,7 +2033,54 @@ function nuciCharacter(size){
 }
 function celebrateCharacter(){ var el=document.getElementById('nuciChar'); if(el){ el.classList.remove('happy'); void el.offsetWidth; el.classList.add('happy'); } }
 
+function renderMaintenanceToday(){
+  var pet=state.answers.petName||'your pet';
+  var due=maintenanceDue(), left=maintenanceDaysLeft(), weeks=maintenanceWeeks();
+  var t=state.answers.petType||'other';
+  var avatar=state.petPhoto?('<img src="'+state.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(t,'44px');
+  var hist=(state.maintenanceCheckins||[]).slice(-6).reverse();
+  var LBL={better:'Still improving',same:'Holding steady',slipping:'Slipping back',worse:'Worse than before'};
+  var COL={better:'var(--forest)',same:'var(--sage)',slipping:'var(--clay)',worse:'#B4553F'};
+  var histHtml = hist.length
+    ? hist.map(function(c){
+        var dt=new Date(c.date);
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">'
+          +'<span style="width:8px;height:8px;border-radius:50%;background:'+(COL[c.state]||'var(--sage)')+'"></span>'
+          +'<span style="flex:1;font-size:.9rem">'+(LBL[c.state]||c.state)+'</span>'
+          +'<span style="font-size:.75rem;color:var(--secondary)">'+dt.toLocaleDateString(undefined,{day:'numeric',month:'short'})+'</span></div>';
+      }).join('')
+    : '<div style="font-size:.86rem;color:var(--secondary);padding:8px 0">Your first weekly note will appear here.</div>';
+
+  var h='<div class="card" style="display:flex;align-items:center;gap:14px">'
+    +'<div style="width:52px;height:52px;border-radius:16px;overflow:hidden;background:rgba(107,143,113,.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+avatar+'</div>'
+    +'<div style="flex:1"><div class="d-eb" style="color:var(--sage)">Upkeep mode</div>'
+    +'<div style="font-size:1.05rem;letter-spacing:-.02em">'+esc(pet)+'\u2019s plan is holding</div></div></div>';
+
+  h+='<div class="card" style="margin-top:12px">'
+    +(due
+      ? '<div class="d-eb" style="margin-bottom:6px">This week\u2019s check-in</div>'
+        +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.55;margin-bottom:14px">One question, ten seconds. It keeps the picture accurate and catches a slip early.</p>'
+        +'<button class="btn btn-primary" onclick="openMaintenanceCheckin()">Answer this week</button>'
+      : '<div class="d-eb" style="margin-bottom:6px">All done for this week</div>'
+        +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.55;margin:0">Next check-in in '+left+' day'+(left===1?'':'s')+'. Keep doing what is working.</p>')
+    +'</div>';
+
+  h+='<div class="card" style="margin-top:12px">'
+    +'<div class="d-eb" style="margin-bottom:4px">Weekly history</div>'
+    +'<div style="font-size:.76rem;color:var(--secondary);margin-bottom:8px">'+(weeks>0?(weeks+' week'+(weeks===1?'':'s')+' in upkeep'):'Started this week')+'</div>'
+    +histHtml+'</div>';
+
+  h+='<div class="card" style="margin-top:12px">'
+    +'<div class="d-eb" style="margin-bottom:8px">Anything changed?</div>'
+    +'<p style="font-size:.88rem;color:var(--secondary);line-height:1.5;margin-bottom:12px">New behaviour, or a different pet? A fresh plan reads the situation from scratch.</p>'
+    +'<button class="btn btn-ghost" style="margin:0" onclick="'+((state.planCredits||0)>0?'startAnotherPet()':'buildOffer&&buildOffer();showScreen(\'screen-offer\')')+'">Start a new plan</button>'
+    +'<button class="btn btn-ghost" style="margin-top:6px;font-size:.82rem;color:var(--secondary)" onclick="stopMaintenance()">Leave upkeep mode</button>'
+    +'</div>';
+
+  $('tab-today').innerHTML=h;
+}
 function renderToday(){
+  if(state.maintenance){ renderMaintenanceToday(); return; }
   var day=state.currentDay||1, d=dayData(day), done=getTasksDone(day);
   var pet=state.answers.petName||'your pet';
   var pct=Math.round(((day-1)+(done.length/Math.max(1,d.tasks.length)))/(state.planLength||7)*100);
@@ -1965,6 +2143,11 @@ function renderToday(){
     +micBtnHTML('todayNote')
     +'<button class="btn btn-primary" style="width:auto;padding:9px 20px;font-size:0.85rem" onclick="addNote('+day+')">Add note</button></div></div>';
   if(state.aiSeekProfessional){ h+='<div class="warncard" style="margin-top:12px">'+icon('warning','18px')+'<span>'+esc(state.aiProfessionalNote||'A veterinary check is recommended alongside this plan.')+'</span></div>'; }
+  // From day 3, give an honest way out when the plan is not landing
+  if((state.currentDay||1)>=3 && !state.planComplete){
+    h+='<div style="text-align:center;margin-top:18px">'
+      +'<button onclick="openNotWorking()" style="background:none;border:none;color:var(--secondary);font-family:inherit;font-size:.84rem;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:8px">This isn\u2019t working for '+esc(pet)+'</button></div>';
+  }
   $('tab-today').innerHTML=h;
 }
 // notes are stored per day as an array of {text,ts}. Migrate old string form transparently.
@@ -2134,6 +2317,137 @@ function openWhy(){
     +(state.aiCauses?'<div class="d-eb" style="margin-bottom:6px">Likely causes</div>'+state.aiCauses.map(function(c){return '<div style="font-size:0.9rem;line-height:1.45;margin-bottom:5px">· '+esc(c)+'</div>';}).join(''):'')
     +(state.aiWhatNotToDo?'<div class="d-eb" style="margin:14px 0 6px">What not to do</div>'+state.aiWhatNotToDo.map(function(c){return '<div style="font-size:0.9rem;line-height:1.45;margin-bottom:5px;color:var(--danger)">\u2715 '+esc(c)+'</div>';}).join(''):''));
 }
+// ===== Shareable result: organic growth without asking anyone to sell =====
+function buildShareCard(){
+  var pet=state.answers.petName||'My pet';
+  var impr=planImprovement();
+  var cis=(state.checkins||[]);
+  var calm=cis.filter(function(c){return c&&c.occurred==='No';}).length;
+  var streak=state.streak||0;
+  var line = (impr!=null && impr<0)
+    ? 'Incidents down '+Math.abs(impr)+'% in 7 days'
+    : (calm>0 ? calm+' calm day'+(calm===1?'':'s')+' in 7' : 'Seven days, done properly');
+  return {pet:pet, line:line, calm:calm, streak:streak, impr:impr};
+}
+function openShareResult(){
+  var d=buildShareCard();
+  var pet=esc(d.pet);
+  openSheet('<div class="d-eb" style="color:var(--sage)">Share the result</div>'
+    +'<h2 style="font-size:1.45rem;letter-spacing:-.03em;margin:6px 0 14px">'+pet+'\u2019s seven days</h2>'
+    +'<div id="shareCard" style="background:linear-gradient(160deg,#3E5A47,#2C4133);border-radius:22px;padding:26px 22px;color:#F2F1EC;text-align:center;margin-bottom:16px">'
+      +'<div style="font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;opacity:.75;margin-bottom:14px">Seven days with The Nuci</div>'
+      +'<div style="font-family:\'Fraunces\',Georgia,serif;font-style:italic;font-size:2rem;line-height:1.15;margin-bottom:10px">'+pet+'</div>'
+      +'<div style="font-size:1rem;opacity:.92;line-height:1.5;margin-bottom:16px">'+esc(d.line)+'</div>'
+      +'<div style="display:flex;justify-content:center;gap:22px;font-size:.78rem;opacity:.8">'
+        +'<div><div style="font-size:1.3rem;font-weight:500">'+d.calm+'</div>calm days</div>'
+        +'<div><div style="font-size:1.3rem;font-weight:500">'+d.streak+'</div>day streak</div>'
+      +'</div>'
+      +'<div style="font-size:.7rem;opacity:.6;margin-top:18px">thenuci.com</div>'
+    +'</div>'
+    +'<button class="btn btn-primary" onclick="shareResultNative()">Share</button>'
+    +'<button class="btn btn-ghost" style="margin-top:8px;color:var(--secondary)" onclick="closeSheet()">Close</button>');
+}
+function shareResultNative(){
+  var d=buildShareCard();
+  var text=d.pet+' - '+d.line+'. Seven-day behaviour plan from The Nuci.';
+  var url=(typeof referralLink==='function')?referralLink():'https://thenuci.com';
+  if(navigator.share){
+    navigator.share({title:'The Nuci', text:text, url:url}).catch(function(){});
+  } else {
+    try{
+      navigator.clipboard.writeText(text+' '+url);
+      toast('Copied - paste it anywhere');
+    }catch(e){ toast('Could not share here'); }
+  }
+}
+// ===== Patterns: turn the user's own check-ins into something they cannot Google =====
+// Only surfaces a pattern when there is enough data to justify it - no invented insight.
+function findPatterns(){
+  var out=[];
+  var cis=(state.checkins||[]).filter(function(c){return c;});
+  if(cis.length<3) return out;
+
+  // 1) Day-of-week pattern: which weekday carries the incidents
+  var byDow={}, dowCount={};
+  cis.forEach(function(c){
+    if(!c.date) return;
+    var d=new Date(c.date); if(isNaN(d)) return;
+    var k=d.getDay();
+    dowCount[k]=(dowCount[k]||0)+1;
+    if(c.occurred==='Yes') byDow[k]=(byDow[k]||0)+1;
+  });
+  var dowNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var worstDow=null, worstRate=0;
+  Object.keys(dowCount).forEach(function(k){
+    if(dowCount[k]<2) return;                    // need repeats before calling it a pattern
+    var rate=(byDow[k]||0)/dowCount[k];
+    if(rate>worstRate){ worstRate=rate; worstDow=k; }
+  });
+  if(worstDow!==null && worstRate>=0.66){
+    out.push({icon:'calendar', text:'Incidents cluster on '+dowNames[worstDow]+'s. Something in that day\u2019s rhythm is likely the trigger - a different schedule, more people at home, or less exercise.'});
+  }
+
+  // 2) Adherence correlation: do calm days follow days where the steps were done
+  var goodDone=0, goodTotal=0, badDone=0, badTotal=0;
+  cis.forEach(function(c){
+    var d=c.day||0; if(!d) return;
+    var dt=dayData(d); var doneN=getTasksDone(d).length; var tot=dt.tasks.length||1;
+    var ratio=doneN/tot;
+    if(c.occurred==='No'){ goodDone+=ratio; goodTotal++; } else { badDone+=ratio; badTotal++; }
+  });
+  if(goodTotal>=2 && badTotal>=2){
+    var g=goodDone/goodTotal, b=badDone/badTotal;
+    if(g-b>=0.25){
+      out.push({icon:'check', text:'Calm days line up with the days you completed the steps. The routine is doing the work - the gap shows up when it slips.'});
+    }
+  }
+
+  // 3) Trend across the plan
+  var occ=cis.filter(function(c){return c.occurred==='Yes';});
+  if(occ.length>=3){
+    var half=Math.floor(occ.length/2);
+    var early=occ.slice(0,half), late=occ.slice(-half);
+    var avg=function(a){ return a.reduce(function(s2,c){return s2+(parseInt(c.freq)||1);},0)/a.length; };
+    var e=avg(early), l=avg(late);
+    if(e>0 && (e-l)/e>=0.25){
+      out.push({icon:'trend', text:'Frequency is down about '+Math.round((e-l)/e*100)+'% compared with the start of the plan. That is a real shift, not a quiet week.'});
+    } else if(l>e && (l-e)/Math.max(1,e)>=0.25){
+      out.push({icon:'warning', text:'Frequency has risen since the first days. Worth checking whether something changed at home, or whether the plan is aimed at the wrong cause.'});
+    }
+  }
+
+  // 4) Severity easing even when frequency holds
+  var sevList=occ.map(function(c){return parseFloat(c.severity)||0;}).filter(function(x){return x>0;});
+  if(sevList.length>=3){
+    var h2=Math.floor(sevList.length/2);
+    var se=sevList.slice(0,h2).reduce(function(a,b2){return a+b2;},0)/h2;
+    var sl=sevList.slice(-h2).reduce(function(a,b2){return a+b2;},0)/h2;
+    if(se-sl>=0.8){
+      out.push({icon:'calm', text:'Episodes are milder than they were, even on the days they still happen. Intensity usually drops before frequency does.'});
+    }
+  }
+  return out.slice(0,3);
+}
+function patternsCardHtml(){
+  var pats=findPatterns();
+  if(!pats.length){
+    var n=(state.checkins||[]).length;
+    return '<div class="card" style="margin-top:12px">'
+      +'<div class="d-eb" style="margin-bottom:6px">Patterns</div>'
+      +'<p style="font-size:.88rem;color:var(--secondary);line-height:1.55;margin:0">After a few more check-ins, patterns from your own data will show up here - which days are hardest, and what actually moves the needle.'
+      +(n?(' <span style="color:var(--sage)">'+n+' so far.</span>'):'')+'</p></div>';
+  }
+  var ICONS={calendar:'calendar',check:'check',trend:'trend',warning:'warning',calm:'moon'};
+  return '<div class="card" style="margin-top:12px">'
+    +'<div class="d-eb" style="margin-bottom:10px">Patterns in your data</div>'
+    +pats.map(function(p){
+      return '<div style="display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border)">'
+        +'<span style="flex:0 0 auto;width:28px;height:28px;border-radius:9px;background:rgba(107,143,113,.12);color:var(--forest);display:flex;align-items:center;justify-content:center">'+icon(ICONS[p.icon]||'sparkle','15px',1.7)+'</span>'
+        +'<span style="flex:1;font-size:.9rem;line-height:1.55;color:var(--text)">'+esc(p.text)+'</span></div>';
+    }).join('')
+    +'<div style="font-size:.74rem;color:var(--secondary);margin-top:10px">Based on your check-ins only.</div>'
+    +'</div>';
+}
 function renderProgressTab(){
   var pet=state.answers.petName||'your pet';
   var cis=(state.checkins||[]).filter(function(c){return c;});
@@ -2188,6 +2502,7 @@ function renderProgressTab(){
       +'<div style="font-size:.8rem;color:var(--secondary);line-height:1.5;margin-top:12px">'+esc(pet)+' reacts most often '+(topTime?('in the <b style="color:var(--text);font-weight:500">'+esc(String(topTime).toLowerCase())+'</b>'):'at consistent times')+(topLoc?(' near the <b style="color:var(--text);font-weight:500">'+esc(String(topLoc).toLowerCase())+'</b>'):'')+'.</div></div>';
   }
 
+  h+=patternsCardHtml();
   h+=socialProofHtml();
   var lastInsight=state.dayInsights&&state.dayInsights[state.currentDay];
   if(lastInsight||state.aiAssessment){
@@ -2776,6 +3091,159 @@ function planImprovement(){
   if(first<=0) return null;
   return Math.round((last-first)/first*100);
 }
+// ===== "This isn't working" - honest diagnosis instead of a dead end =====
+function openNotWorking(){
+  var pet=state.answers.petName||'your pet';
+  openSheet('<div class="d-eb" style="color:var(--clay)">Let\u2019s work out why</div>'
+    +'<h2 style="font-size:1.5rem;letter-spacing:-.03em;margin:6px 0 8px">What is happening with '+esc(pet)+'?</h2>'
+    +'<p style="font-size:.88rem;color:var(--secondary);line-height:1.55;margin-bottom:16px">Be blunt - the honest answer points at a different fix.</p>'
+    +'<div class="opt-row" onclick="diagnoseNotWorking(\'nochange\')"><span>Doing the steps, but nothing has changed</span></div>'
+    +'<div class="opt-row" style="margin-top:8px" onclick="diagnoseNotWorking(\'cantkeep\')"><span>I can\u2019t keep up with the daily steps</span></div>'
+    +'<div class="opt-row" style="margin-top:8px" onclick="diagnoseNotWorking(\'wrongcause\')"><span>The plan seems aimed at the wrong problem</span></div>'
+    +'<div class="opt-row" style="margin-top:8px" onclick="diagnoseNotWorking(\'worse\')"><span>It has actually got worse</span></div>');
+}
+function diagnoseNotWorking(kind){
+  closeSheet();
+  var pet=state.answers.petName||'your pet';
+  var days=(state.currentDay||1);
+  setTimeout(function(){
+    if(kind==='nochange'){
+      // Most common and most fixable: behaviour change is slower than people expect
+      var body='<div class="d-eb" style="color:var(--sage)">What this usually means</div>'
+        +'<h2 style="font-size:1.4rem;letter-spacing:-.03em;margin:6px 0 10px">Day '+days+' is early</h2>'
+        +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.6;margin-bottom:12px">Most behaviour shifts show up between days four and six, not in the first few. What matters now is whether the routine is actually landing the same way each day - irregular timing is the usual reason nothing moves.</p>'
+        +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.6;margin-bottom:16px">If you would rather not wait, the plan can be rebuilt around a different approach from tomorrow.</p>'
+        +'<button class="btn btn-primary" onclick="closeSheet();rebuildRemainingPlan()">Rebuild the rest of the plan</button>'
+        +'<button class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet();openAskAI()">Ask about something specific</button>'
+        +'<button class="btn btn-ghost" style="margin-top:4px;color:var(--secondary)" onclick="closeSheet()">Give it more time</button>';
+      openSheet(body);
+    } else if(kind==='cantkeep'){
+      var body2='<div class="d-eb" style="color:var(--sage)">Let\u2019s make it lighter</div>'
+        +'<h2 style="font-size:1.4rem;letter-spacing:-.03em;margin:6px 0 10px">A plan you skip is worse than a smaller one</h2>'
+        +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.6;margin-bottom:16px">The remaining days can be rebuilt to the essentials only - fewer steps, same direction. Consistency beats volume every time.</p>'
+        +'<button class="btn btn-primary" onclick="closeSheet();rebuildRemainingPlan(\'lighter\')">Simplify the remaining days</button>'
+        +'<button class="btn btn-ghost" style="margin-top:8px;color:var(--secondary)" onclick="closeSheet()">Keep it as it is</button>';
+      openSheet(body2);
+    } else if(kind==='wrongcause'){
+      var body3='<div class="d-eb" style="color:var(--clay)">Worth re-reading</div>'
+        +'<h2 style="font-size:1.4rem;letter-spacing:-.03em;margin:6px 0 10px">The cause may have been read wrong</h2>'
+        +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.6;margin-bottom:16px">That happens when the first answers described the symptom rather than the trigger. Describe what you are actually seeing now and the rest of the plan will be rebuilt around it.</p>'
+        +'<div class="field field-grow" style="margin-bottom:12px"><textarea id="nwDetail" rows="1" placeholder="What actually happens, and when?"></textarea>'+micBtnHTML('nwDetail')+'</div>'
+        +'<button class="btn btn-primary" onclick="submitReframe()">Rebuild around this</button>'
+        +'<button class="btn btn-ghost" style="margin-top:8px;color:var(--secondary)" onclick="closeSheet()">Cancel</button>';
+      openSheet(body3);
+      setTimeout(function(){ var el=document.getElementById('nwDetail'); if(el){ el.addEventListener('input',function(){autoGrow(el);}); el.focus(); } },100);
+    } else {
+      // worse - this is the one case where a professional matters more than a plan
+      var body4='<div class="d-eb" style="color:var(--clay)">Take this seriously</div>'
+        +'<h2 style="font-size:1.4rem;letter-spacing:-.03em;margin:6px 0 10px">Worsening behaviour deserves a real examination</h2>'
+        +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.6;margin-bottom:12px">A behaviour that gets worse under a calm, consistent routine often has a physical cause underneath - pain, illness, or something that changed at home. That is beyond what any plan should try to solve on its own.</p>'
+        +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.6;margin-bottom:16px">Please have '+esc(pet)+' seen by a vet. Bring your check-in history - it is exactly the kind of record that helps them.</p>'
+        +'<button class="btn btn-primary" onclick="closeSheet();downloadPlanPdf&&downloadPlanPdf()">Export history for the vet</button>'
+        +'<button class="btn btn-ghost" style="margin-top:8px;color:var(--secondary)" onclick="closeSheet()">Close</button>';
+      openSheet(body4);
+    }
+  },220);
+}
+// Rebuild the remaining days with the AI, optionally lighter
+async function rebuildRemainingPlan(mode){
+  toast('Rebuilding the rest of your plan...');
+  var from=(state.currentDay||1)+1, L=state.planLength||7;
+  try{
+    const res=await fetch(AI_ADAPT_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({answers:state.answers,checkins:state.checkins,notes:state.dayNotes,
+        tasksDone:state.tasksDone,nextDay:from,planLength:L,nextDayPlan:dayData(from),
+        rebuild:true, lighter:(mode==='lighter'), lang:'en'})});
+    if(res.ok){
+      const out=await res.json();
+      if(out&&out.day){
+        state.planOverrides=state.planOverrides||{};
+        state.planOverrides[from]={title:out.day.title,sub:out.day.sub,desc:out.day.desc,tasks:out.day.tasks};
+        persistStateNow();
+        toast('Tomorrow has been rebuilt');
+        renderToday();
+        return;
+      }
+    }
+    toast('Could not rebuild right now - try again later');
+  }catch(e){ toast('Could not rebuild right now - try again later'); }
+}
+async function submitReframe(){
+  var el=document.getElementById('nwDetail');
+  var txt=(el&&el.value||'').trim();
+  if(!txt){ toast('Tell me what you are seeing first'); return; }
+  state.answers.__reframe=txt;
+  state.dayNotes=state.dayNotes||{};
+  state.dayNotes[state.currentDay||1]=(state.dayNotes[state.currentDay||1]||'')+(txt?('\n'+txt):'');
+  closeSheet();
+  persistStateNow();
+  rebuildRemainingPlan();
+}
+// ===== Maintenance mode: life after day 7 =====
+// The plan does not end - it drops to a lighter weekly rhythm that keeps the habit
+// alive and catches regressions early. Free, no new purchase needed.
+function startMaintenance(){
+  state.maintenance=true;
+  state.maintenanceSince=state.maintenanceSince||new Date().toISOString();
+  state.maintenanceCheckins=state.maintenanceCheckins||[];
+  persistStateNow();
+  closePlanEnd();
+  showTab('today');
+  toast('Weekly upkeep started');
+}
+function stopMaintenance(){
+  state.maintenance=false; persistStateNow(); showTab('today');
+}
+function maintenanceDue(){
+  if(!state.maintenance) return false;
+  if(!state.lastMaintenanceDate) return true;
+  var last=new Date(state.lastMaintenanceDate).getTime();
+  return (Date.now()-last) >= 7*24*60*60*1000;
+}
+function maintenanceDaysLeft(){
+  if(!state.lastMaintenanceDate) return 0;
+  var last=new Date(state.lastMaintenanceDate).getTime();
+  var left=Math.ceil((7*24*60*60*1000-(Date.now()-last))/(24*60*60*1000));
+  return Math.max(0,left);
+}
+function maintenanceWeeks(){
+  if(!state.maintenanceSince) return 0;
+  var d=Math.floor((Date.now()-new Date(state.maintenanceSince).getTime())/(7*24*60*60*1000));
+  return Math.max(0,d);
+}
+// Weekly check-in: one honest question about whether the change held
+function openMaintenanceCheckin(){
+  var pet=state.answers.petName||'your pet';
+  openSheet('<div class="d-eb" style="color:var(--sage)">Weekly upkeep</div>'
+    +'<h2 style="font-size:1.5rem;letter-spacing:-.03em;margin:6px 0 6px">How has '+esc(pet)+' been this week?</h2>'
+    +'<p style="font-size:.88rem;color:var(--secondary);line-height:1.5;margin-bottom:16px">One quick answer keeps the picture accurate.</p>'
+    +'<div class="opt-row" onclick="saveMaintenance(\'better\')"><span>Still improving</span></div>'
+    +'<div class="opt-row" onclick="saveMaintenance(\'same\')" style="margin-top:8px"><span>Holding steady</span></div>'
+    +'<div class="opt-row" onclick="saveMaintenance(\'slipping\')" style="margin-top:8px"><span>Slipping back</span></div>'
+    +'<div class="opt-row" onclick="saveMaintenance(\'worse\')" style="margin-top:8px"><span>Worse than before</span></div>');
+}
+function saveMaintenance(val){
+  state.maintenanceCheckins=state.maintenanceCheckins||[];
+  state.maintenanceCheckins.push({date:new Date().toISOString(), state:val});
+  state.lastMaintenanceDate=new Date().toISOString();
+  persistStateNow();
+  closeSheet();
+  if(val==='slipping'||val==='worse'){
+    // a regression is exactly when a fresh plan is worth offering
+    setTimeout(function(){
+      openSheet('<div class="d-eb" style="color:var(--clay)">Worth a closer look</div>'
+        +'<h2 style="font-size:1.4rem;letter-spacing:-.03em;margin:6px 0 8px">Things have slipped back</h2>'
+        +'<p style="font-size:.9rem;color:var(--secondary);line-height:1.55;margin-bottom:16px">That usually means the underlying cause shifted, or the routine stopped fitting your week. A fresh seven-day plan re-reads the situation from scratch.</p>'
+        +((state.planCredits||0)>0
+          ? '<button class="btn btn-primary" onclick="closeSheet();startAnotherPet()">Start a fresh plan</button>'
+          : '<button class="btn btn-primary" onclick="closeSheet();buildOffer&&buildOffer();showScreen(\'screen-offer\')">Start a fresh plan</button>')
+        +'<button class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet()">Not now</button>');
+    },250);
+  } else {
+    toast('Saved - see you next week');
+    showTab('today');
+  }
+}
 function openPlanEnd(){
   launchConfetti(); haptic(20);
   var pet=state.answers.petName||'Your pet';
@@ -2785,18 +3253,24 @@ function openPlanEnd(){
     ? 'Incidents are down <b style="color:var(--forest)">'+Math.abs(impr)+'%</b> since day one.'
     : 'You showed up every day - that consistency is what creates change.';
   var upsell = credits>0
-    ? '<button class="btn btn-primary" style="margin-top:6px" onclick="closePlanEnd();startAnotherPet()">Start a plan for another pet</button>'
+    ? '<button class="btn btn-ghost" style="margin-top:6px" onclick="closePlanEnd();startAnotherPet()">Start a plan for another pet</button>'
       +'<div style="font-size:0.76rem;color:var(--secondary);margin-top:8px">You have '+credits+' plan'+(credits===1?'':'s')+' left on your account.</div>'
-    : '<button class="btn btn-primary" style="margin-top:6px" onclick="closePlanEnd();buildOffer&&buildOffer();showScreen(\'screen-offer\')">Start a plan for another pet</button>';
+    : '<button class="btn btn-ghost" style="margin-top:6px" onclick="closePlanEnd();buildOffer&&buildOffer();showScreen(\'screen-offer\')">Start a plan for another pet</button>';
   var el=document.getElementById('planEndScreen');
   el.innerHTML='<div class="pe-inner">'
     +'<div class="d-eb" style="color:var(--sage)">Seven days complete</div>'
     +'<h1 style="font-size:2.4rem;letter-spacing:-0.04em;line-height:1.1;margin:8px 0 14px">'+esc(pet)+'\u2019s<br><span class="accent">plan is complete.</span></h1>'
     +'<div style="width:120px;height:120px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage);margin:6px auto 18px">'+icon('party','56px',1.5)+'</div>'
     +'<p style="font-size:1rem;color:var(--text);line-height:1.55;max-width:30ch;margin:0 auto 8px">'+improvedLine+'</p>'
-    +'<p style="font-size:0.88rem;color:var(--secondary);line-height:1.5;max-width:32ch;margin:0 auto 24px">Your check-ins, streak and full history stay saved under Progress and your plan is now archived.</p>'
+    +'<p style="font-size:0.88rem;color:var(--secondary);line-height:1.5;max-width:32ch;margin:0 auto 20px">Your check-ins, streak and full history stay saved under Progress.</p>'
+    +'<div style="background:rgba(107,143,113,0.10);border:1px solid var(--border);border-radius:18px;padding:18px 16px;margin:0 auto 16px;max-width:34ch;text-align:left">'
+      +'<div class="d-eb" style="color:var(--sage);margin-bottom:6px">Keep it going - free</div>'
+      +'<div style="font-size:0.88rem;color:var(--text);line-height:1.5;margin-bottom:12px">New habits fade without upkeep. Weekly check-ins keep '+esc(pet)+'\u2019s progress in view and flag it early if things slip back.</div>'
+      +'<button class="btn btn-primary" style="margin:0" onclick="startMaintenance()">Start weekly upkeep</button>'
+    +'</div>'
     +upsell
-    +'<button class="btn btn-ghost" style="margin-top:10px" onclick="closePlanEnd();showTab(\'progress\')">See my progress</button>'
+    +'<button class="btn btn-ghost" style="margin-top:10px" onclick="closePlanEnd();openShareResult()">Share the result</button>'
+    +'<button class="btn btn-ghost" style="margin-top:4px" onclick="closePlanEnd();showTab(\'progress\')">See my progress</button>'
     +'<button class="btn btn-ghost" style="color:var(--secondary);padding:6px" onclick="closePlanEnd()">Close</button>'
     +'</div>';
   el.classList.add('open');
@@ -2827,6 +3301,11 @@ async function adaptNextDay(nextDay){
   const wantLogin=params.get('login')==='1';
   const wantStart=params.get('start')==='1';
   const wantDemo=params.get('demo')==='1';
+  // ?test=1 -> skip real Stripe payment (everything else behaves normally)
+  try{
+    if(params.get('test')==='1'){ sessionStorage.setItem('nuci_test','1'); }
+    if(params.get('test')==='0'){ sessionStorage.removeItem('nuci_test'); }
+  }catch(e){}
   // capture referral code from ?ref= (store until the user registers)
   try{ var _ref=params.get('ref'); if(_ref){ localStorage.setItem('nuci_ref', _ref.slice(0,40)); } }catch(e){}
   const route=async()=>{
@@ -2857,6 +3336,16 @@ async function adaptNextDay(nextDay){
 // keep the text-question Next bar ~16px above the on-screen keyboard
 (function(){
   function upd(){}  // Next is positioned purely by CSS (top:48%) for reliability across browsers
+})();
+</script>
+<div id="testBadge" style="display:none;position:fixed;top:calc(env(safe-area-inset-top) + 6px);left:50%;transform:translateX(-50%);z-index:9999;background:#B4553F;color:#fff;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;padding:4px 12px;border-radius:99px;font-family:'Inter',sans-serif;pointer-events:none">Test mode - no payment</div>
+<script>
+(function(){
+  try{
+    if(sessionStorage.getItem('nuci_test')==='1'){
+      var b=document.getElementById('testBadge'); if(b) b.style.display='block';
+    }
+  }catch(e){}
 })();
 </script>
 </body>
