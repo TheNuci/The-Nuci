@@ -753,11 +753,39 @@ function autoGrow(el){
   el.style.height=Math.min(el.scrollHeight, Math.round(window.innerHeight*0.4))+'px';
 }
 
-// Hide bottom nav while typing so it doesn't jump above the mobile keyboard
+// Hide bottom nav while the on-screen keyboard is up, so it doesn't jump above it.
+// Uses the VisualViewport API when available (reliable on iOS/Android), with focus
+// events as a fallback. Always restores the nav when the keyboard closes.
 (function(){
   function isText(el){ return el && (el.tagName==='TEXTAREA' || (el.tagName==='INPUT' && !/^(button|checkbox|radio|range|submit)$/i.test(el.type||''))); }
-  document.addEventListener('focusin', function(e){ if(isText(e.target)) document.body.classList.add('kb-open'); });
-  document.addEventListener('focusout', function(e){ if(isText(e.target)) setTimeout(function(){ if(!isText(document.activeElement)) document.body.classList.remove('kb-open'); }, 60); });
+  function setKb(on){ document.body.classList.toggle('kb-open', !!on); }
+
+  // Primary: visual viewport shrinks when the keyboard opens
+  var vv = window.visualViewport;
+  if(vv){
+    var baseH = vv.height;
+    var onVV = function(){
+      // treat a >18% viewport shrink as "keyboard is open"
+      var shrunk = (window.innerHeight - vv.height) > window.innerHeight*0.18;
+      setKb(shrunk && isText(document.activeElement));
+      if(!shrunk) baseH = vv.height;
+    };
+    vv.addEventListener('resize', onVV);
+    vv.addEventListener('scroll', onVV);
+  }
+
+  // Focus state is authoritative: no text field focused == keyboard closed
+  document.addEventListener('focusin', function(e){ setKb(isText(e.target)); });
+  document.addEventListener('focusout', function(){
+    setTimeout(function(){ if(!isText(document.activeElement)) setKb(false); }, 120);
+  });
+  // Poll as a final safety net (cheap, once a second) so the nav can never stay hidden
+  setInterval(function(){ if(!isText(document.activeElement)) setKb(false); }, 1000);
+  // Safety nets: any tap outside a text field, or leaving the page, restores the nav
+  document.addEventListener('touchend', function(){
+    setTimeout(function(){ if(!isText(document.activeElement)) setKb(false); }, 200);
+  }, {passive:true});
+  window.addEventListener('pageshow', function(){ setKb(false); });
 })();
 
 // ===== Voice input =====
@@ -1933,7 +1961,8 @@ function renderToday(){
     +'<textarea id="todayNote" placeholder="Add a note - mood, triggers, small wins..." '
     +'style="width:100%;min-height:70px;border:1.5px solid var(--border);border-radius:14px;background:var(--bg);'
     +'padding:12px 14px;font-size:16px;font-family:inherit;color:var(--text);line-height:1.5;resize:none;outline:none;margin-top:'+(list?'4px':'0')+'"></textarea>'
-    +'<div style="display:flex;align-items:center;justify-content:flex-end;margin-top:8px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px">'
+    +micBtnHTML('todayNote')
     +'<button class="btn btn-primary" style="width:auto;padding:9px 20px;font-size:0.85rem" onclick="addNote('+day+')">Add note</button></div></div>';
   if(state.aiSeekProfessional){ h+='<div class="warncard" style="margin-top:12px">'+icon('warning','18px')+'<span>'+esc(state.aiProfessionalNote||'A veterinary check is recommended alongside this plan.')+'</span></div>'; }
   $('tab-today').innerHTML=h;
@@ -2075,7 +2104,9 @@ function openAskAI(){
   openSheet('<h2 style="font-size:1.35rem;letter-spacing:-.02em;margin-bottom:4px">Ask about '+esc(pet)+'</h2>'
     +'<p style="font-size:.85rem;color:var(--secondary);line-height:1.5;margin-bottom:14px">Ask anything about '+esc(pet)+'\u2019s <b style="color:var(--text);font-weight:500">behaviour, training or care</b>. Answers are factual and educational, not veterinary advice.</p>'
     +'<textarea id="askInput" placeholder="e.g. Why does my cat knead before lying down?" style="width:100%;min-height:90px;border:1.5px solid var(--border);border-radius:14px;background:var(--bg);padding:12px 14px;font-size:16px;font-family:inherit;color:var(--text);line-height:1.5;resize:none;outline:none"></textarea>'
-    +'<button class="btn btn-primary" style="margin-top:12px" id="askBtn" onclick="submitAskAI()">Ask</button>'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-top:12px">'
+    +micBtnHTML('askInput')
+    +'<button class="btn btn-primary" style="flex:1;margin:0" id="askBtn" onclick="submitAskAI()">Ask</button></div>'
     +'<div id="askAnswer" style="margin-top:14px"></div>');
   setTimeout(function(){ var i=document.getElementById('askInput'); if(i) i.focus(); },120);
 }
