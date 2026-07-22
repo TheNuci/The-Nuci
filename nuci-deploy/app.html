@@ -312,9 +312,9 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 /* locked offer layout */
 .offer-top{position:fixed;left:0;right:0;z-index:25;padding:calc(env(safe-area-inset-top) + 22px) 26px 8px;pointer-events:none}
 .offer-scroll{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
-  padding:calc(env(safe-area-inset-top) + 128px) 26px 190px;
-  -webkit-mask-image:linear-gradient(to bottom,transparent calc(var(--fadeTop,120px) - 38px),#000 calc(var(--fadeTop,120px) - 4px),#000 calc(100% - 165px),transparent calc(100% - 120px));
-  mask-image:linear-gradient(to bottom,transparent calc(var(--fadeTop,120px) - 38px),#000 calc(var(--fadeTop,120px) - 4px),#000 calc(100% - 165px),transparent calc(100% - 120px))}
+  padding:calc(env(safe-area-inset-top) + 150px) 26px 190px;
+  -webkit-mask-image:linear-gradient(to bottom,transparent calc(var(--fadeTop,120px) - 6px),#000 calc(var(--fadeTop,120px) + 26px),#000 calc(100% - 165px),transparent calc(100% - 120px));
+  mask-image:linear-gradient(to bottom,transparent calc(var(--fadeTop,120px) - 6px),#000 calc(var(--fadeTop,120px) + 26px),#000 calc(100% - 165px),transparent calc(100% - 120px))}
 .offer-scroll::-webkit-scrollbar{display:none}
 .offer-bottom{position:fixed;left:0;right:0;bottom:0;z-index:26;padding:10px 26px max(22px,env(safe-area-inset-bottom))}
 .offer-bottom .row{display:flex;align-items:center;gap:11px}
@@ -629,6 +629,10 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
       <span class="cbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>
       <span>By continuing you agree to our <span class="auth-link" onclick="event.stopPropagation();openLegal('terms')">Terms &amp; Conditions</span> and <span class="auth-link" onclick="event.stopPropagation();openLegal('privacy')">Privacy Policy</span>.</span>
     </div>
+    <div class="checkrow" id="regMarketing" onclick="this.classList.toggle('on')" style="margin-top:10px">
+      <span class="cbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>
+      <span>Send me occasional pet behaviour tips by email. Optional - you can unsubscribe any time.</span>
+    </div>
     <div class="auth-err" id="regErr"></div>
     <p style="font-size:0.88rem;color:var(--secondary);margin-top:6px">Already have an account? <span class="auth-link" onclick="showScreen('screen-login')">Log in</span></p>
     <p style="display:none;font-size:0.85rem;color:var(--secondary);margin-top:10px"><span class="auth-link" onclick="demoToOffer()">Skip for now - preview the app</span></p>
@@ -660,7 +664,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   <div class="offer-top" id="offerTop">
     <div class="eyebrow" id="offerEyebrow">Unlock the full week</div>
     <h1 class="offer-h" id="offerH" style="margin-bottom:0">A <span class="accent">7-day journey</span><br>to a calmer pet.</h1>
-    <div style="margin-top:12px;pointer-events:auto;display:inline-block"><button type="button" onclick="openAnswers(true)" style="background:rgba(107,143,113,.12);color:var(--forest);border:none;border-radius:12px;padding:11px 18px;font-size:0.88rem;font-family:inherit;cursor:pointer;pointer-events:auto">Review my answers</button></div>
+    <div style="margin-top:12px;pointer-events:auto;display:flex;gap:8px;flex-wrap:wrap"><button type="button" onclick="openAnswers(true)" style="background:rgba(107,143,113,.12);color:var(--forest);border:none;border-radius:12px;padding:11px 18px;font-size:0.88rem;font-family:inherit;cursor:pointer;pointer-events:auto">Review my answers</button><button type="button" onclick="confirmStartOver()" style="background:none;border:1px solid var(--border);color:var(--secondary);border-radius:12px;padding:11px 16px;font-size:0.88rem;font-family:inherit;cursor:pointer;pointer-events:auto">Start over</button></div>
   </div>
   <div class="offer-scroll" id="offerScroll">
     <div id="dayOnePreview"></div>
@@ -748,10 +752,24 @@ let DEMO=(function(){ try{ return new URLSearchParams(location.search).get('demo
 var __mediaRec=null, __chunks=[], __micBtn=null;
 
 // grow a textarea downward to fit its content (content above stays put, box expands)
+function hookGrow(id){
+  var el=document.getElementById(id); if(!el) return;
+  if(el.__hookGrow) { autoGrow(el); return; }
+  el.__hookGrow=true;
+  el.addEventListener('input',function(){ autoGrow(el); });
+  autoGrow(el);
+}
 function autoGrow(el){
   if(!el) return;
   el.style.height='auto';
-  el.style.height=Math.min(el.scrollHeight, Math.round(window.innerHeight*0.4))+'px';
+  // one empty line is the floor; grow only when the content needs it
+  var cs=getComputedStyle(el);
+  var line=parseFloat(cs.lineHeight)||22;
+  var pad=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0);
+  var bord=(parseFloat(cs.borderTopWidth)||0)+(parseFloat(cs.borderBottomWidth)||0);
+  var oneLine=Math.ceil(line+pad+bord);
+  var needed=el.scrollHeight+bord;
+  el.style.height=Math.min(Math.max(oneLine, needed), Math.round(window.innerHeight*0.4))+'px';
 }
 
 // Hide bottom nav while the on-screen keyboard is up, so it doesn't jump above it.
@@ -929,6 +947,7 @@ const state={
   planComplete:false, planStartDate:null, planOverrides:{}, aiPlan:null,
   maintenance:false, maintenanceSince:null, maintenanceCheckins:[], lastMaintenanceDate:null,
   previewDay1:null,
+  marketingConsent:false, marketingConsentAt:null,
   aiBehaviorExplain:null, aiAssessment:null, aiSeekProfessional:false, aiProfessionalNote:null,
   aiCauses:null, aiWhatNotToDo:null, dayInsights:{}, dayNotes:{}, taskOverrides:{}, tasksDone:{},
   userEmail:null, userName:null, purchased:false, paid:false, planCredits:0, transactions:[],
@@ -937,9 +956,12 @@ const state={
 };
 function serializeState(){
   return {
+    userEmail:state.userEmail||null, userName:state.userName||null,
+    purchased:state.purchased||false, planCredits:state.planCredits||0,
     answers:state.answers, currentDay:state.currentDay, planLength:state.planLength,
     checkins:state.checkins, lastCheckinDay:state.lastCheckinDay, planComplete:state.planComplete,
     previewDay1:state.previewDay1||null,
+    marketingConsent:state.marketingConsent||false, marketingConsentAt:state.marketingConsentAt||null,
     maintenance:state.maintenance, maintenanceSince:state.maintenanceSince,
     maintenanceCheckins:state.maintenanceCheckins, lastMaintenanceDate:state.lastMaintenanceDate,
     planStartDate:state.planStartDate||null, taskOverrides:state.taskOverrides, planOverrides:state.planOverrides,
@@ -971,14 +993,18 @@ function restoreState(d){
 let _saveTimer=null;
 function persistState(){ clearTimeout(_saveTimer); _saveTimer=setTimeout(persistStateNow,900); }
 async function persistStateNow(){
-  if(!supa||!state.userEmail) return;
   clearTimeout(_saveTimer);
+  // local snapshot first - works even before sign-in and without a session
+  try{ localStorage.setItem('nuciState', JSON.stringify(serializeState())); }catch(e){}
+  if(!supa||!state.userEmail) return;
   try{
     var _rec={
       email:state.userEmail.toLowerCase(), data:serializeState(), updated_at:new Date().toISOString(),
       timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null,
       last_checkin_date:state.lastCheckinDate||null,
-      referral_code:referralCode()||null
+      referral_code:referralCode()||null,
+      marketing_consent: !!state.marketingConsent,
+      marketing_consent_at: state.marketingConsentAt||null
     };
     // attach referred_by only if we captured one and this user hasn't been credited yet
     try{
@@ -992,9 +1018,10 @@ async function persistStateNow(){
 async function loadStateForUser(email){
   if(!supa||!email) return false;
   try{
-    const {data,error}=await supa.from('profiles').select('data,email_reminders,purchased,referral_count').eq('email',email.toLowerCase()).maybeSingle();
+    const {data,error}=await supa.from('profiles').select('data,email_reminders,purchased,referral_count,marketing_consent').eq('email',email.toLowerCase()).maybeSingle();
     if(error||!data) return false;
     if(data.email_reminders!=null) state.emailReminders=data.email_reminders!==false;
+    if(data.marketing_consent!=null) state.marketingConsent=data.marketing_consent===true;
     if(data.data) restoreState(data.data);
     state.purchased=(data.purchased===true);
     if(typeof data.referral_count==='number'){ state.referrals=state.referrals||{}; state.referrals.count=data.referral_count; }
@@ -1392,6 +1419,9 @@ async function doRegister(){
   }
   if(pass.length<6){ err.textContent='Password must be at least 6 characters.'; return; }
   if(!$('regAgree').classList.contains('on')){ err.textContent='Please accept the Terms & Privacy Policy to continue.'; return; }
+  var mk=document.getElementById('regMarketing');
+  state.marketingConsent = !!(mk && mk.classList.contains('on'));
+  state.marketingConsentAt = state.marketingConsent ? new Date().toISOString() : null;
   if(!supa){ err.textContent='Connection error - please try again.'; return; }
   const btn=document.querySelector('#regCta .btn'); btn.disabled=true; btn.textContent='Creating account...';
   try{
@@ -1465,7 +1495,7 @@ async function forgotPass(){
   catch(e){ toast('Could not send reset email'); }
 }
 var T_TERMS="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Terms &amp; Conditions</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: July 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>1. Who we are.</b> The Nuci is operated by <b>Urban Rus s.p.</b>, a sole proprietor registered in Slovenia (the \u201cProvider\u201d, \u201cwe\u201d, \u201cus\u201d). Contact: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>2. The service.</b> The Nuci generates a personalised 7-day behaviour plan for your pet based on the information you provide, and lets you track daily check-ins. Plans are produced with the help of AI and general behavioural principles.</p><p style=\"margin-bottom:12px\"><b>3. Not veterinary advice.</b> The Nuci provides educational behavioural guidance only. It is <b>not</b> veterinary advice, diagnosis or treatment, and is not a substitute for an in-person examination by a qualified veterinarian. If your pet shows signs of illness, pain, aggression or distress, consult a vet. You use the plan at your own responsibility.</p><p style=\"margin-bottom:12px\"><b>4. Purchases.</b> Access to a plan is a one-time purchase (no subscription). One purchase provides one plan for one pet; multi-plan packages provide credits for additional pets. Prices are shown at checkout and include any applicable tax. Payments are processed by <b>Stripe</b>; we never receive or store your full card details.</p><p style=\"margin-bottom:12px\"><b>5. Digital content &amp; right of withdrawal.</b> Your plan is digital content supplied immediately after purchase. Under Article 43\u010d of the Slovenian Consumer Protection Act (ZVPot-1) and Article 16(m) of EU Directive 2011/83/EU, by completing your purchase you <b>expressly request immediate delivery</b> of the digital content and <b>acknowledge that you thereby lose your 14-day right of withdrawal</b>. Because the plan is generated and delivered instantly, <b>purchases are non-refundable</b>. This does not affect your statutory rights where the service is defective or not as described.</p><p style=\"margin-bottom:12px\"><b>6. Your account.</b> You are responsible for the accuracy of the information you provide and for keeping your account secure. You must be at least 16 years old (or the age of digital consent in your country) to use The Nuci.</p><p style=\"margin-bottom:12px\"><b>7. Acceptable use.</b> You may use The Nuci only for your own pets and for lawful, personal purposes. You may not resell, copy or redistribute the generated plans.</p><p style=\"margin-bottom:12px\"><b>8. Liability.</b> To the extent permitted by law, the Provider is not liable for any indirect or consequential loss, or for outcomes arising from how behavioural guidance is applied. Nothing in these terms limits liability that cannot be limited under Slovenian or EU law.</p><p style=\"margin-bottom:12px\"><b>9. Changes.</b> We may update these terms; the current version is always available in the app. Continued use after changes means you accept them.</p><p style=\"margin-bottom:0\"><b>10. Governing law.</b> These terms are governed by the law of the Republic of Slovenia, with the courts of Slovenia having jurisdiction. For consumer disputes you may also use the EU ODR platform at ec.europa.eu/consumers/odr. Questions: hello@thenuci.com.</p></div>";
-var T_PRIV="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Privacy Policy</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: July 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>Controller.</b> The controller of your personal data is <b>Urban Rus s.p.</b> (Slovenia). Contact for any privacy request: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>What we collect.</b> Your account email; the pet and behaviour details you enter; your daily check-ins and notes; your plan and progress; email preferences; and basic technical data needed to run the service. We do <b>not</b> collect or store your full payment card details.</p><p style=\"margin-bottom:12px\"><b>Why, and legal basis.</b> We process this data to provide the service and your plan (performance of a contract, Art. 6(1)(b) GDPR); to send you plan-related and, if you opt in, reminder emails (consent, Art. 6(1)(a)); and to keep the service secure and comply with law (legitimate interest / legal obligation, Art. 6(1)(f)/(c)).</p><p style=\"margin-bottom:12px\"><b>Processors we use.</b> <b>Supabase</b> (database hosting), <b>Stripe</b> (payments), <b>Resend</b> (emails) and <b>Anthropic</b> (AI plan generation). Each acts under a data-processing agreement and only on our instructions.</p><p style=\"margin-bottom:12px\"><b>International transfers.</b> Some processors may process data outside the EU/EEA (e.g. in the United States). Where they do, transfers are protected by the European Commission\u2019s <b>Standard Contractual Clauses (SCC)</b> and appropriate safeguards, so your data receives an equivalent level of protection.</p><p style=\"margin-bottom:12px\"><b>Retention.</b> We keep your data while your account is active. You can delete your profile at any time from Profile \u2192 Delete profile, which removes your personal data; limited records (e.g. purchase/tax records) may be retained where the law requires.</p><p style=\"margin-bottom:12px\"><b>Your rights.</b> Under the GDPR you have the right to access, rectify, erase, restrict or object to processing, and to data portability, and to withdraw consent at any time. To exercise these, email hello@thenuci.com. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski poobla\u0161\u010denec, ip-rs.si).</p><p style=\"margin-bottom:0\"><b>Contact.</b> For any question about your data, contact hello@thenuci.com.</p></div>";
+var T_PRIV="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Privacy Policy</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: July 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>Controller.</b> The controller of your personal data is <b>Urban Rus s.p.</b> (Slovenia). Contact for any privacy request: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>What we collect.</b> Your account email; the pet and behaviour details you enter; your daily check-ins and notes; your plan and progress; email preferences and consent records; and basic technical data needed to run the service. If you use the microphone button, the short audio clip you record is sent for transcription and is <b>not stored by us</b> - only the resulting text is saved with your answer. We do <b>not</b> collect or store your full payment card details.</p><p style=\"margin-bottom:12px\"><b>Why, and legal basis.</b> We process this data to provide the service and your plan (performance of a contract, Art. 6(1)(b) GDPR); to send emails that are part of the service you bought, such as check-in reminders while a plan is active (contract, Art. 6(1)(b)), which you can switch off at any time; to send optional educational emails <b>only where you have separately ticked the box</b> (consent, Art. 6(1)(a)), which you may withdraw at any time in Profile \u2192 Email preferences; and to keep the service secure and comply with law (legitimate interest / legal obligation, Art. 6(1)(f)/(c)).</p><p style=\"margin-bottom:12px\"><b>Processors we use.</b> <b>Supabase</b> (database hosting), <b>Netlify</b> (site and server functions), <b>Stripe</b> (payments), <b>Resend</b> (emails), <b>Anthropic</b> (AI plan generation) and <b>OpenAI</b> (speech-to-text, only when you use the microphone). Each acts under a data-processing agreement and only on our instructions.</p><p style=\"margin-bottom:12px\"><b>International transfers.</b> Some processors may process data outside the EU/EEA (e.g. in the United States). Where they do, transfers are protected by the European Commission\u2019s <b>Standard Contractual Clauses (SCC)</b> and appropriate safeguards, so your data receives an equivalent level of protection.</p><p style=\"margin-bottom:12px\"><b>Retention.</b> We keep your data while your account is active. You can delete your profile at any time from Profile \u2192 Delete profile, which removes your personal data. Invoicing and tax records are kept for the period Slovenian tax law requires (currently 10 years). Consent records are kept for as long as needed to prove the consent was validly given.</p><p style=\"margin-bottom:12px\"><b>Your rights.</b> Under the GDPR you have the right to access, rectify, erase, restrict or object to processing, and to data portability, and to withdraw consent at any time. To exercise these, email hello@thenuci.com. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski poobla\u0161\u010denec, ip-rs.si).</p><p style=\"margin-bottom:12px\"><b>Automated processing.</b> Your plan is generated with AI from the answers you provide. This is not a decision that produces legal or similarly significant effects on you within the meaning of Art. 22 GDPR, and a human can review any plan on request.</p><p style=\"margin-bottom:12px\"><b>We do not sell your data.</b> We never sell or rent personal data, and we do not use it for advertising profiling.</p><p style=\"margin-bottom:12px\"><b>Children.</b> The service is not directed at children under 16. If you believe a child has provided us data, contact us and we will delete it.</p><p style=\"margin-bottom:0\"><b>Contact.</b> For any question about your data, contact hello@thenuci.com.</p></div>";
 function openLegal(kind){
   openSheet(kind==='terms'? T_TERMS : T_PRIV);
 }
@@ -2078,6 +2108,7 @@ function renderMaintenanceToday(){
     +'</div>';
 
   $('tab-today').innerHTML=h;
+  hookGrow('todayNote');
 }
 function renderToday(){
   if(state.maintenance){ renderMaintenanceToday(); return; }
@@ -2149,6 +2180,7 @@ function renderToday(){
       +'<button onclick="openNotWorking()" style="background:none;border:none;color:var(--secondary);font-family:inherit;font-size:.84rem;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:8px">This isn\u2019t working for '+esc(pet)+'</button></div>';
   }
   $('tab-today').innerHTML=h;
+  hookGrow('todayNote');
 }
 // notes are stored per day as an array of {text,ts}. Migrate old string form transparently.
 function getDayNotes(day){
@@ -2291,6 +2323,7 @@ function openAskAI(){
     +micBtnHTML('askInput')
     +'<button class="btn btn-primary" style="flex:1;margin:0" id="askBtn" onclick="submitAskAI()">Ask</button></div>'
     +'<div id="askAnswer" style="margin-top:14px"></div>');
+  setTimeout(function(){ hookGrow('askInput'); },80);
   setTimeout(function(){ var i=document.getElementById('askInput'); if(i) i.focus(); },120);
 }
 async function submitAskAI(){
@@ -2316,6 +2349,32 @@ function openWhy(){
     +(state.aiBehaviorExplain?'<p style="font-size:0.92rem;line-height:1.55;color:var(--text);margin-bottom:14px">'+esc(state.aiBehaviorExplain)+'</p>':'')
     +(state.aiCauses?'<div class="d-eb" style="margin-bottom:6px">Likely causes</div>'+state.aiCauses.map(function(c){return '<div style="font-size:0.9rem;line-height:1.45;margin-bottom:5px">· '+esc(c)+'</div>';}).join(''):'')
     +(state.aiWhatNotToDo?'<div class="d-eb" style="margin:14px 0 6px">What not to do</div>'+state.aiWhatNotToDo.map(function(c){return '<div style="font-size:0.9rem;line-height:1.45;margin-bottom:5px;color:var(--danger)">\u2715 '+esc(c)+'</div>';}).join(''):''));
+}
+// ===== Start over: wipe the answers and begin a fresh assessment =====
+function confirmStartOver(){
+  openSheet('<div class="d-eb" style="color:var(--clay)">Start over</div>'
+    +'<h2 style="font-size:1.4rem;letter-spacing:-.03em;margin:6px 0 10px">Clear these answers?</h2>'
+    +'<p style="font-size:.9rem;color:var(--secondary);line-height:1.6;margin-bottom:16px">This deletes the assessment for this pet and starts a new one from the first question. Anything already purchased stays on your account.</p>'
+    +'<button class="btn btn-primary" onclick="doStartOver()">Yes, start over</button>'
+    +'<button class="btn btn-ghost" style="margin-top:8px;color:var(--secondary)" onclick="closeSheet()">Cancel</button>');
+}
+async function doStartOver(){
+  closeSheet();
+  // wipe the assessment + generated content, keep identity and credits
+  state.answers={}; state.currentQ=0; state.currentDay=1; state.viewDay=1;
+  state.checkins=[]; state.streak=0; state.lastCheckinDate=null; state.lastCheckinDay=0;
+  state.planComplete=false; state.planStartDate=null; state.planOverrides={};
+  state.aiPlan=null; state.aiBehaviorExplain=null; state.aiAssessment=null;
+  state.aiSeekProfessional=false; state.aiProfessionalNote=null; state.aiCauses=null;
+  state.aiWhatNotToDo=null; state.dayInsights={}; state.dayNotes={}; state.tasksDone={};
+  state.taskOverrides={}; state.petPhoto=null; state.previewDay1=null;
+  state.maintenance=false; state.maintenanceSince=null; state.maintenanceCheckins=[];
+  state.lastMaintenanceDate=null;
+  selectedPackage=null;
+  try{ localStorage.removeItem('nuciState'); }catch(e){}
+  try{ await persistStateNow(); }catch(e){}
+  toast('Cleared - starting fresh');
+  showScreen('screen-assessment'); renderQ();
 }
 // ===== Shareable result: organic growth without asking anyone to sell =====
 function buildShareCard(){
@@ -2876,6 +2935,21 @@ async function toggleReminders(){
   try{ if(supa&&state.userEmail) await supa.from('profiles').update({email_reminders:state.emailReminders}).eq('email',state.userEmail.toLowerCase()); }catch(e){}
   renderProfileTab(); toast('Email reminders '+(state.emailReminders?'on':'off'));
 }
+// Consent withdrawal must be as easy as giving it (GDPR Art. 7(3))
+async function toggleMarketing(){
+  state.marketingConsent = !state.marketingConsent;
+  state.marketingConsentAt = state.marketingConsent ? new Date().toISOString() : null;
+  try{
+    if(supa&&state.userEmail){
+      await supa.from('profiles').update({
+        marketing_consent: state.marketingConsent,
+        marketing_consent_at: state.marketingConsentAt
+      }).eq('email', state.userEmail.toLowerCase());
+    }
+  }catch(e){}
+  renderProfileTab();
+  toast('Behaviour tips '+(state.marketingConsent?'on':'off'));
+}
 async function signOut(){
   try{ if(supa) await supa.auth.signOut(); }catch(e){}
   try{ localStorage.removeItem('nuci_intro_seen'); }catch(e){}
@@ -3132,7 +3206,7 @@ function diagnoseNotWorking(kind){
         +'<button class="btn btn-primary" onclick="submitReframe()">Rebuild around this</button>'
         +'<button class="btn btn-ghost" style="margin-top:8px;color:var(--secondary)" onclick="closeSheet()">Cancel</button>';
       openSheet(body3);
-      setTimeout(function(){ var el=document.getElementById('nwDetail'); if(el){ el.addEventListener('input',function(){autoGrow(el);}); el.focus(); } },100);
+      setTimeout(function(){ hookGrow('nwDetail'); var el=document.getElementById('nwDetail'); if(el) el.focus(); },100);
     } else {
       // worse - this is the one case where a professional matters more than a plan
       var body4='<div class="d-eb" style="color:var(--clay)">Take this seriously</div>'
@@ -3301,6 +3375,28 @@ async function adaptNextDay(nextDay){
   const wantLogin=params.get('login')==='1';
   const wantStart=params.get('start')==='1';
   const wantDemo=params.get('demo')==='1';
+  const wantResume=params.get('resume')==='1';
+  // One-click unsubscribe from the tips email (GDPR Art. 7(3) - as easy as opting in)
+  const unsubKind=params.get('unsub');
+  if(unsubKind==='tips'){
+    var unsubEmail=params.get('e')||'';
+    (async function(){
+      try{
+        if(supa && unsubEmail){
+          await supa.from('profiles').update({marketing_consent:false, marketing_consent_at:null})
+            .eq('email', unsubEmail.toLowerCase());
+        }
+      }catch(e){}
+      document.body.innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px;background:#F2F1EC;font-family:Inter,-apple-system,sans-serif">'
+        +'<div style="max-width:380px;text-align:center">'
+        +'<div style="font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:#6B8F71;margin-bottom:10px">Unsubscribed</div>'
+        +'<h1 style="font-size:1.6rem;font-weight:400;letter-spacing:-.03em;color:#1A211C;margin-bottom:10px">You will not receive behaviour tips again.</h1>'
+        +'<p style="font-size:.92rem;color:#5C6660;line-height:1.6;margin-bottom:22px">Emails that are part of a plan you purchased are unaffected. You can turn tips back on any time in your profile.</p>'
+        +'<a href="/" style="display:inline-block;background:#3E5A47;color:#F2F1EC;text-decoration:none;padding:13px 26px;border-radius:14px;font-size:.95rem">Back to The Nuci</a>'
+        +'</div></div>';
+    })();
+    return;
+  }
   // ?test=1 -> skip real Stripe payment (everything else behaves normally)
   try{
     if(params.get('test')==='1'){ sessionStorage.setItem('nuci_test','1'); }
@@ -3322,6 +3418,19 @@ async function adaptNextDay(nextDay){
       if(had&&state.purchased&&state.answers&&state.answers.petName){ enterApp(); return; }
       if(had&&state.answers&&state.answers.petName){ buildOffer(); showScreen('screen-offer'); return; }
     }
+    // No live session (browser closed, or arriving from an email link):
+    // fall back to the locally saved progress so nobody has to start over.
+    try{
+      const localRaw=localStorage.getItem('nuciState');
+      if(localRaw){
+        const ls=JSON.parse(localRaw);
+        if(ls && ls.answers && ls.answers.petName){
+          Object.assign(state, ls);
+          if(state.purchased && state.planCredits){ enterApp(); return; }
+          buildOffer(); showScreen('screen-offer'); return;
+        }
+      }
+    }catch(e){}
     if(wantLogin){ showScreen('screen-login'); return; }
     if(wantDemo){ try{ demoEnterApp(); }catch(e){ welcomeNew(); } return; }
     if(wantStart){ welcomeNew(); return; }

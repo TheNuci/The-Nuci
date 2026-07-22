@@ -115,11 +115,14 @@ export default async (req) => {
 
   // Fetch candidate profiles via PostgREST using the service_role key (bypasses RLS).
   // Only pull rows that have a timezone and haven't opted out.
+  // IMPORTANT: pet-related reminders go ONLY to people with a purchased, active plan.
+  // Someone who merely signed up must never receive check-in nudges about an animal.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
-    `?select=email,timezone,last_checkin_date,email_reminders,last_reminder_sent,marketing_opt_out` +
+    `?select=email,timezone,last_checkin_date,email_reminders,last_reminder_sent,marketing_opt_out,purchased,data` +
     `&timezone=not.is.null` +
     `&email_reminders=not.eq.false` +
-    `&marketing_opt_out=not.eq.true`;
+    `&marketing_opt_out=not.eq.true` +
+    `&purchased=eq.true`;
 
   let profiles;
   try {

@@ -231,9 +231,10 @@ export default async (req) => {
 
   // Pull profiles with a timezone, not opted out. We need `data` for species/check-ins.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
-    `?select=email,timezone,email_reminders,marketing_opt_out,last_weekly_sent,pet_name_pending,data` +
+    `?select=email,timezone,email_reminders,marketing_opt_out,last_weekly_sent,pet_name_pending,data,purchased` +
     `&timezone=not.is.null` +
-    `&marketing_opt_out=not.eq.true`;
+    `&marketing_opt_out=not.eq.true` +
+    `&purchased=eq.true`;
 
   let profiles;
   try {

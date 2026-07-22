@@ -58,3 +58,15 @@ begin
   return new_count;
 end;
 $$;
+
+-- ============ MARKETING CONSENT (GDPR Art. 6(1)(a)) ============
+-- Separate, opt-in consent for educational/marketing emails. Never implied by signup.
+-- marketing_consent_at records WHEN consent was given, which is required as proof.
+alter table public.profiles add column if not exists marketing_consent boolean default false;
+alter table public.profiles add column if not exists marketing_consent_at timestamptz;
+
+create index if not exists idx_profiles_marketing_consent on public.profiles(marketing_consent);
+
+-- Tip email scheduling (educational emails, consent-only)
+alter table public.profiles add column if not exists last_tip_sent timestamptz;
+alter table public.profiles add column if not exists tip_index int default 0;

@@ -67,7 +67,7 @@ function emailHtml(petName, toEmail) {
       titleHtml: `${nuciAccent(pet)}'s plan<br>is ready.`,
       bodyHtml: nuciPara(`You answered the questions, the hard part's done. ${pet}'s personalised 7-day plan is built and waiting for you.`)
         + nuciPara("One calmer week could start today.",10)
-        + nuciBtn(`Get ${pet}'s plan`,"https://thenuci.com/")
+        + nuciBtn(`Get ${pet}'s plan`,"https://thenuci.com/app.html?resume=1")
         + nuciBox(['A day-by-day plan built for '+pet,'Daily check-ins that adapt','Progress you can actually see'].map(function(x){return `<div style="font-size:14px;color:${NUCI.ink};font-family:Arial,sans-serif;padding:5px 0"><span style="color:${NUCI.sage}">&#10003;</span>&nbsp;&nbsp;${x}</div>`;}).join('')),
       unsubUrl: toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/'
     });

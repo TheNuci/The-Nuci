@@ -136,9 +136,10 @@ export default async (req) => {
 
   // Plan-holders who haven't opted out. We need `data` to confirm an active plan.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
-    `?select=email,timezone,data,last_morning_sent,marketing_opt_out` +
+    `?select=email,timezone,data,last_morning_sent,marketing_opt_out,purchased` +
     `&timezone=not.is.null` +
-    `&marketing_opt_out=not.eq.true`;
+    `&marketing_opt_out=not.eq.true` +
+    `&purchased=eq.true`;
 
   let profiles;
   try {
