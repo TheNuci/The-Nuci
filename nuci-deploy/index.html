@@ -41,7 +41,7 @@ nav .nav-login{background:none;border:none;color:var(--secondary);font-family:in
 nav .nav-cta{background:var(--forest);color:#fff;border:none;padding:11px 20px;border-radius:14px;font-size:.9rem;font-family:inherit;cursor:pointer;letter-spacing:0;box-shadow:0 6px 18px rgba(62,90,71,.22)}
 
 /* ---- generic reveal ---- */
-.reveal{opacity:0;transform:translateY(24px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
+.reveal{opacity:0;transform:translateY(24px);filter:blur(6px);transition:opacity 1s cubic-bezier(.2,.7,.2,1),transform 1s cubic-bezier(.2,.7,.2,1),filter 1s cubic-bezier(.2,.7,.2,1)}
 .reveal.in{opacity:1;transform:none;filter:none}
 .reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}.reveal.d4{transition-delay:.32s}
 
@@ -76,7 +76,7 @@ nav .nav-cta{background:var(--forest);color:#fff;border:none;padding:11px 20px;b
 .hero h1 .accent{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:400;color:var(--forest)}
 .cause-dot{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:330;color:var(--forest);position:relative;display:inline-block}
 .cause-dot .grow{display:none}
-#greenCurtain{position:fixed;top:0;left:0;width:300px;height:300px;border-radius:50%;background:var(--forest);will-change:transform,opacity;
+#greenCurtain{position:fixed;top:0;left:0;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;background:var(--forest);
   z-index:1;pointer-events:none;transform:scale(0);transform-origin:center;opacity:0}
 .hero-sub{color:var(--secondary);margin-top:26px;font-size:1.05rem;line-height:1.6;max-width:34ch}
 .hero-scroll{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:45;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--secondary);display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.7}
@@ -96,7 +96,7 @@ section{position:relative}
 .body{color:var(--secondary);font-size:1.05rem;line-height:1.7;margin-top:22px}
 
 /* ---- the 3D-ish rotating cause/effect wheel ---- */
-/* gpu */.wheel-sec{padding:20px 0}
+.wheel-sec{padding:20px 0}
 .wheel-stick{height:min(74svh,420px);display:flex;align-items:center;justify-content:center;overflow:visible}
 .wheel{position:relative;width:min(68vw,320px);aspect-ratio:1;perspective:900px}
 .wheel .ring{position:absolute;inset:0;border:1px solid rgba(255,255,255,.14);border-radius:50%}
@@ -497,6 +497,8 @@ function greenCurtain(){
   if(first.top >= vh){ window.__curtainOrigin=null; }   // reset before it starts
   var o = window.__curtainOrigin || {x:c.x, y:c.y};
   var ox=o.x, oy=o.y;
+  curtain.style.left=ox+'px';
+  curtain.style.top=oy+'px';
   var cover=coverScaleFrom(ox,oy);
 
   // progress:
@@ -522,9 +524,7 @@ function greenCurtain(){
   // Fully hidden (scale 0, opacity 0) until the growth has meaningfully begun, and again
   // once it has fully retracted. Starts at 0, ends at 0 — no stray dot/circle at rest.
   var vis = (scale > 0.05);
-  // position + scale in ONE transform (compositor-only, no per-frame layout -> smoother on Chrome mobile)
-  var tx=(ox-150), ty=(oy-150);  // -150 to offset the element's own 300px box center
-  curtain.style.transform='translate3d('+tx.toFixed(1)+'px,'+ty.toFixed(1)+'px,0) scale('+(vis?scale:0).toFixed(3)+')';
+  curtain.style.transform='scale('+(vis?scale:0).toFixed(3)+')';
   curtain.style.opacity = vis ? '1' : '0';
 
 
@@ -537,6 +537,8 @@ function greenCurtain(){
   syncBandMask();
 
   document.querySelectorAll('.greenzone').forEach(function(sec){
+    // the stats band is handled by its own clip-path mask (bandLight) — keep its original dark
+    if(sec.id==='bandSec'){ setZoneLight(sec,false); return; }
     setZoneLight(sec, covering);
   });
 }
