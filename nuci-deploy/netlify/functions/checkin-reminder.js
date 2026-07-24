@@ -145,6 +145,7 @@ export default async (req) => {
 
   let sent = 0, skipped = 0, failed = 0;
   const diag = [];
+  diag.push(`filter matched ${Array.isArray(profiles) ? profiles.length : 0} profile(s) (needs: timezone set, purchased=true, reminders on)`);
   let wantDebug = false;
   try{ wantDebug = new URL(req.url).searchParams.get('debug') === '1'; }catch(e){}
 

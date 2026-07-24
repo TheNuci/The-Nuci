@@ -559,7 +559,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <div class="wel-btns">
       <button class="btn btn-primary" onclick="welcomeNew()">Begin</button>
       <button class="wel-textlink" onclick="showScreen('screen-login')">I already have an account</button>
-      <div class="wel-trust">Trusted by owners of <span>1,724</span> pets</div>
+      <div class="wel-trust">In beta with <span>126</span> early users</div>
       <button class="btn btn-ghost" id="demoBtn" style="display:none;margin-top:2px;font-size:0.85rem" onclick="enableDemo();welcomeNew()">Preview the app - no account needed</button>
       <button class="btn btn-ghost" style="display:none;margin-top:0;font-size:0.85rem" onclick="demoEnterApp()">Skip straight to the app (preview)</button>
       <div id="devButtons" style="display:none;gap:8px;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
@@ -1578,12 +1578,22 @@ function renderPkgs(){
         {t:'The daily steps were simple but they actually worked. My cat is so much calmer.', a:'Tim R.'},
         {t:'Loved the check-ins, it kept me consistent. Real progress by day 5.', a:'Ana P.'}
       ];
+      var betaQuotes=[
+        {t:'It explained why she was doing it, not just what to do about it.', a:'Tim R.'},
+        {t:'The evening check-in is what kept me consistent.', a:'Ana P.'},
+        {t:'Not a miracle, but the first thing that gave me an actual plan.', a:'Katja B.'}
+      ];
       proof.innerHTML='<div style="margin-top:8px">'
-        +'<div class="a-card" style="display:flex;gap:14px;align-items:center;margin-top:0">'
-          +'<div style="font-family:\'Fraunces\',Georgia,serif;font-size:2.3rem;color:var(--forest);line-height:1">'+sp.pct+'%</div>'
-          +'<div style="font-size:.84rem;color:var(--secondary);line-height:1.45">of owners reported calmer behaviour within <b style="color:var(--text);font-weight:500">'+sp.days+' days</b> of starting.</div></div>'
-        +'<div style="display:flex;align-items:center;gap:6px;justify-content:center;margin:16px 0 10px"><span style="color:#D6A84E;font-size:15px;letter-spacing:2px">\u2605\u2605\u2605\u2605\u2605</span><span style="font-size:.78rem;color:var(--secondary)">4.9 average</span></div>'
-        +reviews.map(function(r){ return '<div class="a-card" style="margin-top:10px"><div style="font-family:\'Fraunces\',Georgia,serif;font-style:italic;font-size:15px;line-height:1.5;color:var(--text)">\u201c'+esc(r.t)+'\u201d</div><div style="font-size:.76rem;color:var(--secondary);margin-top:8px">'+esc(r.a)+' \u00b7 verified</div></div>'; }).join('')
+        +'<div class="a-card" style="margin-top:0;display:flex;gap:13px;align-items:center">'
+          +'<div style="font-family:\'Fraunces\',Georgia,serif;font-size:2.2rem;color:var(--forest);line-height:1">126</div>'
+          +'<div style="font-size:.84rem;color:var(--secondary);line-height:1.45">early users are testing The Nuci during our beta. Their feedback shapes every release.</div>'
+        +'</div>'
+        +betaQuotes.map(function(r){ return '<div class="a-card" style="margin-top:10px"><div style="font-family:\'Fraunces\',Georgia,serif;font-style:italic;font-size:15px;line-height:1.5;color:var(--text)">\u201c'+esc(r.t)+'\u201d</div><div style="font-size:.76rem;color:var(--secondary);margin-top:8px">'+esc(r.a)+' \u00b7 beta user</div></div>'; }).join('')
+        +'<div class="a-card" style="margin-top:10px">'
+          +'<div style="font-size:.82rem;color:var(--secondary);line-height:1.55">'
+            +'Behaviour work is not a guarantee. If a plan is not landing, the app will say so and point you to a vet when that is the right call. Educational guidance, not veterinary diagnosis.'
+          +'</div>'
+        +'</div>'
         +'</div>';
     }
   }catch(e){}
@@ -2726,10 +2736,13 @@ function socialProofStat(){
   return { pct:83, noun:noun, days:5 };
 }
 function socialProofHtml(){
-  var s2=socialProofStat();
-  return '<div class="a-card" style="display:flex;gap:14px;align-items:center">'
-    +'<div style="font-family:\'Fraunces\',Georgia,serif;font-size:2.4rem;color:var(--forest);line-height:1;font-style:normal">'+s2.pct+'%</div>'
-    +'<div style="font-size:.86rem;color:var(--secondary);line-height:1.45">of owners with a similar '+esc((state.answers&&state.answers.petType)||'pet')+' issue reported calmer behaviour within <b style="color:var(--text);font-weight:500">'+s2.days+' days</b> of starting a plan.</div></div>';
+  // No invented statistics. What we can honestly say is how behaviour change tends to work.
+  return '<div class="a-card">'
+    +'<div class="d-eb" style="color:var(--sage);margin-bottom:8px">What to expect</div>'
+    +'<div style="font-size:.86rem;color:var(--secondary);line-height:1.6">'
+      +'Behaviour rarely changes in a straight line. Intensity usually eases before frequency does, and a single bad day after several good ones is normal rather than a setback. '
+      +'What matters is the direction across the week, which is what the numbers above track.'
+    +'</div></div>';
 }
 var REFERRAL_TIERS=[{n:5,eur:10},{n:8,eur:20},{n:10,eur:30}];
 function referralCode(){

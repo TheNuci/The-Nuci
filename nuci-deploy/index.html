@@ -100,9 +100,11 @@ section{position:relative}
 .wheel-stick{height:min(74svh,420px);display:flex;align-items:center;justify-content:center;overflow:visible}
 .wheel{position:relative;width:min(68vw,320px);aspect-ratio:1;perspective:900px}
 .wheel .ring{position:absolute;inset:0;border:1px solid rgba(255,255,255,.14);border-radius:50%}
-.wheel .chip{position:absolute;top:50%;left:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:99px;
-  padding:8px 16px;font-size:.82rem;white-space:nowrap;backdrop-filter:blur(2px);
-  transform-origin:center;color:#F4F1E9;transition:transform .12s linear,opacity .25s ease;letter-spacing:.01em}
+.wheel .chip{position:absolute;top:50%;left:50%;background:rgba(107,143,113,.10);border:1px solid var(--border);border-radius:99px;
+  padding:8px 16px;font-size:.82rem;white-space:nowrap;
+  transform-origin:center;color:var(--secondary);transition:transform .12s linear,opacity .25s ease,color .35s ease,background .35s ease,border-color .35s ease;letter-spacing:.01em}
+/* while the green circle covers a chip, it flips to the on-green treatment */
+.wheel .chip.on-green{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#F4F1E9}
 .wheel .core{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:118px;height:118px;border-radius:50%;z-index:5;
   background:radial-gradient(circle at 35% 30%,#8CA588,var(--sage) 60%,var(--forest));
   display:flex;align-items:center;justify-content:center;box-shadow:0 20px 50px rgba(62,90,71,.35)}
@@ -126,19 +128,19 @@ section{position:relative}
 .trust-line{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:34px;font-size:.9rem;color:var(--secondary);flex-wrap:wrap;text-align:center}
 .trust-line .stars{color:#D6A84E;font-size:1rem;letter-spacing:1px}
 .trust-line b{color:var(--text);font-weight:600}
-.tr-btn{margin-top:14px;background:rgba(107,143,113,.12);color:var(--forest);border:none;border-radius:10px;
-  padding:7px 14px;font-size:.76rem;font-family:inherit;cursor:pointer;letter-spacing:.02em}
-.tr-tag{font-family:'Inter',sans-serif;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);margin:10px 0 4px}
-.tr-tag{display:block;font-family:'Inter',sans-serif;font-style:normal;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);margin-top:6px}
 .tscroll{display:flex;align-items:flex-start;gap:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;
   padding:4px 30px 20px;scrollbar-width:none}
 .tscroll::-webkit-scrollbar{display:none}
-.rcard{flex:0 0 82%;max-width:320px;height:290px;display:flex;flex-direction:column;background:linear-gradient(160deg,rgba(107,143,113,0.10),rgba(200,178,140,0.06));border:1px solid var(--border);border-radius:20px;padding:24px 22px;box-shadow:0 10px 30px rgba(35,39,31,.05)}
+.rcard{flex:0 0 74%;max-width:290px;height:290px;display:flex;flex-direction:column;background:linear-gradient(160deg,rgba(107,143,113,0.10),rgba(200,178,140,0.06));border:1px solid var(--border);border-radius:20px;padding:24px 22px;box-shadow:0 10px 30px rgba(35,39,31,.05)}
 .rcard .q{flex:1}
 .rcard .who{margin-top:auto}
-.rcard .tr-btn{align-self:flex-start}
-.rcard .stars{color:#D6A84E;font-size:.9rem;letter-spacing:1px;margin-bottom:12px}
-.rcard .q{font-family:'Fraunces',serif;font-style:italic;font-size:1.05rem;line-height:1.5;color:var(--text)}
+.rcard .rcard .stars{color:#D6A84E;font-size:.9rem;letter-spacing:1px;margin-bottom:12px}
+.rcard .q{font-family:'Fraunces',serif;font-style:italic;font-size:1.02rem;line-height:1.55;color:var(--text)}
+.tr-btn{margin-top:14px;background:rgba(107,143,113,.12);color:var(--forest);border:none;border-radius:10px;
+  padding:7px 13px;font-size:.78rem;font-family:inherit;cursor:pointer;align-self:flex-start}
+.tr-tag{font-family:'Inter',sans-serif;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);margin:10px 0 4px}
+.beta-pill{display:inline-block;background:rgba(107,143,113,.16);color:var(--forest);font-size:.68rem;letter-spacing:.14em;
+  text-transform:uppercase;font-weight:600;padding:4px 10px;border-radius:99px;margin-right:9px}
 .rcard .who{margin-top:16px;font-size:.78rem;color:var(--secondary);display:flex;align-items:center;gap:9px}
 .rcard .av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.74rem;color:#fff;font-weight:600;flex-shrink:0}
 .rcard .who b{color:var(--text);font-weight:500}
@@ -238,6 +240,10 @@ footer .brand .g{color:var(--sage)}
   .rcard{flex:0 0 360px;max-width:360px;height:260px}
   .tsec .head{max-width:1100px}
   .tsec{padding:110px 0 30px}
+.swipe-hint{display:flex;align-items:center;justify-content:center;gap:7px;font-size:.76rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--secondary);margin-top:6px;opacity:.75}
+.swipe-hint span{display:inline-block;animation:swipeNudge 1.8s ease-in-out infinite}
+@keyframes swipeNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
   /* final CTA bigger */
   .final h2{font-size:clamp(3.5rem,6vw,5.5rem)}
   footer{padding:60px 6vw 80px}
@@ -270,17 +276,18 @@ footer .brand .g{color:var(--sage)}
 <!-- ============ HERO ============ -->
 <header class="hero">
   <div class="hero-gradient" id="heroGradient"></div>
+
   <div class="hero-content" id="heroContent">
     <div class="hero-rule reveal in"></div>
     <div class="hero-eyebrow reveal in d1">Behaviour, understood</div>
     <h1 class="reveal in d2">Every<br>behaviour<br>has a <span class="accent">cause</span><span class="cause-dot" id="causeDot">.</span></h1>
-    <p class="hero-sub reveal in d3">A considered, seven-day plan for your pet, written by AI from what you notice at home - in any language, typed or spoken.</p>
+    <p class="hero-sub reveal in d3">For cats, dogs, and other pets. A considered seven-day plan, written by AI from what you notice at home, in any language.</p>
   </div>
   <div class="hero-content hero-light" id="heroLight" aria-hidden="true">
     <div class="hero-rule"></div>
     <div class="hero-eyebrow">Behaviour, understood</div>
     <h1>Every<br>behaviour<br>has a <span class="accent">cause</span><span class="cause-dot">.</span></h1>
-    <p class="hero-sub">A considered, seven-day plan for your pet, written by AI from what you notice at home - in any language, typed or spoken.</p>
+    <p class="hero-sub">For cats, dogs, and other pets. A considered seven-day plan, written by AI from what you notice at home, in any language.</p>
   </div>
 
   <div class="hero-scroll"><span>Scroll</span><span class="line"></span></div>
@@ -310,19 +317,19 @@ footer .brand .g{color:var(--sage)}
 <!-- ============ STATS BAND ============ -->
 <section class="band greenzone" data-gz="1" id="bandSec">
   <div class="wrap" id="bandWrap">
-    <div class="stat"><div class="n" data-count="83">0</div><div class="l">of owners saw calmer behaviour within five days of starting.</div></div>
+    <div class="stat"><div class="n" data-count="7">0</div><div class="l">days, each one written around your pet and adjusted every evening.</div></div>
     <div class="rule"></div>
-    <div class="stat"><div class="n" data-count="1724" data-suffix="+">0</div><div class="l">pets have started a plan with The Nuci.</div></div>
+    <div class="stat"><div class="n" data-count="126">0</div><div class="l">early users are testing The Nuci during our beta.</div></div>
     <div class="rule"></div>
-    <div class="stat"><div class="n" data-count="7">0</div><div class="l">days is all it takes to see the pattern change.</div></div>
+    <div class="stat"><div class="n">&#8734;</div><div class="l">languages - write or speak however feels natural.</div></div>
   </div>
   <div class="band-light" id="bandLight" aria-hidden="true">
     <div class="wrap">
-      <div class="stat"><div class="n">83</div><div class="l">of owners saw calmer behaviour within five days of starting.</div></div>
+      <div class="stat"><div class="n">7</div><div class="l">days, each one written around your pet and adjusted every evening.</div></div>
       <div class="rule"></div>
-      <div class="stat"><div class="n">1,724+</div><div class="l">pets have started a plan with The Nuci.</div></div>
+      <div class="stat"><div class="n">126</div><div class="l">early users are testing The Nuci during our beta.</div></div>
       <div class="rule"></div>
-      <div class="stat"><div class="n">7</div><div class="l">days is all it takes to see the pattern change.</div></div>
+      <div class="stat"><div class="n">&#8734;</div><div class="l">languages - write or speak however feels natural.</div></div>
     </div>
   </div>
 </section>
@@ -333,11 +340,12 @@ footer .brand .g{color:var(--sage)}
     <div class="eyebrow reveal">In their words</div>
     <div class="big reveal">Calmer homes,<br><span class="accent">one week in.</span></div>
     <div class="trust-line reveal">
-      <span class="stars">★★★★★</span>
-      <span><b>4.9</b> average · trusted by <b>1,653+</b> owners</span>
+      <span class="beta-pill">Beta</span>
+      <span>Feedback from <b>126</b> early users</span>
     </div>
   </div>
   <div class="tscroll" id="tscroll"></div>
+  <div class="swipe-hint">Swipe for more <span>→</span></div>
 </section>
 
 <!-- ============ HOW IT WORKS ============ -->
@@ -488,7 +496,6 @@ function greenCurtain(){
   var zones=document.querySelectorAll('.greenzone');
   if(!zones.length) return;
   var first=zones[0].getBoundingClientRect();
-  var last=zones[zones.length-1].getBoundingClientRect();
   var vh=window.innerHeight;
 
   // LOCK the curtain origin to the dot's position at the moment growth begins,
@@ -507,27 +514,19 @@ function greenCurtain(){
   //  hold  : while the green zone occupies the screen
   //  shrink: as the LAST green zone (stats) leaves the top
   var growP = clamp( (vh - first.top) / (vh*0.55), 0, 1 );          // 0..1 grow
-  // Shrink is driven by the REVIEWS section approaching from below: while reviews are far
-  // below, the green holds; as the reviews top rises up through the lower part of the screen,
-  // the circle shrinks 0 -> 1 and is fully gone by the time reviews reach mid-screen.
-  // This guarantees: stats stay ON the green, and the circle vanishes in the gap BEFORE reviews.
   var reviewsTop = vh;
   var rv=document.querySelector('.tsec');
   if(rv){ reviewsTop = rv.getBoundingClientRect().top; }
   var isPhone = window.innerWidth < 760;
-  // phones: start shrinking a touch later + over a slightly longer window (circle lingers a bit more)
   var shrinkStartRef = isPhone ? vh*1.35 : vh*1.6;
   var shrinkSpan     = isPhone ? vh*0.75 : vh*0.62;
   var shrinkP = clamp( (shrinkStartRef - reviewsTop) / shrinkSpan, 0, 1 );
 
   var scale = cover * growP * (1 - shrinkP);   // single smooth product, monotonic
 
-  // Fully hidden (scale 0, opacity 0) until the growth has meaningfully begun, and again
-  // once it has fully retracted. Starts at 0, ends at 0 — no stray dot/circle at rest.
   var vis = (scale > 0.05);
   curtain.style.transform='scale('+(vis?scale:0).toFixed(3)+')';
   curtain.style.opacity = vis ? '1' : '0';
-
 
   // flip text in green zones to light while the curtain is covering (scale big enough)
   var covering = scale > cover*0.5;
@@ -622,15 +621,24 @@ function syncBandMask(){
 }
 function clamp(v,a,b){ return Math.min(b,Math.max(a,v)); }
 function setZoneLight(sec, on){
-  if(sec.__lit===on) return; sec.__lit=on;
-  var els=sec.querySelectorAll('h1,h2,h3,p,.eyebrow,.big,.stat .n,.stat .l,.step .idx,.core span');
+  var circle=circleNow();
+  // Each element is lit only while the circle actually covers it, so text goes back
+  // to dark as soon as the circle has moved past - no stale light text on the beige.
+  var els=sec.querySelectorAll('h1,h2,h3,p,.eyebrow,.big,.stat .n,.stat .l,.step .idx');
   els.forEach(function(el){
-    el.style.transition='color .45s ease';
-    if(on){ el.style.setProperty('color', el.classList.contains('eyebrow')||el.classList.contains('idx') ? '#CBD9C8' : '#F1EFE7', 'important'); }
+    var cov = on && circle.on && covers(circle, el);
+    if(el.__cov===cov) return; el.__cov=cov;
+    el.style.transition='color .35s ease';
+    if(cov){ el.style.setProperty('color', el.classList.contains('eyebrow')||el.classList.contains('idx') ? '#CBD9C8' : '#F1EFE7', 'important'); }
     else { el.style.removeProperty('color'); }
   });
+  sec.__lit=on;
+  // wheel chips: they sit on the page background, so flip them only where the circle covers
+  sec.querySelectorAll('.wheel .chip').forEach(function(ch){
+    var cov = on && circle.on && covers(circle, ch);
+    ch.classList.toggle('on-green', !!cov);
+  });
   // wordline words: light per-word based on the actual circle coverage (progressive)
-  var circle=circleNow();
   sec.querySelectorAll('.wordline .w').forEach(function(w){
     var cov = circle.on && covers(circle, w);
     w.style.transition='color .35s ease';
@@ -686,20 +694,10 @@ function wheelSpin(){ /* now self-running; kept as no-op for the scroll handler 
 // ---- testimonials: floating card columns (stars + quote + author) ----
 var REVIEWS=[
   {q:'Two weeks in and the difference is night and day. I only wish I had found this sooner.', who:'Maja K.', sub:'cat owner', c:'#6B8F71'},
-  {q:'Unser Hund ist endlich ruhig am Abend. Der Plan hat wirklich alles verändert.', en:'Our dog is finally calm in the evenings. The plan truly changed everything.', lang:'German', who:'Lukas B.', sub:'dog owner', c:'#B9825B'},
+  {q:'Unser Hund ist endlich ruhig am Abend. Der Plan hat wirklich alles ver\u00e4ndert.', en:'Our dog is finally calm in the evenings. The plan truly changed everything.', lang:'German', who:'Lukas B.', sub:'dog owner', c:'#B9825B'},
   {q:'The evening check-in kept me consistent. Real, visible progress by day five.', who:'Ana P.', sub:'cat owner', c:'#5C7B62'},
-  {q:'Je ne devinais plus. Le plan m’a dit quoi faire, et tout a changé en une semaine.', en:'I stopped guessing. The plan told me what to do, and everything changed within a week.', lang:'French', who:'Camille R.', sub:'dog owner', c:'#3E5A47'},
-  {q:'It felt like someone finally explained what my rabbit was trying to tell me.', who:'Oliver H.', sub:'rabbit owner', c:'#8CA588'},
-  {q:'Finalmente capisco perché faceva così. Ora la mia gatta è molto più serena.', en:'I finally understand why she behaved that way. My cat is so much calmer now.', lang:'Italian', who:'Giulia F.', sub:'cat owner', c:'#6B8F71'},
-  {q:'Small daily changes, big results. My cat stopped scratching the sofa completely.', who:'Emma L.', sub:'cat owner', c:'#B9825B'},
-  {q:'Mi perro dejó de ladrar sin parar. En cinco días vi un cambio enorme.', en:'My dog stopped barking non-stop. In five days I saw a huge change.', lang:'Spanish', who:'Diego M.', sub:'dog owner', c:'#5C7B62'},
-  {q:'Clear, calm and genuinely practical. It felt written just for my dog.', who:'Sophie W.', sub:'dog owner', c:'#3E5A47'},
-  {q:'Onze kat is zoveel rustiger. Ik had dit jaren geleden willen vinden.', en:'Our cat is so much calmer. I wish I had found this years ago.', lang:'Dutch', who:'Daan V.', sub:'cat owner', c:'#8CA588'},
-  {q:'Our puppy settled far faster than we expected. Worth every single cent.', who:'James C.', sub:'dog owner', c:'#6B8F71'},
-  {q:'Wreszcie rozumiem swojego psa. Plan był prosty, ale naprawdę zadziałał.', en:'I finally understand my dog. The plan was simple, but it really worked.', lang:'Polish', who:'Zofia K.', sub:'dog owner', c:'#B9825B'},
-  {q:'The plan told me exactly what to try, and it just clicked. Calmer within days.', who:'Nina B.', sub:'dog owner', c:'#5C7B62'},
-  {q:'I was sceptical, but by day four my anxious cat was a different animal.', who:'Thomas A.', sub:'cat owner', c:'#3E5A47'},
-  {q:'Honestly the calmest our home has been in years. I recommend it to everyone.', who:'Isabella S.', sub:'cat owner', c:'#8CA588'}
+  {q:'Je ne devinais plus. Le plan m\u2019a dit quoi faire, et tout a chang\u00e9 en une semaine.', en:'I stopped guessing. The plan told me what to do, and everything changed within a week.', lang:'French', who:'Camille R.', sub:'dog owner', c:'#3E5A47'},
+  {q:'It explained why she was doing it, not just what to do about it. That made it click.', who:'Tim R.', sub:'cat owner', c:'#8A9A85'}
 ];
 function reviewCard(r,i){
   var esc=function(x){return (x||'').replace(/"/g,'&quot;');};

@@ -11,3 +11,27 @@
   from = "/app"
   to = "/app.html"
   status = 200
+
+# ============ SCHEDULED EMAIL JOBS ============
+# Netlify runs these on a cron schedule (UTC). Each function decides internally
+# whether a given user is actually due an email, so frequent runs are safe.
+
+# Daily check-in reminder - runs hourly so it can hit each user's local evening
+[functions."checkin-reminder"]
+  schedule = "0 * * * *"
+
+# Morning nudge - runs hourly, function matches the user's local morning
+[functions."morning-nudge"]
+  schedule = "0 * * * *"
+
+# Weekly summary - Mondays at 08:00 UTC
+[functions."weekly-emails"]
+  schedule = "0 8 * * 1"
+
+# Abandoned cart - twice a day
+[functions."abandoned-cart"]
+  schedule = "0 10,18 * * *"
+
+# Educational tips (consent only) - weekly run, function enforces a 14-day gap
+[functions."behaviour-tips"]
+  schedule = "0 9 * * 3"

@@ -22,6 +22,7 @@ create policy "anon can read profiles" on public.profiles
   for select using (true);
 
 drop policy if exists "anon can upsert profiles" on public.profiles;
+drop policy if exists "anon can insert profiles" on public.profiles;
 create policy "anon can insert profiles" on public.profiles
   for insert with check (true);
 
@@ -70,3 +71,6 @@ create index if not exists idx_profiles_marketing_consent on public.profiles(mar
 -- Tip email scheduling (educational emails, consent-only)
 alter table public.profiles add column if not exists last_tip_sent timestamptz;
 alter table public.profiles add column if not exists tip_index int default 0;
+
+-- Third abandoned-cart nudge (5 days after signup)
+alter table public.profiles add column if not exists cart_nudge3_sent boolean default false;
