@@ -1,10 +1,6 @@
 // The Nuci · Stripe webhook
-// Fires when Stripe confirms a payment. On a completed checkout we:
-//   1) mark the buyer's profile as purchased
-//   2) if the buyer was referred (referred_by set), increment the REFERRER's referral_count
-//
-// IMPORTANT: referral_count only ever increments here — on a CONFIRMED PURCHASE.
-// A signup alone never counts.
+// Fires when Stripe confirms a payment. On a completed checkout we mark the
+// buyer's profile as purchased.
 //
 // Required environment variables (set in Netlify > Site settings > Environment):
 //   SUPABASE_URL                        your project URL, e.g. https://xxxx.supabase.co
@@ -96,29 +92,12 @@ exports.handler = async (event) => {
   }
 
   try {
-    // 1) Load the buyer's profile
-    const r = await sb(`profiles?email=eq.${encodeURIComponent(email)}&select=email,purchased,referred_by`);
-    const rows = await r.json();
-    const profile = Array.isArray(rows) && rows.length ? rows[0] : null;
-
-    // If profile is already purchased, do NOT double-credit the referrer.
-    const alreadyPurchased = profile && profile.purchased === true;
-
-    // 2) Mark buyer as purchased
+    // Mark buyer as purchased. This is the single job of the webhook now.
     await sb(`profiles?email=eq.${encodeURIComponent(email)}`, {
       method: 'PATCH',
       headers: { 'Prefer': 'return=minimal' },
       body: JSON.stringify({ purchased: true, updated_at: new Date().toISOString() })
     });
-
-    // 3) Credit the referrer — ONLY on the first purchase, and only if referred
-    if (profile && profile.referred_by && !alreadyPurchased) {
-      // atomic increment via the SQL function
-      await sb(`rpc/increment_referral`, {
-        method: 'POST',
-        body: JSON.stringify({ referrer_code: profile.referred_by })
-      });
-    }
 
     return { statusCode: 200, body: 'ok' };
   } catch (e) {

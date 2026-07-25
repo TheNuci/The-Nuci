@@ -747,7 +747,12 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 // ═══════ CONFIG (same backend as before) ═══════
 const SUPABASE_URL = 'https://dsuiqkcjfayazzvfwdqk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzdWlxa2NqZmF5YXp6dmZ3ZHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTA3NDksImV4cCI6MjA5NjI4Njc0OX0.WFQe-Vs3tbCemGKvNF-aQd_a1THR9C8kww9hA-LCgbE';
-let DEMO=(function(){ try{ return new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
+// ── PRODUCTION FLAG ──
+// When true, the ?demo=1 and ?test=1 payment-bypass shortcuts are DISABLED, so no one
+// can enter the app or unlock plans without a real Stripe payment. Set to false only
+// while testing, then back to true before deploying.
+const LIVE = true;
+let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) — works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
 
@@ -1002,29 +1007,21 @@ async function persistStateNow(){
       email:state.userEmail.toLowerCase(), data:serializeState(), updated_at:new Date().toISOString(),
       timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null,
       last_checkin_date:state.lastCheckinDate||null,
-      referral_code:referralCode()||null,
       marketing_consent: !!state.marketingConsent,
       marketing_consent_at: state.marketingConsentAt||null
     };
-    // attach referred_by only if we captured one and this user hasn't been credited yet
-    try{
-      var _rb=localStorage.getItem('nuci_ref');
-      // don't let a user refer themselves
-      if(_rb && _rb!==referralCode()){ _rec.referred_by=_rb; }
-    }catch(e){}
     await supa.from('profiles').upsert(_rec,{onConflict:'email'});
   }catch(e){ console.warn('persist',e); }
 }
 async function loadStateForUser(email){
   if(!supa||!email) return false;
   try{
-    const {data,error}=await supa.from('profiles').select('data,email_reminders,purchased,referral_count,marketing_consent').eq('email',email.toLowerCase()).maybeSingle();
+    const {data,error}=await supa.from('profiles').select('data,email_reminders,purchased,marketing_consent').eq('email',email.toLowerCase()).maybeSingle();
     if(error||!data) return false;
     if(data.email_reminders!=null) state.emailReminders=data.email_reminders!==false;
     if(data.marketing_consent!=null) state.marketingConsent=data.marketing_consent===true;
     if(data.data) restoreState(data.data);
     state.purchased=(data.purchased===true);
-    if(typeof data.referral_count==='number'){ state.referrals=state.referrals||{}; state.referrals.count=data.referral_count; }
     return !!data.data;
   }catch(e){ return false; }
 }
@@ -1750,6 +1747,7 @@ function runGenerating(next){
 
 // ═══════ PAID RETURN ═══════
 function testMode(){
+  if(LIVE) return false;   // production: no payment bypass, ever
   try{ return sessionStorage.getItem('nuci_test')==='1'; }catch(e){ return false; }
 }
 function completePayment(){
@@ -2419,7 +2417,7 @@ function openShareResult(){
 function shareResultNative(){
   var d=buildShareCard();
   var text=d.pet+' - '+d.line+'. Seven-day behaviour plan from The Nuci.';
-  var url=(typeof referralLink==='function')?referralLink():'https://thenuci.com';
+  var url='https://thenuci.com';
   if(navigator.share){
     navigator.share({title:'The Nuci', text:text, url:url}).catch(function(){});
   } else {
@@ -2744,89 +2742,6 @@ function socialProofHtml(){
       +'What matters is the direction across the week, which is what the numbers above track.'
     +'</div></div>';
 }
-var REFERRAL_TIERS=[{n:5,eur:10},{n:8,eur:20},{n:10,eur:30}];
-function referralCode(){
-  var e=(state.userEmail||'').toLowerCase();
-  if(!e) return '';
-  // stable short code from email
-  var h=0; for(var i=0;i<e.length;i++){ h=((h<<5)-h+e.charCodeAt(i))|0; }
-  return 'nuci'+Math.abs(h).toString(36).slice(0,6);
-}
-function referralLink(){ return 'https://thenuci.com/?ref='+referralCode(); }
-function referralCount(){ return (state.referrals&&typeof state.referrals.count==='number')?state.referrals.count:0; }
-function nextTier(){ var c=referralCount(); for(var i=0;i<REFERRAL_TIERS.length;i++){ if(c<REFERRAL_TIERS[i].n) return REFERRAL_TIERS[i]; } return null; }
-function earnedReward(){ var c=referralCount(),eur=0; REFERRAL_TIERS.forEach(function(t){ if(c>=t.n) eur=t.eur; }); return eur; }
-function squaresHtml(c){
-  var total=10;
-  var tierN=REFERRAL_TIERS.map(function(t){return t.n;});
-  var cells='';
-  for(var i=1;i<=total;i++){
-    var filled=i<=c;
-    var isTier=tierN.indexOf(i)>=0;
-    var eur=''; for(var k=0;k<REFERRAL_TIERS.length;k++){ if(REFERRAL_TIERS[k].n===i){ eur=REFERRAL_TIERS[k].eur; } }
-    cells+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
-      +'<div style="width:100%;aspect-ratio:1;border-radius:7px;background:'+(filled?'var(--forest)':'rgba(0,0,0,.06)')+';border:'+(isTier?'2px solid '+(filled?'var(--forest)':'var(--sage)'):'1px solid rgba(0,0,0,.08)')+';transition:background .4s ease"></div>'
-      +(isTier?'<div style="font-size:.56rem;color:'+(filled?'var(--forest)':'var(--secondary)')+';font-weight:600">\u20ac'+eur+'</div>':'<div style="font-size:.56rem;color:transparent">.</div>')
-      +'</div>';
-  }
-  return '<div style="display:flex;gap:5px;margin:4px 2px 0">'+cells+'</div>';
-}
-function referralCardHtml(){
-  var c=referralCount(), nt=nextTier(), earned=earnedReward();
-  var maxN=REFERRAL_TIERS[REFERRAL_TIERS.length-1].n;
-  var pct=Math.min(100, Math.round(c/maxN*100));
-  var sub = nt ? ('<b style="color:var(--forest)">'+(nt.n-c)+' more</b> to unlock <b style="color:var(--forest)">\u20ac'+nt.eur+'</b>')
-                : ('You\u2019ve unlocked the top reward, <b style="color:var(--forest)">\u20ac'+earned+'</b>!');
-  // tier ticks
-  var ticks=REFERRAL_TIERS.map(function(t){
-    var hit=c>=t.n; var left=Math.round(t.n/maxN*100);
-    return '<div style="position:absolute;left:'+left+'%;transform:translateX(-50%);top:-3px">'
-      +'<div style="width:12px;height:12px;border-radius:50%;background:'+(hit?'var(--forest)':'var(--card)')+';border:2px solid '+(hit?'var(--forest)':'rgba(0,0,0,.18)')+'"></div>'
-      +'<div style="font-size:.6rem;color:'+(hit?'var(--forest)':'var(--secondary)')+';text-align:center;margin-top:3px;white-space:nowrap">\u20ac'+t.eur+'</div></div>';
-  }).join('');
-  return '<div class="a-card" style="margin-top:14px">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
-      +'<div class="d-eb" style="color:var(--sage)">Invite &amp; earn</div>'
-      +(earned>0?'<div style="font-size:.72rem;background:rgba(107,143,113,.14);color:var(--forest);padding:3px 10px;border-radius:99px">\u20ac'+earned+' earned</div>':'')+'</div>'
-    +'<div class="a-quote" style="font-style:normal;font-size:17px;margin-bottom:4px">Give a calmer pet, get rewarded.</div>'
-    +'<p style="font-size:.84rem;color:var(--secondary);line-height:1.5;margin-bottom:20px">Share your link. When friends start a plan, you earn cash rewards: \u20ac10 at 5, \u20ac20 at 8, \u20ac30 at 10 friends.</p>'
-    +squaresHtml(c)
-    +'<div style="text-align:center;font-size:.85rem;color:var(--secondary);margin:16px 0 14px">'+esc(String(c))+' friend'+(c===1?'':'s')+' joined \u00b7 '+sub+'</div>'
-    +'<button class="btn btn-primary" onclick="shareReferral()">Share your link</button>'
-    +'<button class="btn btn-ghost" style="margin-top:6px;font-size:.82rem" onclick="openReferralQR()">Show QR code</button>'
-    +'</div>';
-}
-function openReferralQR(){
-  var m=document.getElementById('qrModal');
-  if(!m){
-    m=document.createElement('div'); m.id='qrModal';
-    m.innerHTML='<div class="qrm-dim" onclick="closeReferralQR()"></div>'
-      +'<div class="qrm-card">'
-      +'<button class="qrm-x" onclick="closeReferralQR()" aria-label="Close">&times;</button>'
-      +'<div class="d-eb" style="color:var(--sage);text-align:center;margin-bottom:12px">Invite a friend</div>'
-      +'<div id="qrmImg" style="width:210px;height:210px;margin:0 auto;padding:14px;background:#fff;border-radius:18px;box-shadow:0 8px 24px rgba(35,39,31,.08)"></div>'
-      +'<div style="font-size:.8rem;color:var(--secondary);text-align:center;margin-top:14px;line-height:1.5">Let a friend scan this with their phone to open The Nuci</div>'
-      +'</div>';
-    document.body.appendChild(m);
-  }
-  var holder=document.getElementById('qrmImg'); holder.innerHTML='';
-  try{ var qr=qrcode(0,'M'); qr.addData(referralLink()); qr.make(); holder.innerHTML=qr.createImgTag(5,0); var img=holder.querySelector('img'); if(img){img.style.width='100%';img.style.height='100%';} }
-  catch(e){ holder.innerHTML='<div style="font-size:.75rem;color:var(--secondary);padding:20px;word-break:break-all">'+referralLink()+'</div>'; }
-  requestAnimationFrame(function(){ m.classList.add('open'); });
-}
-function closeReferralQR(){ var m=document.getElementById('qrModal'); if(m) m.classList.remove('open'); }
-function shareReferral(){
-  var url=referralLink();
-  var text='I\u2019m using The Nuci to help my pet feel calmer. Get a personalised 7-day plan:';
-  if(navigator.share){ navigator.share({title:'The Nuci',text:text,url:url}).catch(function(){}); }
-  else { copyReferral(); }
-}
-function copyReferral(){
-  var url=referralLink();
-  if(navigator.clipboard){ navigator.clipboard.writeText(url).then(function(){ toast('Link copied'); }).catch(function(){ prompt('Copy your link:',url); }); }
-  else { prompt('Copy your link:',url); }
-}
-
 function badgesHtml(){
   var earned=earnedBadges(); var earnedIds=earned.map(function(b){return b.id;});
   var cells=BADGES.map(function(b){
@@ -2857,7 +2772,6 @@ function renderProfileTab(){
     +'<div class="pp-chip"><div class="k">Sex</div><div class="v">'+esc(state.answers.sex||'\u2013')+'</div></div>'
     +'<div class="pp-chip"><div class="k">Plan</div><div class="v">Day '+(state.currentDay||1)+'/'+(state.planLength||7)+'</div></div></div></div>'
     +badgesHtml()
-    +referralCardHtml()
     +'<div class="card" style="margin-top:14px;padding:4px 18px">'
     +prow('Assessment answers','openAnswers()')
     +prow('Download plan (PDF)','exportCurrentPDF()')
@@ -3415,7 +3329,6 @@ async function adaptNextDay(nextDay){
     if(params.get('test')==='1'){ sessionStorage.setItem('nuci_test','1'); }
     if(params.get('test')==='0'){ sessionStorage.removeItem('nuci_test'); }
   }catch(e){}
-  // capture referral code from ?ref= (store until the user registers)
   try{ var _ref=params.get('ref'); if(_ref){ localStorage.setItem('nuci_ref', _ref.slice(0,40)); } }catch(e){}
   const route=async()=>{
     if(isPaid){
