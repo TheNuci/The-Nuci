@@ -981,6 +981,7 @@ function serializeState(){
     planCredits:state.planCredits||0, transactions:state.transactions||[],
     paid:state.paid||false, assessments:state.assessments||[], checkinHour:state.checkinHour||20,
     pets:state.pets||[], archive:state.archive||[], activePet:state.activePet||0,
+    __planSig:state.__planSig||null, __previewSig:state.__previewSig||null,
     _newDesign:true
   };
 }
@@ -1635,8 +1636,12 @@ async function renderDayOnePreview(){
   if(!host) return;
   var pet=state.answers.petName||'your pet';
 
-  // already have it (either from a previous visit or a full plan)
-  var cached = state.previewDay1 || (state.aiPlan && state.aiPlan.days && state.aiPlan.days[0]);
+  // already have it — but only reuse if it was generated from the CURRENT answers.
+  // After "start over" the answers differ, so a stale preview must not be shown.
+  var sig = answersSignature();
+  var cached = null;
+  if(state.previewDay1 && state.__previewSig===sig){ cached = state.previewDay1; }
+  else if(state.aiPlan && state.aiPlan.days && state.aiPlan.days[0] && state.__planSig===sig){ cached = state.aiPlan.days[0]; }
   if(cached){ host.innerHTML=dayOnePreviewHtml(cached, pet); return; }
 
   host.innerHTML='<div class="card" style="margin-bottom:14px">'
@@ -1651,12 +1656,13 @@ async function renderDayOnePreview(){
     if(!res.ok) throw new Error('bad');
     const plan=await res.json();
     var d1 = (plan && plan.days && plan.days[0]) ? plan.days[0] : null;
-    if(plan && plan.behaviorExplain && !state.aiBehaviorExplain) state.aiBehaviorExplain=plan.behaviorExplain;
-    if(plan && plan.causes && !state.aiCauses) state.aiCauses=plan.causes;
+    if(plan && plan.behaviorExplain) state.aiBehaviorExplain=plan.behaviorExplain;
+    if(plan && plan.causes) state.aiCauses=plan.causes;
     if(d1){
       state.previewDay1=d1;
+      state.__previewSig=sig;
       // keep the whole plan if the endpoint returned one - saves a second call later
-      if(plan.days && plan.days.length>1) state.aiPlan=plan;
+      if(plan.days && plan.days.length>1){ state.aiPlan=plan; state.__planSig=sig; }
       persistState();
       host.innerHTML=dayOnePreviewHtml(d1, pet);
     } else { host.innerHTML=''; }
@@ -1712,9 +1718,13 @@ function buildOffer(){
 }
 // ═══════ AI PLAN GENERATION ═══════
 async function generatePlanAI(){
-  // Reuse the plan already generated for the free day-1 preview: same answers,
-  // so a second call would only cost money and time.
-  if(state.aiPlan && state.aiPlan.days && state.aiPlan.days.length>=(state.planLength||7)){
+  // A cached plan is only valid if it was built from the CURRENT answers. We stamp the
+  // plan with a signature of the answers it was generated from; if the answers changed
+  // (e.g. after "start over" for a different pet), the signature won't match and we
+  // regenerate instead of silently reusing the old pet's plan.
+  var sig = answersSignature();
+  if(state.aiPlan && state.aiPlan.days && state.aiPlan.days.length>=(state.planLength||7)
+     && state.__planSig === sig){
     return;
   }
   try{
@@ -1724,16 +1734,25 @@ async function generatePlanAI(){
     const plan=await res.json();
     if(plan&&plan.days&&plan.days.length){
       state.aiPlan=plan;
+      state.__planSig=sig;
       state.aiBehaviorExplain=plan.behaviorExplain||null;
       state.aiAssessment=plan.assessment||null;
       state.aiSeekProfessional=!!plan.seekProfessional;
       state.aiProfessionalNote=plan.professionalNote||null;
       state.aiCauses=plan.causes||null;
       state.aiWhatNotToDo=plan.whatNotToDo||null;
-      state.planOverrides=state.planOverrides||{};
+      state.planOverrides={};
       plan.days.forEach((d,i)=>{ state.planOverrides[i+1]={title:d.title,sub:d.sub,desc:d.desc,tasks:d.tasks}; });
     }
   }catch(e){ console.warn('AI plan failed, using template',e); }
+}
+// A cheap fingerprint of the answers that drive the plan. If any of these change,
+// the cached plan is stale and must be regenerated.
+function answersSignature(){
+  try{
+    var a=state.answers||{};
+    return JSON.stringify(a);
+  }catch(e){ return String(Math.random()); }
 }
 function runGenerating(next){
   showScreen('screen-generating');
@@ -2387,6 +2406,7 @@ async function doStartOver(){
   state.aiSeekProfessional=false; state.aiProfessionalNote=null; state.aiCauses=null;
   state.aiWhatNotToDo=null; state.dayInsights={}; state.dayNotes={}; state.tasksDone={};
   state.taskOverrides={}; state.petPhoto=null; state.previewDay1=null;
+  state.__planSig=null; state.__previewSig=null;
   state.maintenance=false; state.maintenanceSince=null; state.maintenanceCheckins=[];
   state.lastMaintenanceDate=null;
   selectedPackage=null;
