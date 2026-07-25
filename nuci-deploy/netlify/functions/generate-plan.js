@@ -13,6 +13,56 @@ const CORS = {
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
+
+  // ── HEALTH CHECK ──  GET ...generate-plan?debug=1
+  // Tells you, without spending a real plan, whether the AI path is actually working.
+  var isDebug = false;
+  try { isDebug = /[?&]debug=1/.test(event.rawUrl || event.path || '') ||
+                 (event.queryStringParameters && event.queryStringParameters.debug === '1'); } catch(e){}
+  if (event.httpMethod === 'GET' && isDebug) {
+    if (!ANTHROPIC_API_KEY) {
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ai: 'DOWN', reason: 'ANTHROPIC_API_KEY is not set in Netlify environment variables', model: MODEL }) };
+    }
+    try {
+      const ping = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: MODEL, max_tokens: 16, messages: [{ role: 'user', content: 'Reply with the single word: ok' }] })
+      });
+      const txt = await ping.text();
+      if (!ping.ok) {
+        return { statusCode: 200, headers: CORS, body: JSON.stringify({ ai: 'DOWN', httpStatus: ping.status, model: MODEL, detail: txt.slice(0, 300) }) };
+      }
+      // Key works. Now run a REAL plan request to confirm it parses (this is where
+      // truncation shows up). Uses a tiny sample pet so it is cheap.
+      const sample = { petName: 'Test', petType: 'dog', behaviour: 'barking in the evening', warningSigns: [] };
+      const debugSys = `You are an expert companion-animal behaviourist. Produce a practical, safe, 7-day behaviour plan. Reply with ONLY valid JSON in this shape: {"behaviorExplain":string,"assessment":string,"seekProfessional":boolean,"professionalNote":string,"causes":string[],"whatNotToDo":string[],"days":[{"title":string,"sub":string,"desc":string,"tasks":[{"title":string,"detail":string}]}]}. days MUST contain exactly 7 items, each with 5-7 tasks.`;
+      const testReq = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: MODEL, max_tokens: 8000, system: debugSys, messages: [{ role: 'user', content: 'Owner answers (JSON):\\n' + JSON.stringify(sample) }] })
+      });
+      const td = await testReq.json();
+      const stop = td.stop_reason;
+      let raw = (td.content || []).map(b => b.text || '').join('').trim();
+      raw = raw.replace(/^```json\\s*/i, '').replace(/^```\\s*/i, '').replace(/```$/i, '').trim();
+      let parses = false, dayCount = 0;
+      try { const pj = JSON.parse(raw); parses = true; dayCount = (pj.days || []).length; } catch (e) {}
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({
+        ai: parses ? 'OK' : 'PARSE-FAIL',
+        model: MODEL,
+        stop_reason: stop,
+        truncated: stop === 'max_tokens',
+        planParses: parses,
+        dayCount: dayCount,
+        note: parses ? 'Full plan generated and parsed - real plans are AI-generated.'
+                     : 'AI responded but the JSON did not parse (likely truncated). Raising max_tokens fixes this.'
+      }) };
+    } catch (e) {
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ai: 'DOWN', reason: 'network/exception', detail: String(e && e.message || e) }) };
+    }
+  }
+
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
 
   let answers = {}, lang = 'en';
@@ -20,8 +70,9 @@ exports.handler = async (event) => {
   catch (e) { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Bad JSON' }) }; }
 
   if (!ANTHROPIC_API_KEY) {
-    // graceful fallback so the app still works without a key
-    return { statusCode: 200, headers: CORS, body: JSON.stringify(fallbackPlan(answers)) };
+    // graceful fallback so the app still works without a key — flagged so we can tell.
+    const fb = fallbackPlan(answers); fb._fallback = 'no-api-key';
+    return { statusCode: 200, headers: CORS, body: JSON.stringify(fb) };
   }
 
   const pet = answers.petName || 'the pet';
@@ -42,24 +93,26 @@ Rules:
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 2000, system: sys, messages: [{ role: 'user', content: user }] })
+      body: JSON.stringify({ model: MODEL, max_tokens: 8000, system: sys, messages: [{ role: 'user', content: user }] })
     });
     if (!resp.ok) {
       const t = await resp.text();
       console.error('Anthropic error', resp.status, t);
-      return { statusCode: 200, headers: CORS, body: JSON.stringify(fallbackPlan(answers)) };
+      const fb = fallbackPlan(answers); fb._fallback = 'api-error-' + resp.status;
+      return { statusCode: 200, headers: CORS, body: JSON.stringify(fb) };
     }
     const data = await resp.json();
     let text = (data.content || []).map(b => b.text || '').join('').trim();
     text = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
     let plan;
     try { plan = JSON.parse(text); }
-    catch (e) { console.error('Parse fail', text.slice(0, 300)); return { statusCode: 200, headers: CORS, body: JSON.stringify(fallbackPlan(answers)) }; }
+    catch (e) { console.error('Parse fail', text.slice(0, 300)); const fb = fallbackPlan(answers); fb._fallback = 'parse-fail'; return { statusCode: 200, headers: CORS, body: JSON.stringify(fb) }; }
     plan = normalize(plan, answers);
     return { statusCode: 200, headers: CORS, body: JSON.stringify(plan) };
   } catch (e) {
     console.error('generate-plan failed', e);
-    return { statusCode: 200, headers: CORS, body: JSON.stringify(fallbackPlan(answers)) };
+    const fb = fallbackPlan(answers); fb._fallback = 'exception';
+    return { statusCode: 200, headers: CORS, body: JSON.stringify(fb) };
   }
 };
 

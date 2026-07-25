@@ -677,6 +677,8 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
       <button class="btn btn-primary" style="flex:1" id="unlockBtn" onclick="completePayment()">Unlock my plan</button>
     </div>
     <p class="secure-line" style="margin-top:9px"><span class="nicon" style="width:15px;height:15px;font-size:15px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="5.5" y="11" width="13" height="8.5" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></svg></span>Secure payment via Stripe · instant access</p>
+    <!-- ⚠ TEST ONLY — remove before real launch. Skips payment to check the AI plan. -->
+    <button type="button" onclick="testSkipPayment()" style="width:100%;margin-top:10px;background:none;border:1px dashed #B9825B;color:#B9825B;border-radius:12px;padding:11px;font-size:.82rem;font-family:inherit;cursor:pointer">⚠ TEST — skip payment &amp; generate plan (remove before launch)</button>
   </div>
 </section>
 
@@ -1771,6 +1773,15 @@ function completePayment(){
   }catch(e){}
   if(pkg.link){ window.location.href=pkg.link; return; }
   // no link configured (e.g. 5-pack) -> complete locally so the flow isn't blocked
+  handlePaidReturn(true);
+}
+// ⚠ TEST ONLY — remove before real launch. Grants one credit and enters the app
+// without payment, so you can verify the AI plan generates. Works even when LIVE=true.
+function testSkipPayment(){
+  var pkg=selectedPackage||PACKAGES[0];
+  state.planCredits=(state.planCredits||0)+ (pkg.credits||1);
+  state.packageId=pkg.id||'single';
+  state.pricePaid=0;
   handlePaidReturn(true);
 }
 function handlePaidReturn(demo){

@@ -41,7 +41,7 @@ Current planned day ${nextDay}: ${JSON.stringify(nextDayPlan)}`;
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 900, system: sys, messages: [{ role: 'user', content: user }] })
+      body: JSON.stringify({ model: MODEL, max_tokens: 2000, system: sys, messages: [{ role: 'user', content: user }] })
     });
     if (!resp.ok) { console.error('Anthropic', resp.status, await resp.text()); return { statusCode: 200, headers: CORS, body: JSON.stringify({ day: nextDayPlan || null, insight: defaultInsight(checkins) }) }; }
     const data = await resp.json();
