@@ -502,6 +502,26 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 .nuci-buddy .nb-hearts{position:absolute;pointer-events:none;left:0;top:0;width:100%;height:100%;overflow:visible}
 .nuci-buddy .nb-heart{position:absolute;font-size:15px;opacity:0;animation:nbFloat 1.2s ease-out forwards}
 @keyframes nbFloat{0%{opacity:0;transform:translateY(0) scale(.5)}20%{opacity:1}100%{opacity:0;transform:translateY(-60px) scale(1.1)}}
+/* ── tap-challenge discount game ── */
+#tapGame{position:fixed;inset:0;z-index:120;background:linear-gradient(165deg,#8CA588,var(--sage) 55%,var(--forest));display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:34px 24px;color:#F2F1EC}
+#tapGame.open{display:flex}
+#tapGame .tg-eb{font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:rgba(242,241,236,.7);margin-bottom:14px}
+#tapGame h2{font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:1.9rem;line-height:1.1;margin-bottom:10px}
+#tapGame .tg-sub{font-size:.95rem;color:rgba(242,241,236,.82);line-height:1.5;max-width:300px;margin-bottom:26px}
+#tapGame .tg-target{width:190px;height:190px;border-radius:50%;background:rgba(242,241,236,.14);border:2px solid rgba(242,241,236,.3);display:flex;align-items:center;justify-content:center;color:#F2F1EC;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;transition:transform .08s}
+#tapGame .tg-target:active{transform:scale(.92)}
+#tapGame .tg-target.pulse{animation:tgPulse 1s ease-in-out infinite}
+@keyframes tgPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+@keyframes tgPop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+#tapGame .tg-target.pop{animation:tgPop .18s ease}
+#tapGame .tg-count{font-size:3.4rem;font-weight:300;letter-spacing:-.03em;margin:22px 0 4px;font-variant-numeric:tabular-nums;min-height:1.1em}
+#tapGame .tg-timer{font-size:.9rem;color:rgba(242,241,236,.8)}
+#tapGame .tg-bar{width:220px;height:6px;border-radius:99px;background:rgba(242,241,236,.2);margin:14px auto 0;overflow:hidden}
+#tapGame .tg-bar span{display:block;height:100%;background:#F2F1EC;width:100%;transition:width .1s linear}
+#tapGame .tg-btns{margin-top:30px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+#tapGame .tg-btn{background:#F2F1EC;color:var(--forest);border:none;border-radius:14px;padding:14px 26px;font-family:inherit;font-size:.95rem;font-weight:500;cursor:pointer}
+#tapGame .tg-btn.ghost{background:transparent;color:rgba(242,241,236,.8);border:1px solid rgba(242,241,236,.35);font-weight:400}
+#tapGame .tg-result{font-family:'Fraunces',Georgia,serif;font-style:italic;font-size:1.5rem;margin-bottom:8px;min-height:1.2em}
 .a-hero .a-paw{position:absolute;right:-24px;bottom:-34px;width:200px;height:200px;opacity:.13;color:#fff}
 .a-hero .a-photo{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.9}
 .a-hero .a-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.35))}
@@ -691,8 +711,33 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
       <button class="btn btn-primary" style="flex:1" id="unlockBtn" onclick="completePayment()">Unlock my plan</button>
     </div>
     <p class="secure-line" style="margin-top:9px"><span class="nicon" style="width:15px;height:15px;font-size:15px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="5.5" y="11" width="13" height="8.5" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></svg></span>Secure payment via Stripe · instant access</p>
-    <!-- ⚠ TEST ONLY — remove before real launch. Skips payment to check the AI plan. -->
-    <button type="button" onclick="testSkipPayment()" style="width:100%;margin-top:10px;background:none;border:1px dashed #B9825B;color:#B9825B;border-radius:12px;padding:11px;font-size:.82rem;font-family:inherit;cursor:pointer">⚠ TEST — skip payment &amp; generate plan (remove before launch)</button>
+    <!-- ⚠ TEST ONLY - remove before real launch. Skips payment to check the AI plan. -->
+    <button type="button" onclick="testSkipPayment()" style="width:100%;margin-top:10px;background:none;border:1px dashed #B9825B;color:#B9825B;border-radius:12px;padding:11px;font-size:.82rem;font-family:inherit;cursor:pointer">⚠ TEST - skip payment &amp; generate plan (remove before launch)</button>
+  </div>
+
+  <!-- Tap-challenge discount game (shows once per user, over the offer screen) -->
+  <div id="tapGame">
+    <div id="tgIntro">
+      <div class="tg-eb">A little game</div>
+      <h2>Fancy <span style="font-family:inherit;font-style:normal">50% off?</span></h2>
+      <div class="tg-sub">Tap the button <b>50 times in 3 seconds</b>. Beat it and half price unlocks on every plan - instantly.</div>
+      <div class="tg-btns">
+        <button class="tg-btn" onclick="tgStart()">Let's go</button>
+        <button class="tg-btn ghost" onclick="tgSkip()">No thanks</button>
+      </div>
+    </div>
+    <div id="tgPlay" style="display:none">
+      <div class="tg-eb" id="tgPlayEb">Tap!</div>
+      <div class="tg-count" id="tgCount">0</div>
+      <div class="tg-timer" id="tgTimer">3.0s</div>
+      <div class="tg-bar"><span id="tgBar"></span></div>
+      <div style="margin-top:26px"><div class="tg-target" id="tgTarget" onclick="tgTap()"></div></div>
+    </div>
+    <div id="tgDone" style="display:none">
+      <div class="tg-result" id="tgResult"></div>
+      <div class="tg-sub" id="tgDoneSub" style="margin-bottom:22px"></div>
+      <div class="tg-btns"><button class="tg-btn" id="tgDoneBtn" onclick="tgClose()">Continue</button></div>
+    </div>
   </div>
 </section>
 
@@ -769,7 +814,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // while testing, then back to true before deploying.
 const LIVE = true;
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
-// ===== Voice input (speech-to-text) — works in any language the user speaks =====
+// ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
 
 // grow a textarea downward to fit its content (content above stays put, box expands)
@@ -959,7 +1004,30 @@ const PACKAGES=[
 ];
 let selectedPackage=PACKAGES[0];
 let appliedPromo=null;
-function currentPrice(){ return selectedPackage?selectedPackage.price:9.95; }
+
+// ── Tap-challenge discount ──
+// If the user beats the tap game, a 50% discount unlocks and every price switches to
+// its discounted value. Persisted so it survives reloads. The game shows ONCE per user.
+// TODO(Urban): paste the discounted Stripe payment links here when ready. Until then the
+// discounted purchase falls back to the normal link so nothing breaks.
+const DISCOUNT_PCT=0.5;
+const DISCOUNT_LINKS={ single:null, triple:null, five:null };  // <-- add discounted Stripe links here
+function discountActive(){ try{ return localStorage.getItem('nuci_discount')==='1'; }catch(e){ return false; } }
+function pkgPrice(p){
+  if(!discountActive()) return p.price;
+  // Half price, then snapped to a clean .95 ending so it reads like a real price
+  // (e.g. 9.95 -> 4.975 -> 4.95, 19.95 -> 9.975 -> 9.95).
+  var half=p.price*(1-DISCOUNT_PCT);
+  var snapped=Math.floor(half)+0.95;
+  if(snapped>half+0.5) snapped-=1;         // guard: never round UP more than ~half a euro
+  if(snapped<0.95) snapped=0.95;
+  return Math.round(snapped*100)/100;
+}
+function pkgLink(p){
+  if(discountActive() && DISCOUNT_LINKS[p.id]) return DISCOUNT_LINKS[p.id];
+  return p.link;
+}
+function currentPrice(){ return selectedPackage?pkgPrice(selectedPackage):9.95; }
 
 // ═══════ STATE (same schema as the old app / DB blobs) ═══════
 const state={
@@ -1118,7 +1186,7 @@ function kbRelease(){ __kbLock=null; }
 function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||8); }catch(e){} }
 // ── Global light haptic on any interactive tap ──
 // One delegated listener gives every button, nav item, option row, checkbox, pill and
-// task a gentle buzz — without editing each handler. Elements that already fire their
+// task a gentle buzz - without editing each handler. Elements that already fire their
 // own haptic still work; this just guarantees a baseline everywhere, including future UI.
 (function(){
   var SEL = 'button, .navitem, .opt-row, .count-cell, .task, .ritual-head, .pill, '
@@ -1529,8 +1597,8 @@ async function forgotPass(){
 var T_TERMS="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Terms &amp; Conditions</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: July 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>1. Who we are.</b> The Nuci is operated by <b>Urban Rus s.p.</b>, a sole proprietor registered in Slovenia (the \u201cProvider\u201d, \u201cwe\u201d, \u201cus\u201d). Contact: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>2. The service.</b> The Nuci generates a personalised 7-day behaviour plan for your pet based on the information you provide, and lets you track daily check-ins. Plans are produced with the help of AI and general behavioural principles.</p><p style=\"margin-bottom:12px\"><b>3. Not veterinary advice.</b> The Nuci provides educational behavioural guidance only. It is <b>not</b> veterinary advice, diagnosis or treatment, and is not a substitute for an in-person examination by a qualified veterinarian. If your pet shows signs of illness, pain, aggression or distress, consult a vet. You use the plan at your own responsibility.</p><p style=\"margin-bottom:12px\"><b>4. Purchases.</b> Access to a plan is a one-time purchase (no subscription). One purchase provides one plan for one pet; multi-plan packages provide credits for additional pets. Prices are shown at checkout and include any applicable tax. Payments are processed by <b>Stripe</b>; we never receive or store your full card details.</p><p style=\"margin-bottom:12px\"><b>5. Digital content &amp; right of withdrawal.</b> Your plan is digital content supplied immediately after purchase. Under Article 43\u010d of the Slovenian Consumer Protection Act (ZVPot-1) and Article 16(m) of EU Directive 2011/83/EU, by completing your purchase you <b>expressly request immediate delivery</b> of the digital content and <b>acknowledge that you thereby lose your 14-day right of withdrawal</b>. Because the plan is generated and delivered instantly, <b>purchases are non-refundable</b>. If a plan fails to generate or has a genuine technical fault, our remedy is to generate a new plan for you at no extra cost, rather than a refund. This does not affect statutory rights that cannot be waived, such as correcting a genuine billing error.</p><p style=\"margin-bottom:12px\"><b>6. Your account.</b> You are responsible for the accuracy of the information you provide and for keeping your account secure. You must be at least 16 years old (or the age of digital consent in your country) to use The Nuci.</p><p style=\"margin-bottom:12px\"><b>7. Acceptable use.</b> You may use The Nuci only for your own pets and for lawful, personal purposes. You may not resell, copy or redistribute the generated plans.</p><p style=\"margin-bottom:12px\"><b>8. Liability.</b> To the extent permitted by law, the Provider is not liable for any indirect or consequential loss, or for outcomes arising from how behavioural guidance is applied. Nothing in these terms limits liability that cannot be limited under Slovenian or EU law.</p><p style=\"margin-bottom:12px\"><b>9. Changes.</b> We may update these terms; the current version is always available in the app. Continued use after changes means you accept them.</p><p style=\"margin-bottom:0\"><b>10. Governing law.</b> These terms are governed by the law of the Republic of Slovenia, with the courts of Slovenia having jurisdiction. For consumer disputes you may also use the EU ODR platform at ec.europa.eu/consumers/odr. Questions: hello@thenuci.com.</p></div>";
 var T_PRIV="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Privacy Policy</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: July 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>Controller.</b> The controller of your personal data is <b>Urban Rus s.p.</b> (Slovenia). Contact for any privacy request: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>What we collect.</b> Your account email; the pet and behaviour details you enter; your daily check-ins and notes; your plan and progress; email preferences and consent records; and basic technical data needed to run the service. If you use the microphone button, the short audio clip you record is sent for transcription and is <b>not stored by us</b> - only the resulting text is saved with your answer. We do <b>not</b> collect or store your full payment card details.</p><p style=\"margin-bottom:12px\"><b>Why, and legal basis.</b> We process this data to provide the service and your plan (performance of a contract, Art. 6(1)(b) GDPR); to send emails that are part of the service you bought, such as check-in reminders while a plan is active (contract, Art. 6(1)(b)), which you can switch off at any time; to send optional educational emails <b>only where you have separately ticked the box</b> (consent, Art. 6(1)(a)), which you may withdraw at any time in Profile \u2192 Email preferences; and to keep the service secure and comply with law (legitimate interest / legal obligation, Art. 6(1)(f)/(c)).</p><p style=\"margin-bottom:12px\"><b>Processors we use.</b> <b>Supabase</b> (database hosting), <b>Netlify</b> (site and server functions), <b>Stripe</b> (payments), <b>Resend</b> (emails), <b>Anthropic</b> (AI plan generation) and <b>OpenAI</b> (speech-to-text, only when you use the microphone). Each acts under a data-processing agreement and only on our instructions.</p><p style=\"margin-bottom:12px\"><b>International transfers.</b> Some processors may process data outside the EU/EEA (e.g. in the United States). Where they do, transfers are protected by the European Commission\u2019s <b>Standard Contractual Clauses (SCC)</b> and appropriate safeguards, so your data receives an equivalent level of protection.</p><p style=\"margin-bottom:12px\"><b>Retention.</b> We keep your data while your account is active. You can delete your profile at any time from Profile \u2192 Delete profile, which removes your personal data. Invoicing and tax records are kept for the period Slovenian tax law requires (currently 10 years). Consent records are kept for as long as needed to prove the consent was validly given.</p><p style=\"margin-bottom:12px\"><b>Your rights.</b> Under the GDPR you have the right to access, rectify, erase, restrict or object to processing, and to data portability, and to withdraw consent at any time. To exercise these, email hello@thenuci.com. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski poobla\u0161\u010denec, ip-rs.si).</p><p style=\"margin-bottom:12px\"><b>Automated processing.</b> Your plan is generated with AI from the answers you provide. This is not a decision that produces legal or similarly significant effects on you within the meaning of Art. 22 GDPR, and a human can review any plan on request.</p><p style=\"margin-bottom:12px\"><b>We do not sell your data.</b> We never sell or rent personal data, and we do not use it for advertising profiling.</p><p style=\"margin-bottom:12px\"><b>Children.</b> The service is not directed at children under 16. If you believe a child has provided us data, contact us and we will delete it.</p><p style=\"margin-bottom:0\"><b>Contact.</b> For any question about your data, contact hello@thenuci.com.</p></div>";
 var T_IMPRESSUM=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Legal notice (Impressum)</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: July 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>Service provider.</b> This website and the The Nuci service are operated by:</p><p style="margin-bottom:12px"><b>Urban Rus s.p.</b><br>Sole proprietor (samostojni podjetnik) registered in the Republic of Slovenia<br>Registered as a flat-rate sole proprietor (normiranec).</p><p style="margin-bottom:12px"><b>Contact.</b> Email: hello@thenuci.com<br>Website: thenuci.com</p><p style="margin-bottom:12px"><b>Registration.</b> Registered in the Slovenian Business Register (PRS) kept by AJPES. The business registration number (matična številka) and tax number (davčna številka / VAT status) are available on request and shown on invoices.</p><p style="margin-bottom:12px"><b>Responsible for content.</b> Urban Rus, in the capacity of sole proprietor.</p><p style="margin-bottom:0"><b>Online dispute resolution.</b> The European Commission provides a platform for online dispute resolution for consumers at ec.europa.eu/consumers/odr. We can be reached for such matters at hello@thenuci.com.</p></div>`;
-var T_COOKIES=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Cookies &amp; local storage</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: July 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>The short version.</b> The Nuci does <b>not</b> use advertising or tracking cookies, and does not build advertising profiles. We use only what is technically necessary to run the service.</p><p style="margin-bottom:12px"><b>What we store on your device.</b> We use your browser\u2019s local storage (not third-party cookies) to keep you signed in and to remember your plan and progress between visits. This includes a saved copy of your current answers and plan, your sign-in session, and a note that you have seen the intro. This information stays on your device and is needed for the app to work.</p><p style="margin-bottom:12px"><b>Authentication.</b> Our authentication provider (Supabase) sets storage strictly necessary to keep your login session active. Without it you could not stay signed in.</p><p style="margin-bottom:12px"><b>Payments.</b> When you pay, Stripe may set its own strictly-necessary cookies on its checkout page to process the transaction securely and prevent fraud. These are governed by Stripe\u2019s own privacy policy.</p><p style="margin-bottom:12px"><b>No analytics or ad trackers.</b> We do not load Google Analytics, advertising pixels, or similar cross-site trackers. Because we only use strictly-necessary storage, no cookie-consent banner is required under the ePrivacy rules \u2014 but we tell you anyway, in the interest of transparency.</p><p style="margin-bottom:0"><b>Clearing it.</b> You can clear this storage at any time by signing out (Profile \u2192 Sign out), deleting your profile, or clearing site data in your browser settings.</p></div>`;
-var T_REFUND=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">No-refund policy</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: July 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>All sales are final.</b> The Nuci sells a personalised digital behaviour plan that is generated and delivered to you instantly. Because the plan is created for you and delivered in full at the moment of purchase, <b>all purchases are final and non-refundable.</b></p><p style="margin-bottom:12px"><b>If something goes wrong, we fix the plan \u2014 not refund it.</b> If your plan fails to generate, arrives incomplete, or has a genuine technical problem, we will <b>generate a new plan for you at no extra cost</b>. Our remedy for any issue with the plan is a replacement plan, not a return of money. In practice this means you always end up with a working plan.</p><p style="margin-bottom:12px"><b>You agree to this at checkout.</b> Before paying, you expressly request immediate delivery of your digital plan and acknowledge that you therefore <b>lose the 14-day right of withdrawal</b> that would otherwise apply to distance purchases (Article 43č of the Slovenian Consumer Protection Act ZVPot-1, implementing Article 16(m) of Directive 2011/83/EU). Changing your mind after purchase is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Please decide before you buy.</b> You can read exactly what the plan includes on this site before purchasing. If you are unsure whether The Nuci is right for you, contact us <b>before</b> paying and we will gladly answer.</p><p style="margin-bottom:12px"><b>Not veterinary advice.</b> The plan is educational behavioural guidance, not a cure or a guarantee of any outcome. A plan that did not produce the result you hoped for is not a faulty product; we can generate a fresh plan, but this is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Genuine billing errors.</b> The one thing a replacement plan cannot fix is a payment mistake \u2014 for example being charged twice for the same purchase. Consumer law does not let us waive that, so in a true billing error we will correct the charge. This does not apply to change-of-mind or dissatisfaction with the guidance.</p><p style="margin-bottom:0"><b>Contact.</b> Email <b>hello@thenuci.com</b> with your account email and Stripe receipt and we will sort it out \u2014 a new plan for any plan problem, or a corrected charge for a genuine billing error. Please reach out before opening a bank chargeback; we can usually resolve things faster.</p></div>`;
+var T_COOKIES=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Cookies &amp; local storage</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: July 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>The short version.</b> The Nuci does <b>not</b> use advertising or tracking cookies, and does not build advertising profiles. We use only what is technically necessary to run the service.</p><p style="margin-bottom:12px"><b>What we store on your device.</b> We use your browser\u2019s local storage (not third-party cookies) to keep you signed in and to remember your plan and progress between visits. This includes a saved copy of your current answers and plan, your sign-in session, and a note that you have seen the intro. This information stays on your device and is needed for the app to work.</p><p style="margin-bottom:12px"><b>Authentication.</b> Our authentication provider (Supabase) sets storage strictly necessary to keep your login session active. Without it you could not stay signed in.</p><p style="margin-bottom:12px"><b>Payments.</b> When you pay, Stripe may set its own strictly-necessary cookies on its checkout page to process the transaction securely and prevent fraud. These are governed by Stripe\u2019s own privacy policy.</p><p style="margin-bottom:12px"><b>No analytics or ad trackers.</b> We do not load Google Analytics, advertising pixels, or similar cross-site trackers. Because we only use strictly-necessary storage, no cookie-consent banner is required under the ePrivacy rules - but we tell you anyway, in the interest of transparency.</p><p style="margin-bottom:0"><b>Clearing it.</b> You can clear this storage at any time by signing out (Profile \u2192 Sign out), deleting your profile, or clearing site data in your browser settings.</p></div>`;
+var T_REFUND=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">No-refund policy</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: July 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>All sales are final.</b> The Nuci sells a personalised digital behaviour plan that is generated and delivered to you instantly. Because the plan is created for you and delivered in full at the moment of purchase, <b>all purchases are final and non-refundable.</b></p><p style="margin-bottom:12px"><b>If something goes wrong, we fix the plan - not refund it.</b> If your plan fails to generate, arrives incomplete, or has a genuine technical problem, we will <b>generate a new plan for you at no extra cost</b>. Our remedy for any issue with the plan is a replacement plan, not a return of money. In practice this means you always end up with a working plan.</p><p style="margin-bottom:12px"><b>You agree to this at checkout.</b> Before paying, you expressly request immediate delivery of your digital plan and acknowledge that you therefore <b>lose the 14-day right of withdrawal</b> that would otherwise apply to distance purchases (Article 43č of the Slovenian Consumer Protection Act ZVPot-1, implementing Article 16(m) of Directive 2011/83/EU). Changing your mind after purchase is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Please decide before you buy.</b> You can read exactly what the plan includes on this site before purchasing. If you are unsure whether The Nuci is right for you, contact us <b>before</b> paying and we will gladly answer.</p><p style="margin-bottom:12px"><b>Not veterinary advice.</b> The plan is educational behavioural guidance, not a cure or a guarantee of any outcome. A plan that did not produce the result you hoped for is not a faulty product; we can generate a fresh plan, but this is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Genuine billing errors.</b> The one thing a replacement plan cannot fix is a payment mistake - for example being charged twice for the same purchase. Consumer law does not let us waive that, so in a true billing error we will correct the charge. This does not apply to change-of-mind or dissatisfaction with the guidance.</p><p style="margin-bottom:0"><b>Contact.</b> Email <b>hello@thenuci.com</b> with your account email and Stripe receipt and we will sort it out - a new plan for any plan problem, or a corrected charge for a genuine billing error. Please reach out before opening a bank chargeback; we can usually resolve things faster.</p></div>`;
 function openLegal(kind){
   var map={terms:T_TERMS, privacy:T_PRIV, impressum:T_IMPRESSUM, cookies:T_COOKIES, refund:T_REFUND};
   openSheet(map[kind] || T_TERMS);
@@ -1587,20 +1655,23 @@ function renderPkgs(){
     : '';
   $('pkgList').innerHTML=multiNote+PACKAGES.map((p,i)=>{
     const sel=selectedPackage&&selectedPackage.id===p.id;
-    const savePct=Math.round((1-p.price/p.anchor)*100);
-    const per=(p.price/p.credits).toFixed(2);
-    const ribbon=(p.id==='triple')?'<div class="pop-ribbon">Popular</div>':'';
+    const disc=discountActive();
+    const shown=pkgPrice(p);
+    const compare=disc?p.price:p.anchor;
+    const savePct=Math.round((1-shown/compare)*100);
+    const per=(shown/p.credits).toFixed(2);
+    const ribbon=(p.id==='triple')?'<div class="pop-ribbon">Popular</div>':(disc?'<div class="pop-ribbon" style="background:var(--clay)">50% OFF</div>':'');
     const fl=(p.id==='single')?('A calmer '+esc(pet)+',<br>in seven days.'):(p.credits+' plans - for whatever<br>comes next.');
-    const extra=(p.credits>1)?'<div class="feat"><span class="ck">'+CKS+'</span><span>'+p.credits+' plan credits · \u20AC'+per+' per plan</span></div>':'';
+    const extra=(p.credits>1)?'<div class="feat"><span class="ck">'+CKS+'</span><span>'+p.credits+' plan credits \u00b7 \u20AC'+per+' per plan</span></div>':'';
     return '<div class="pk'+(sel?' sel':'')+'" data-i="'+i+'" onclick="selectPkg('+i+')">'+ribbon
       +'<div class="cmp">'
         +'<div class="rowline"><span class="nm">'+p.name+'</span><span class="per">\u20AC'+per+' / plan</span></div>'
-        +'<div class="pl2"><span class="price">\u20AC'+p.price.toFixed(2)+'</span><span class="old">\u20AC'+p.anchor.toFixed(2)+'</span></div>'
+        +'<div class="pl2"><span class="price">\u20AC'+shown.toFixed(2)+'</span><span class="old">\u20AC'+compare.toFixed(2)+'</span></div>'
       +'</div>'
       +'<div class="exp"><span class="sheen"></span><span class="heropaw">'+PAW+'</span>'
         +'<div class="forline">'+fl+'</div>'
-        +'<div class="priceline"><span class="bigprice">\u20AC'+p.price.toFixed(2)+'</span><span class="old2">\u20AC'+p.anchor.toFixed(2)+'</span><span class="save">SAVE '+savePct+'%</span></div>'
-        +'<div class="once">One-time payment · no subscription</div>'
+        +'<div class="priceline"><span class="bigprice">\u20AC'+shown.toFixed(2)+'</span><span class="old2">\u20AC'+compare.toFixed(2)+'</span><span class="save">SAVE '+savePct+'%</span></div>'
+        +'<div class="once">One-time payment \u00b7 no subscription</div>'
         +feats.map(f=>'<div class="feat"><span class="ck">'+CKS+'</span><span>'+f+'</span></div>').join('')+extra
       +'</div>'
       +'</div>';
@@ -1672,7 +1743,7 @@ async function renderDayOnePreview(){
   if(!host) return;
   var pet=state.answers.petName||'your pet';
 
-  // already have it — but only reuse if it was generated from the CURRENT answers.
+  // already have it - but only reuse if it was generated from the CURRENT answers.
   // After "start over" the answers differ, so a stale preview must not be shown.
   var sig = answersSignature();
   var cached = null;
@@ -1730,6 +1801,77 @@ function dayOnePreviewHtml(d, pet){
     +'<div style="font-size:.78rem;color:var(--secondary);margin-top:12px;line-height:1.5">This is day one of seven. The rest adapts each evening to what you report.</div>'
     +'</div>';
 }
+// ═══════ TAP-CHALLENGE DISCOUNT GAME ═══════
+var TG_GOAL=50, TG_SECONDS=3;
+var tgState={count:0,running:false,endAt:0,raf:0,tick:0};
+function tgSeen(){ try{ return localStorage.getItem('nuci_tapgame')==='1'; }catch(e){ return true; } }
+function tgMarkSeen(){ try{ localStorage.setItem('nuci_tapgame','1'); }catch(e){} }
+// Show the game once, when the user first lands on the offer screen (and hasn't bought).
+function maybeShowTapGame(){
+  if(tgSeen() || discountActive()) return;
+  if(state.purchased) return;
+  var el=document.getElementById('tapGame'); if(!el) return;
+  // reset to intro
+  document.getElementById('tgIntro').style.display='';
+  document.getElementById('tgPlay').style.display='none';
+  document.getElementById('tgDone').style.display='none';
+  // put the user's pet in the target
+  var t=(state.answers&&state.answers.petType)||'other';
+  var tgt=document.getElementById('tgTarget'); if(tgt) tgt.innerHTML=petSvg(t,'96px');
+  el.classList.add('open');
+}
+function tgSkip(){ tgMarkSeen(); document.getElementById('tapGame').classList.remove('open'); }
+function tgStart(){
+  document.getElementById('tgIntro').style.display='none';
+  document.getElementById('tgPlay').style.display='';
+  tgState.count=0; tgState.running=true; tgState.endAt=Date.now()+TG_SECONDS*1000;
+  document.getElementById('tgCount').textContent='0';
+  var tgt=document.getElementById('tgTarget'); if(tgt) tgt.classList.add('pulse');
+  document.getElementById('tgPlayEb').textContent='Tap as fast as you can!';
+  var loop=function(){
+    if(!tgState.running) return;
+    var left=Math.max(0,tgState.endAt-Date.now());
+    document.getElementById('tgTimer').textContent=(left/1000).toFixed(1)+'s';
+    document.getElementById('tgBar').style.width=(left/(TG_SECONDS*1000)*100)+'%';
+    if(left<=0){ tgFinish(); return; }
+    tgState.raf=requestAnimationFrame(loop);
+  };
+  tgState.raf=requestAnimationFrame(loop);
+}
+function tgTap(){
+  if(!tgState.running) return;
+  tgState.count++;
+  var c=document.getElementById('tgCount'); c.textContent=tgState.count;
+  var tgt=document.getElementById('tgTarget');
+  if(tgt){ tgt.classList.remove('pop'); void tgt.offsetWidth; tgt.classList.add('pop'); }
+  try{ haptic(5); }catch(e){}
+  if(tgState.count>=TG_GOAL){ tgFinish(); }
+}
+function tgFinish(){
+  if(!tgState.running) return;
+  tgState.running=false; cancelAnimationFrame(tgState.raf);
+  var tgt=document.getElementById('tgTarget'); if(tgt) tgt.classList.remove('pulse');
+  var won=tgState.count>=TG_GOAL;
+  tgMarkSeen();
+  document.getElementById('tgPlay').style.display='none';
+  document.getElementById('tgDone').style.display='';
+  if(won){
+    try{ localStorage.setItem('nuci_discount','1'); }catch(e){}
+    try{ launchConfetti(); haptic(20); }catch(e){}
+    document.getElementById('tgResult').textContent='You did it! 50% off unlocked.';
+    document.getElementById('tgDoneSub').textContent='Every plan is now half price. The new prices are waiting for you.';
+    document.getElementById('tgDoneBtn').textContent='See my discount';
+  }else{
+    document.getElementById('tgResult').textContent='So close - '+tgState.count+' taps.';
+    document.getElementById('tgDoneSub').textContent='You needed '+TG_GOAL+' in '+TG_SECONDS+' seconds. The plans are still a great deal though.';
+    document.getElementById('tgDoneBtn').textContent='Continue';
+  }
+}
+function tgClose(){
+  document.getElementById('tapGame').classList.remove('open');
+  // re-render prices so a win is reflected immediately
+  try{ renderPkgs(); }catch(e){}
+}
 function buildOffer(){
   const pet=state.answers.petName||'your pet';
   $('offerEyebrow').textContent='Unlock the full week';
@@ -1744,6 +1886,7 @@ function buildOffer(){
   }
   renderPkgs();
   renderDayOnePreview();
+  setTimeout(maybeShowTapGame, 450);   // let the offer paint, then surface the game once
   requestAnimationFrame(()=>{
     const th=$('offerTop').offsetHeight;
     const sc=$('offerScroll');
@@ -1808,7 +1951,7 @@ function runGenerating(next){
 
   const iv=setInterval(()=>{
     if(done){
-      // AI finished — sweep the remaining distance quickly but visibly
+      // AI finished - sweep the remaining distance quickly but visibly
       pct += Math.max(2, (100-pct)*0.25);
       if(pct>=100){
         pct=100; draw(); clearInterval(iv);
@@ -1817,7 +1960,7 @@ function runGenerating(next){
         return;
       }
     } else {
-      // AI still working — ease toward 90% over roughly ten seconds and hold there,
+      // AI still working - ease toward 90% over roughly ten seconds and hold there,
       // never implying completion. Tuned so a ~10s generation stays in step with the
       // bar; a faster AI simply finishes and the bar sweeps to 100% early.
       if(pct<90){ pct += (90-pct)*0.012 + 0.12; }
@@ -1851,11 +1994,12 @@ function completePayment(){
       planOverrides:state.planOverrides||null, aiPlan:state.aiPlan||null, paid:true
     }));
   }catch(e){}
-  if(pkg.link){ window.location.href=pkg.link; return; }
+  var payLink=pkgLink(pkg);
+  if(payLink){ window.location.href=payLink; return; }
   // no link configured (e.g. 5-pack) -> complete locally so the flow isn't blocked
   handlePaidReturn(true);
 }
-// ⚠ TEST ONLY — remove before real launch. Grants one credit and enters the app
+// ⚠ TEST ONLY - remove before real launch. Grants one credit and enters the app
 // without payment, so you can verify the AI plan generates. Works even when LIVE=true.
 function testSkipPayment(){
   var pkg=selectedPackage||PACKAGES[0];
@@ -2080,7 +2224,7 @@ document.addEventListener('click',function(){ var m=document.getElementById('pet
             showTab(prev);
             window.__navFromPop=false;
           }
-          // if already on today (or stack exhausted), stay put — do not exit the app
+          // if already on today (or stack exhausted), stay put - do not exit the app
         }catch(e){}
       }
       if(!handled){
@@ -3008,20 +3152,20 @@ function setPhoto(inp){
   rd.onload=()=>{
     const img=new Image();
     img.onload=()=>{
-      // Downscale to a retina-friendly size. The avatar is shown at up to ~120px CSS,
-      // so 900px covers 2-3x device pixel ratios and stays crisp. Square-crop from the
-      // centre so portraits and landscapes both fill the round avatar cleanly.
-      const target=900;
-      const side=Math.min(img.width,img.height);          // largest centred square
-      const sx=(img.width-side)/2, sy=(img.height-side)/2;
-      const out=Math.min(target,side);                     // never upscale past source
+      // The same photo is shown two ways: a small round avatar in the profile AND a
+      // full-bleed background on the Today hero (~350px wide, up to 3x on retina). So we
+      // keep the whole image (no square crop) and cap the LONG edge at 1600px - plenty
+      // for the hero to stay crisp, while object-fit/background-size handle the framing.
+      const maxEdge=1600;
+      const scale=Math.min(1, maxEdge/Math.max(img.width,img.height));  // never upscale
+      const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
       const c=document.createElement('canvas');
-      c.width=out; c.height=out;
+      c.width=w; c.height=h;
       const ctx=c.getContext('2d');
       ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, out, out);
-      state.petPhoto=c.toDataURL('image/jpeg',0.92);
-      persistState(); renderProfileTab(); toast('Photo updated');
+      ctx.drawImage(img, 0, 0, w, h);
+      state.petPhoto=c.toDataURL('image/jpeg',0.9);
+      persistState(); renderProfileTab(); if(curTab==='today') renderToday(); toast('Photo updated');
     };
     img.src=rd.result;
   };
@@ -3615,6 +3759,18 @@ async function adaptNextDay(nextDay){
     showScreen('screen-welcome');
   };
   route();
+  // Tidy the address bar once every param above has been read into a variable.
+  // We keep the current path and simply strip the query string (?start, ?paid, ?login,
+  // ?demo, ?resume, ?test, ?ref...). Cosmetic only - values are already captured, and
+  // replaceState means no reload, so the Stripe return flow is untouched. On the live
+  // site the path is already the clean /app (via the Netlify rewrite); if the visitor
+  // somehow lands on /app.html we upgrade it to /app in the same step.
+  try{
+    var cleanPath = /\/app\.html$/.test(location.pathname) ? '/app' : location.pathname;
+    if(location.search || cleanPath!==location.pathname){
+      history.replaceState(history.state||{}, '', cleanPath + location.hash);
+    }
+  }catch(e){ /* some origins (e.g. file://) block cross-path replaceState - harmless */ }
   // keyboard lift for CTA bars
   liftWithKeyboard($('regCta')); liftWithKeyboard($('logCta'));
   liftWithKeyboard($('qBottom')); liftWithKeyboard($('ciBottom'));

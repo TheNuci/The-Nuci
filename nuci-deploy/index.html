@@ -543,7 +543,7 @@ function greenCurtain(){
   syncBandMask();
 
   document.querySelectorAll('.greenzone').forEach(function(sec){
-    // the stats band is handled by its own clip-path mask (bandLight) — keep its original dark
+    // the stats band is handled by its own clip-path mask (bandLight) - keep its original dark
     if(sec.id==='bandSec'){ setZoneLight(sec,false); return; }
     setZoneLight(sec, covering);
   });

@@ -6,9 +6,16 @@
   node_bundler = "esbuild"
 
 # index.html (the landing page) is served automatically at "/".
-# Clean URL for the app:
+# Clean URL for the app: /app (and its sub-paths) all serve app.html without changing
+# the address bar (status 200 = rewrite, not redirect). This keeps the URL clean while
+# leaving the Stripe return flow (which appends ?paid=true) fully intact.
 [[redirects]]
   from = "/app"
+  to = "/app.html"
+  status = 200
+
+[[redirects]]
+  from = "/app.html"
   to = "/app.html"
   status = 200
 
