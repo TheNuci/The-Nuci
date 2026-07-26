@@ -1011,7 +1011,11 @@ let appliedPromo=null;
 // TODO(Urban): paste the discounted Stripe payment links here when ready. Until then the
 // discounted purchase falls back to the normal link so nothing breaks.
 const DISCOUNT_PCT=0.5;
-const DISCOUNT_LINKS={ single:null, triple:null, five:null };  // <-- add discounted Stripe links here
+const DISCOUNT_LINKS={
+  single:'https://buy.stripe.com/6oU8wIaUnet3bbz3TOdIA03',   // €4.95  (was €9.95)
+  triple:'https://buy.stripe.com/8x200c3rVbgRfrPcqkdIA05',   // €9.95  (was €19.95)
+  five:'https://buy.stripe.com/00w7sE5A35Wx3J71LGdIA04'      // €14.95 (was €29.95)
+};
 function discountActive(){ try{ return localStorage.getItem('nuci_discount')==='1'; }catch(e){ return false; } }
 function pkgPrice(p){
   if(!discountActive()) return p.price;
@@ -1821,9 +1825,52 @@ function maybeShowTapGame(){
   el.classList.add('open');
 }
 function tgSkip(){ tgMarkSeen(); document.getElementById('tapGame').classList.remove('open'); }
+// Tiny sound engine (Web Audio). First unlocked by a user gesture (the "Let's go" tap),
+// so it also works on iOS. Silently no-ops if audio is unavailable.
+var tgAudio=null;
+function tgBeep(freq,dur,vol){
+  try{
+    if(!tgAudio) tgAudio=new (window.AudioContext||window.webkitAudioContext)();
+    if(tgAudio.state==='suspended') tgAudio.resume();
+    var o=tgAudio.createOscillator(), g=tgAudio.createGain();
+    o.type='sine'; o.frequency.value=freq;
+    g.gain.value=vol||0.12;
+    o.connect(g); g.connect(tgAudio.destination);
+    var t=tgAudio.currentTime;
+    g.gain.setValueAtTime(vol||0.12,t);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+(dur||0.12));
+    o.start(t); o.stop(t+(dur||0.12));
+  }catch(e){}
+}
 function tgStart(){
   document.getElementById('tgIntro').style.display='none';
   document.getElementById('tgPlay').style.display='';
+  // reset the play view, but don't start counting yet - run a 3-2-1-GO countdown first
+  tgState.count=0; tgState.running=false;
+  document.getElementById('tgCount').textContent='';
+  document.getElementById('tgTimer').textContent=TG_SECONDS.toFixed(1)+'s';
+  document.getElementById('tgBar').style.width='100%';
+  var tgt=document.getElementById('tgTarget'); if(tgt) tgt.classList.remove('pulse');
+  var eb=document.getElementById('tgPlayEb');
+  var seq=['3','2','1','GO!'];
+  var i=0;
+  var step=function(){
+    if(i<seq.length){
+      var label=seq[i];
+      eb.textContent='Get ready';
+      var big=document.getElementById('tgCount');
+      big.textContent=label;
+      try{ haptic(label==='GO!'?18:8); }catch(e){}
+      tgBeep(label==='GO!'?880:520, label==='GO!'?0.22:0.12, 0.14);
+      i++;
+      setTimeout(step, label==='GO!'?450:700);
+    } else {
+      tgBegin();
+    }
+  };
+  step();
+}
+function tgBegin(){
   tgState.count=0; tgState.running=true; tgState.endAt=Date.now()+TG_SECONDS*1000;
   document.getElementById('tgCount').textContent='0';
   var tgt=document.getElementById('tgTarget'); if(tgt) tgt.classList.add('pulse');
@@ -1845,6 +1892,7 @@ function tgTap(){
   var tgt=document.getElementById('tgTarget');
   if(tgt){ tgt.classList.remove('pop'); void tgt.offsetWidth; tgt.classList.add('pop'); }
   try{ haptic(5); }catch(e){}
+  tgBeep(300+Math.min(tgState.count,50)*8, 0.05, 0.07);   // rising pitch as you tap faster
   if(tgState.count>=TG_GOAL){ tgFinish(); }
 }
 function tgFinish(){
@@ -1858,10 +1906,14 @@ function tgFinish(){
   if(won){
     try{ localStorage.setItem('nuci_discount','1'); }catch(e){}
     try{ launchConfetti(); haptic(20); }catch(e){}
+    // happy rising arpeggio
+    tgBeep(523,0.12,0.14); setTimeout(function(){tgBeep(659,0.12,0.14);},110);
+    setTimeout(function(){tgBeep(784,0.12,0.14);},220); setTimeout(function(){tgBeep(1047,0.22,0.14);},330);
     document.getElementById('tgResult').textContent='You did it! 50% off unlocked.';
     document.getElementById('tgDoneSub').textContent='Every plan is now half price. The new prices are waiting for you.';
     document.getElementById('tgDoneBtn').textContent='See my discount';
   }else{
+    tgBeep(392,0.18,0.12); setTimeout(function(){tgBeep(294,0.28,0.12);},160);  // gentle "aw" fall
     document.getElementById('tgResult').textContent='So close - '+tgState.count+' taps.';
     document.getElementById('tgDoneSub').textContent='You needed '+TG_GOAL+' in '+TG_SECONDS+' seconds. The plans are still a great deal though.';
     document.getElementById('tgDoneBtn').textContent='Continue';
@@ -2461,7 +2513,6 @@ function renderToday(){
     ? '<div class="a-photo" style="'+photoStyle+'"></div><div class="a-scrim"></div>'
     : '<span class="a-paw">'+petSvg(t,'200px')+'</span>';
   var h=todayPetDropdown()
-    +buddyHtml()
     +'<div class="a-hero">'+heroInner
       +'<div class="a-eye">'+dstr+' · day '+day+'</div>'
       +'<div class="a-nm"><div class="g">'+greeting()+'</div><h1>'+esc(pet)+'</h1></div>'
