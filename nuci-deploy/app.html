@@ -249,6 +249,35 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .warnmodal .wm-t{font-family:'Fraunces',Georgia,serif;font-style:italic;font-size:1.35rem;color:var(--text);margin-bottom:10px;letter-spacing:-0.01em}
 .warnmodal .wm-p{font-size:0.9rem;color:var(--secondary);line-height:1.55;margin-bottom:20px}
 .warnmodal .wm-btn{width:100%;padding:14px;border:none;border-radius:14px;background:var(--forest);color:#F4F1E9;font-size:0.95rem;cursor:pointer}
+.vet-list{text-align:left;margin:4px 0 14px;max-height:280px;overflow-y:auto}
+.vet-card{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:13px 15px;margin-bottom:9px}
+.vet-card .vn{font-size:.95rem;font-weight:500;color:var(--text);line-height:1.3}
+.vet-card .vmeta{font-size:.78rem;color:var(--secondary);margin-top:3px;line-height:1.4}
+.vet-card .vopen{color:var(--sage);font-weight:500}
+.vet-card .vclosed{color:var(--clay)}
+.vet-card .vacts{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+.vet-card .vacts a{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;text-decoration:none;background:rgba(107,143,113,.12);color:var(--forest);padding:7px 11px;border-radius:9px}
+.vet-loading{text-align:center;color:var(--secondary);font-size:.85rem;padding:14px}
+/* vet message composer */
+.vm-actions{display:flex;gap:8px;margin-top:12px}
+.vm-actions button{flex:1;border:1px solid var(--border);background:var(--card);border-radius:12px;padding:12px 10px;font-family:inherit;font-size:.82rem;color:var(--forest);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;line-height:1.25}
+.vm-actions button:hover{border-color:var(--sage)}
+.vm-actions button svg{opacity:.85}
+.vm-panel{text-align:left;margin-top:12px}
+.vm-lang{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+.vm-lang button{background:var(--card);border:1px solid var(--border);border-radius:99px;padding:7px 13px;font-family:inherit;font-size:.8rem;color:var(--text);cursor:pointer}
+.vm-lang button.on{background:var(--forest);color:#F2F1EC;border-color:var(--forest)}
+.vm-q{margin:10px 0}
+.vm-q label{display:block;font-size:.82rem;color:var(--text);margin-bottom:5px;font-weight:500}
+.vm-q input{width:100%;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font-family:inherit;font-size:.9rem;background:var(--card);color:var(--text)}
+.vm-out{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px;font-size:.86rem;line-height:1.55;color:var(--text);white-space:pre-wrap;max-height:240px;overflow-y:auto}
+.vm-out .vm-subj{font-weight:600;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.vm-btnrow{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+.vm-btnrow button,.vm-btnrow a{flex:1;min-width:90px;text-align:center;text-decoration:none;border:none;border-radius:11px;padding:11px;font-family:inherit;font-size:.82rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.vm-btnrow .vm-primary{background:var(--forest);color:#F2F1EC}
+.vm-btnrow .vm-ghost{background:rgba(107,143,113,.12);color:var(--forest)}
+.vm-btnrow .vm-ghost:disabled{opacity:.4;cursor:not-allowed}
+.vm-back{background:none;border:none;color:var(--secondary);font-family:inherit;font-size:.8rem;cursor:pointer;padding:8px 0;margin-top:4px}
 /* warning card */
 .warncard{margin-top:16px;background:rgba(199,122,122,0.08);border:1.5px solid rgba(199,122,122,0.4);
   border-radius:14px;padding:13px 15px;font-size:0.86rem;line-height:1.45;color:var(--text);display:flex;gap:10px}
@@ -792,6 +821,9 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <div class="wm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M12 4.5l8 14H4z"/><path d="M12 10v4"/><circle cx="12" cy="16.4" r="0.5" fill="currentColor" stroke="none"/></svg></div>
     <div class="wm-t">A vet check is recommended</div>
     <div class="wm-p" id="warnModalText">Some of the signs you selected can have a medical cause. Please have your pet checked by a veterinarian before or alongside this behaviour plan - your plan will take this into account.</div>
+    <div id="vetFinder"></div>
+    <div id="vetHelp"></div>
+    <button class="wm-btn wm-vet" id="vetBtn" onclick="findVets()" style="background:rgba(107,143,113,.14);color:var(--forest);margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M12 21s-7-4.35-9.5-8.5C1 9 3 5 6.5 5 9 5 12 8 12 8s3-3 5.5-3C21 5 23 9 21.5 12.5 19 16.65 12 21 12 21z"/></svg>Find the nearest vet</button>
     <button class="wm-btn" onclick="closeWarnModal()">I understand</button>
   </div>
 </div>
@@ -1099,6 +1131,9 @@ async function persistStateNow(){
       marketing_consent: !!state.marketingConsent,
       marketing_consent_at: state.marketingConsentAt||null
     };
+    // If they are giving consent now, clear any old opt-out flag (e.g. from a previous
+    // delete-profile or unsubscribe) so a returning user actually receives emails again.
+    if(state.marketingConsent){ _rec.marketing_opt_out=false; }
     await supa.from('profiles').upsert(_rec,{onConflict:'email'});
   }catch(e){ console.warn('persist',e); }
 }
@@ -1147,7 +1182,7 @@ function icon(n,size,sw,color){
   return '<span class="nicon" style="width:'+size+';height:'+size+';font-size:'+size+';'+(color?('color:'+color+';'):'')+'">'
     +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+sw+'" stroke-linecap="round" stroke-linejoin="round" width="1em" height="1em">'+(NI[n]||NI.paw)+'</svg></span>';
 }
-const PET_ICON={dog:'dog',cat:'cat',rabbit:'rabbit',bird:'bird',hamster:'hamster',reptile:'reptile',fish:'fish',other:'paw'};
+const PET_ICON={dog:'dog',cat:'cat',rabbit:'rabbit',bird:'bird',rodent:'hamster',hamster:'hamster',reptile:'reptile',fish:'fish',other:'paw'};
 function petSvg(t,size){ return icon(PET_ICON[t]||'paw',size||'1em'); }
 
 // ═══════ HELPERS ═══════
@@ -1273,7 +1308,106 @@ function helloReady(){ try{localStorage.setItem('nuci_intro_seen','1');}catch(e)
 
 // ═══════ QUESTIONNAIRE ═══════
 function breedPlaceholder(){ const t=state.answers.petType; return t==='dog'?'e.g. Labrador, mixed…':t==='cat'?'e.g. British Shorthair…':'e.g. breed or "unknown"'; }
+// ═══════ SPECIES CONFIG (adaptive questionnaire) ═══════
+// Six top-level kinds. Bird / rodent / reptile are umbrella groups that first ask which
+// specific species, then tailor every following question. Cat & dog & rabbit are direct.
+var SPECIES = {
+  cat: { label:'Cat', icon:'cat', group:false },
+  dog: { label:'Dog', icon:'dog', group:false },
+  rabbit: { label:'Rabbit', icon:'rabbit', group:false },
+  bird: { label:'Bird', icon:'bird', group:true,
+    members:['Parrot / parakeet','Budgie','Cockatiel','Canary / finch','Lovebird','Dove / pigeon','Other bird'] },
+  rodent: { label:'Small pet', icon:'hamster', group:true,
+    members:['Hamster','Guinea pig','Rat','Mouse','Gerbil','Chinchilla','Ferret','Other small pet'] },
+  reptile: { label:'Reptile', icon:'reptile', group:true,
+    members:['Bearded dragon','Leopard gecko','Snake','Turtle / tortoise','Iguana','Chameleon','Other reptile'] }
+};
+// Per-kind wording for the adaptive questions.
+var SPCFG = {
+  cat: {
+    env:[{icon:'home',label:'Indoor',sub:'Stays mostly inside'},{icon:'tree',label:'Indoor + outdoor',sub:'Comes and goes'},{icon:'swap',label:'Outdoor',sub:'Mostly outside'}],
+    issueEg:'e.g. suddenly peeing outside the litter box, scratching furniture, night-time yowling…',
+    places:['Litter box area','On furniture','Bedroom','Kitchen','By windows','Everywhere','Only when alone'],
+    tried:['Ignored it','Said no / scolded','A second litter box','More play / toys','Feliway / calming spray','Vet visit','Nothing yet'],
+    warn:['Aggression or biting','Not eating or drinking','Straining in the litter box','Lethargy or weakness','Vomiting or diarrhea','Hiding constantly','None of these'],
+    warnFlag:['Aggression or biting','Not eating or drinking','Straining in the litter box','Lethargy or weakness','Vomiting or diarrhea'] },
+  dog: {
+    env:[{icon:'home',label:'Mostly indoors',sub:'House or apartment'},{icon:'tree',label:'Indoors + yard',sub:'Access to outside'},{icon:'swap',label:'Lots of outdoors',sub:'Yard or land'}],
+    issueEg:'e.g. barking at the door, pulling on the lead, chewing, accidents indoors…',
+    places:['At home','In the yard','On walks','When left alone','Around other dogs','Around strangers','Everywhere'],
+    tried:['Ignored it','Said no / scolded','Reward-based training','More exercise','A trainer or class','Vet visit','Nothing yet'],
+    warn:['Aggression or biting','Not eating or drinking','Lethargy or weakness','Vomiting or diarrhea','Sudden fearfulness','Limping or pain','None of these'],
+    warnFlag:['Aggression or biting','Not eating or drinking','Lethargy or weakness','Vomiting or diarrhea','Limping or pain'] },
+  rabbit: {
+    env:[{icon:'home',label:'Indoors (free-roam)',sub:'Lives in the home'},{icon:'home',label:'Indoor hutch / pen',sub:'Enclosed inside'},{icon:'tree',label:'Outdoor hutch',sub:'Lives outside'}],
+    issueEg:'e.g. biting, refusing to be handled, not using the litter tray, chewing everything…',
+    places:['In the hutch / pen','Litter area','When picked up','Free-roam time','Around other rabbits','Everywhere'],
+    tried:['Ignored it','More space / time out','Litter training','More hay / enrichment','Bonding steps','Vet visit','Nothing yet'],
+    warn:['Aggression or biting','Not eating or drinking','No droppings / small droppings','Lethargy or weakness','Head tilt','Overgrown teeth','None of these'],
+    warnFlag:['Aggression or biting','Not eating or drinking','No droppings / small droppings','Lethargy or weakness','Head tilt','Overgrown teeth'] },
+  bird: {
+    env:[{icon:'home',label:'In a cage',sub:'Mostly caged'},{icon:'swap',label:'Cage + free time',sub:'Out daily'},{icon:'tree',label:'Free-roam / aviary',sub:'Lots of freedom'}],
+    issueEg:'e.g. feather plucking, screaming, biting, not stepping up, fear of hands…',
+    places:['In the cage','When let out','On you / your shoulder','Around new people','Near the cage','Everywhere'],
+    tried:['Ignored it','Covered the cage','More out-of-cage time','Target / step-up training','Diet change','Avian vet visit','Nothing yet'],
+    warn:['Aggression or biting','Not eating or drinking','Feather plucking / self-harm','Fluffed up / lethargic','Sitting on cage floor','Laboured breathing','None of these'],
+    warnFlag:['Not eating or drinking','Feather plucking / self-harm','Fluffed up / lethargic','Sitting on cage floor','Laboured breathing'] },
+  rodent: {
+    env:[{icon:'home',label:'In a cage / tank',sub:'Mostly enclosed'},{icon:'swap',label:'Cage + play time',sub:'Out daily'},{icon:'tree',label:'Free-roam area',sub:'Lots of space'}],
+    issueEg:'e.g. biting when picked up, bar-chewing, freezing, fighting a cage-mate, hiding…',
+    places:['In the cage','When handled','During play time','Around cage-mates','Near food','Everywhere'],
+    tried:['Ignored it','Slow hand-taming','A bigger cage / more enrichment','Separated cage-mates','Diet change','Exotic vet visit','Nothing yet'],
+    warn:['Aggression or biting','Not eating or drinking','Lethargy or weakness','Laboured breathing','Wet tail / diarrhea','Overgrown teeth','None of these'],
+    warnFlag:['Not eating or drinking','Lethargy or weakness','Laboured breathing','Wet tail / diarrhea','Overgrown teeth'] },
+  reptile: {
+    env:[{icon:'home',label:'In a vivarium',sub:'Glass tank / terrarium'},{icon:'swap',label:'Tank + handling',sub:'Handled regularly'},{icon:'tree',label:'Large enclosure',sub:'Lots of space'}],
+    issueEg:'e.g. not eating, glass surfing, aggression when handled, hiding constantly, colour changes…',
+    places:['In the enclosure','When handled','At feeding time','Basking area','Everywhere'],
+    tried:['Ignored it','Checked heat / UVB','Adjusted the setup','Changed feeding','Slow handling','Exotic vet visit','Nothing yet'],
+    warn:['Aggression or biting','Not eating (beyond normal)','Lethargy / not basking','Sunken eyes / dehydration','Laboured or open-mouth breathing','Discoloured skin','None of these'],
+    warnFlag:['Not eating (beyond normal)','Lethargy / not basking','Sunken eyes / dehydration','Laboured or open-mouth breathing','Discoloured skin'] }
+};
+function spCfg(){ var t=state.answers.petType; return SPCFG[t]||SPCFG.cat; }
+function isGroupSpecies(t){ return SPECIES[t] && SPECIES[t].group; }
+
 function getQuestions(){
+  const name=state.answers.petName||'your pet';
+  const t=state.answers.petType;
+  const cfg=spCfg();
+  var q=[
+    {id:'petName',title:"What's <span class='accent'>your pet's</span> name?",type:'text',placeholder:'Type here...'},
+    {id:'petType',title:"What kind of animal is<br><span class='accent'>your pet?</span>",type:'pet-type'}
+  ];
+  // For umbrella groups (bird / small pet / reptile), ask the specific species next.
+  if(isGroupSpecies(t)){
+    q.push({id:'species',title:'What kind of <span class="accent">'+SPECIES[t].label.toLowerCase()+'</span><br>is '+esc(name)+'?',type:'pills',options:SPECIES[t].members});
+  }
+  q.push(
+    {id:'breed',title:'What breed or type is <span class="accent">'+esc(name)+'?</span>',type:'text',placeholder:breedPlaceholder()},
+    {id:'age',title:'How old is <span class="accent">'+esc(name)+'?</span>',type:'age-slider'},
+    {id:'sex',title:'What is <span class="accent">'+esc(name)+"'s</span> sex?",type:'pills',options:['Male','Female','Unknown']},
+    {id:'neutered',title:'Is '+esc(name)+' <span class=\"accent\">neutered or spayed?</span>',type:'pills',options:['Neutered','Spayed','Not sure','Not applicable'],subs:{'Neutered':'For male pets','Spayed':'For female pets','Not sure':"That's okay - we'll work around it",'Not applicable':'For species where this does not apply'}},
+    {id:'environment',title:'Where does '+esc(name)+'<br><span class=\"accent\">mainly live?</span>',type:'options',options:cfg.env},
+    {id:'household',title:'Who lives at home<br><span class=\"accent\">with '+esc(name)+'?</span>',type:'multi',options:['Just me','Partner/spouse','Children','Other pets','Other adults']},
+    {id:'mainIssue',title:'What is the <span class=\"accent\">main issue</span><br>you are noticing?',type:'textarea',placeholder:cfg.issueEg},
+    {id:'duration',title:'How long has this<br><span class=\"accent\">been happening?</span>',type:'pills',options:['Just started','A few days','1-2 weeks','1-3 months','Over 3 months'],subs:{'Just started':'Within the last day or two'}},
+    {id:'frequency',title:'How often<br>does it <span class=\"accent\">happen?</span>',type:'pills',options:['Multiple times daily','Once a day','A few times a week','Once a week','Occasionally']},
+    {id:'location',title:'Where does it<br><span class=\"accent\">usually happen?</span>',type:'multi',options:cfg.places}
+  );
+  // Adaptive follow-up: if the issue looks like aggression, dig into triggers.
+  var mi=(state.answers.mainIssue||'').toLowerCase();
+  var aggressive=/bite|biting|aggress|snap|growl|lunge|attack|hiss/.test(mi);
+  if(aggressive){
+    q.push({id:'aggressionTrigger',title:'When does the <span class="accent">aggression</span><br>usually appear?',type:'multi',options:['When handled or picked up','Near food or toys','When approached by strangers','Around other animals','When startled','No clear trigger'],subs:{'No clear trigger':'It seems to come out of nowhere'}});
+  }
+  q.push(
+    {id:'recentChanges',title:'Any recent changes<br><span class=\"accent\">at home?</span>',type:'multi',options:['New pet','New person','Move or travel','Schedule change','Diet change','New cage / enclosure','Nothing unusual'],subs:{'Nothing unusual':'Everything has been stable'}},
+    {id:'tried',title:'What have you<br><span class=\"accent\">already tried?</span>',type:'multi',options:cfg.tried,subs:{'Nothing yet':"That's completely fine"}},
+    {id:'warningSigns',title:'Any of these<br><span class=\"accent\">warning signs?</span>',type:'multi',options:cfg.warn,subs:{'None of these':'No health warning signs'},warning:cfg.warnFlag}
+  );
+  return q;
+}
+function OLD_getQuestions(){
   const name=state.answers.petName||'your pet';
   return [
     {id:'petName',title:"What's <span class='accent'>your pet's</span> name?",type:'text',placeholder:'Type here...'},
@@ -1356,7 +1490,7 @@ function renderQ(){
     setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){} },160);
     setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){} kbLock(inp); },320);
   }else if(q.type==='pet-type'){
-    const items=[['dog','Dog'],['cat','Cat'],['rabbit','Rabbit'],['bird','Bird'],['hamster','Hamster'],['reptile','Reptile'],['fish','Fish'],['other','Other']];
+    const items=[['dog','Dog'],['cat','Cat'],['rabbit','Rabbit'],['bird','Bird'],['rodent','Small pet'],['reptile','Reptile']];
     const g=document.createElement('div'); g.className='petgrid';
     items.forEach(([id,label])=>{
       const b=document.createElement('button'); b.type='button';
@@ -1434,8 +1568,147 @@ function openWarnModal(){
   var t=m.querySelector('.wm-t'); if(t) t.textContent='A vet check is recommended';
   var ic=m.querySelector('.wm-ic'); if(ic){ ic.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M12 4.5l8 14H4z"/><path d="M12 10v4"/><circle cx="12" cy="16.4" r="0.5" fill="currentColor" stroke="none"/></svg>'; ic.style.background=''; ic.style.color=''; }
   var btn=m.querySelector('.wm-btn'); if(btn){ btn.textContent='I understand'; btn.setAttribute('onclick','closeWarnModal()'); }
+  // reset the vet finder each time it opens
+  var vf=document.getElementById('vetFinder'); if(vf) vf.innerHTML='';
+  var vb=document.getElementById('vetBtn'); if(vb) vb.style.display='';
+  vetHelpButtons();   // show the "email the vet" / "phone script" helper buttons
   m.classList.add('open'); haptic(12);
 }
+// Find nearby vets: ask for location, call the server (which holds the Google key), render.
+function findVets(){
+  var vf=document.getElementById('vetFinder');
+  var vb=document.getElementById('vetBtn');
+  if(!vf) return;
+  if(!navigator.geolocation){ vf.innerHTML='<div class="vet-loading">Location is not available on this device. You can search "vet near me" in your maps app.</div>'; return; }
+  if(vb) vb.style.display='none';
+  vf.innerHTML='<div class="vet-loading">Finding vets near you…</div>';
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var lat=pos.coords.latitude, lng=pos.coords.longitude;
+    fetch('/.netlify/functions/find-vets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat,lng})})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.error==='not_configured'){ vf.innerHTML=vetFallback(lat,lng,'Vet search is not set up yet.'); return; }
+        if(!d.vets || !d.vets.length){ vf.innerHTML=vetFallback(lat,lng,'No vets found nearby.'); return; }
+        vf.innerHTML=d.vets.map(vetCard).join('');
+      })
+      .catch(function(){ vf.innerHTML=vetFallback(lat,lng,'Could not load vets.'); });
+  }, function(err){
+    // permission denied or failed
+    vf.innerHTML='<div class="vet-loading">Location access was declined. You can search "vet near me" in <a href="https://www.google.com/maps/search/veterinarian+near+me" target="_blank" rel="noopener" style="color:var(--forest)">Google Maps</a>.</div>';
+  }, {enableHighAccuracy:false, timeout:9000, maximumAge:300000});
+}
+function vetCard(v){
+  var meta=[];
+  if(v.distanceKm!=null) meta.push(v.distanceKm+' km away');
+  if(v.rating) meta.push('\u2605 '+v.rating);
+  if(v.open===true) meta.push('<span class="vopen">Open now</span>');
+  else if(v.open===false) meta.push('<span class="vclosed">Closed now</span>');
+  var acts=[];
+  var svgPhone='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="13" height="13"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>';
+  var svgGlobe='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="13" height="13"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/></svg>';
+  var svgPin='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="13" height="13"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+  if(v.phone) acts.push('<a href="tel:'+esc(v.phone.replace(/\s/g,''))+'">'+svgPhone+'Call</a>');
+  if(v.website) acts.push('<a href="'+esc(v.website)+'" target="_blank" rel="noopener">'+svgGlobe+'Website</a>');
+  if(v.mapsUrl) acts.push('<a href="'+esc(v.mapsUrl)+'" target="_blank" rel="noopener">'+svgPin+'Directions</a>');
+  return '<div class="vet-card"><div class="vn">'+esc(v.name)+'</div>'
+    +(v.address?'<div class="vmeta">'+esc(v.address)+'</div>':'')
+    +(meta.length?'<div class="vmeta">'+meta.join(' \u00b7 ')+'</div>':'')
+    +(acts.length?'<div class="vacts">'+acts.join('')+'</div>':'')
+    +'</div>';
+}
+function vetFallback(lat,lng,msg){
+  var url='https://www.google.com/maps/search/veterinarian/@'+lat+','+lng+',14z';
+  return '<div class="vet-loading">'+esc(msg)+' <a href="'+url+'" target="_blank" rel="noopener" style="color:var(--forest)">Open in Google Maps</a></div>';
+}
+
+// ═══════ VET MESSAGE COMPOSER (AI-written email / phone script) ═══════
+var VM = { mode:null, lang:'English', regens:0, extra:{}, needInfo:null };
+var VM_LANGS=['English','Slovenščina','Deutsch','Italiano','Hrvatski','Français','Español'];
+
+// Render the two entry buttons (called when the warn modal opens).
+function vetHelpButtons(){
+  var el=document.getElementById('vetHelp'); if(!el) return;
+  el.innerHTML='<div class="vm-actions">'
+    +'<button onclick="vmStart(\'email\')">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" width="20" height="20"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>'
+      +'Write an email<br>to the vet</button>'
+    +'<button onclick="vmStart(\'phone\')">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" width="20" height="20"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>'
+      +'What to say<br>on the phone</button>'
+    +'</div>';
+}
+function vmStart(mode){
+  VM={ mode:mode, lang:'English', regens:0, extra:{}, needInfo:null };
+  vmRenderLang();
+}
+// Step 1: choose language
+function vmRenderLang(){
+  var el=document.getElementById('vetHelp');
+  var title=VM.mode==='email'?'Email to the vet':'Phone script';
+  el.innerHTML='<div class="vm-panel"><div style="font-size:.9rem;font-weight:500;color:var(--text)">'+title+'</div>'
+    +'<div style="font-size:.8rem;color:var(--secondary);margin-top:3px">Which language should it be written in?</div>'
+    +'<div class="vm-lang">'+VM_LANGS.map(function(l){ return '<button class="'+(l===VM.lang?'on':'')+'" onclick="vmSetLang(\''+l+'\')">'+esc(l)+'</button>'; }).join('')+'</div>'
+    +'<div class="vm-btnrow"><button class="vm-primary" onclick="vmGenerate()">Write it</button></div>'
+    +'<button class="vm-back" onclick="vetHelpButtons()">\u2190 Back</button></div>';
+}
+function vmSetLang(l){ VM.lang=l; vmRenderLang(); }
+
+// Step 2: call the AI. May return needInfo (ask questions) or a draft.
+function vmGenerate(){
+  var el=document.getElementById('vetHelp');
+  el.innerHTML='<div class="vet-loading">Writing your '+(VM.mode==='email'?'email':'script')+'\u2026</div>';
+  fetch('/.netlify/functions/vet-message',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:VM.mode, lang:VM.lang, answers:state.answers, extra:VM.extra})})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.error){ el.innerHTML='<div class="vet-loading">Could not write it right now. Please try again.</div>'
+        +'<div class="vm-btnrow"><button class="vm-ghost" onclick="vmGenerate()">Try again</button></div>'; return; }
+      if(d.needInfo && d.needInfo.length){ VM.needInfo=d.needInfo; vmRenderQuestions(); return; }
+      vmRenderResult(d);
+    })
+    .catch(function(){ el.innerHTML='<div class="vet-loading">Could not write it right now. Please try again.</div>'
+      +'<div class="vm-btnrow"><button class="vm-ghost" onclick="vmGenerate()">Try again</button></div>'; });
+}
+// Step 2b: AI needs more info -> ask the user
+function vmRenderQuestions(){
+  var el=document.getElementById('vetHelp');
+  el.innerHTML='<div class="vm-panel"><div style="font-size:.88rem;color:var(--text);font-weight:500;margin-bottom:2px">A couple of details</div>'
+    +'<div style="font-size:.8rem;color:var(--secondary);margin-bottom:6px">This makes the message more useful for the vet.</div>'
+    +VM.needInfo.map(function(q,i){ return '<div class="vm-q"><label>'+esc(q)+'</label><input id="vmq'+i+'" type="text" value="'+esc(VM.extra[q]||'')+'"></div>'; }).join('')
+    +'<div class="vm-btnrow"><button class="vm-primary" onclick="vmSubmitQuestions()">Continue</button></div>'
+    +'<button class="vm-back" onclick="vmRenderLang()">\u2190 Back</button></div>';
+}
+function vmSubmitQuestions(){
+  VM.needInfo.forEach(function(q,i){ var inp=document.getElementById('vmq'+i); if(inp) VM.extra[q]=inp.value.trim(); });
+  VM.needInfo=null; vmGenerate();
+}
+// Step 3: show the draft with copy / send / regenerate
+function vmRenderResult(d){
+  var el=document.getElementById('vetHelp');
+  VM.lastText=d.text||''; VM.lastSubject=d.subject||'';
+  var out='<div class="vm-out">'
+    +(VM.mode==='email' && d.subject?'<div class="vm-subj">'+esc(d.subject)+'</div>':'')
+    +esc(d.text||'')+'</div>';
+  var row='<div class="vm-btnrow">';
+  row+='<button class="vm-primary" onclick="vmCopy()">Copy</button>';
+  if(VM.mode==='email'){
+    var mailto='mailto:?subject='+encodeURIComponent(d.subject||'')+'&body='+encodeURIComponent(d.text||'');
+    row+='<a class="vm-primary" href="'+mailto+'">Open in email</a>';
+  }
+  var canRegen=VM.regens<2;
+  row+='<button class="vm-ghost" onclick="vmRegenerate()" '+(canRegen?'':'disabled')+'>Rewrite'+(canRegen?' ('+(2-VM.regens)+' left)':'')+'</button>';
+  row+='</div>';
+  el.innerHTML='<div class="vm-panel">'+out+row+'<button class="vm-back" onclick="vetHelpButtons()">\u2190 Done</button></div>';
+}
+function vmCopy(){
+  var txt=(VM.mode==='email'&&VM.lastSubject?(VM.lastSubject+'\n\n'):'')+(VM.lastText||'');
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(function(){ toast('Copied'); }); }
+    else { var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('Copied'); }
+    haptic(12);
+  }catch(e){ toast('Could not copy'); }
+}
+function vmRegenerate(){ if(VM.regens>=2) return; VM.regens++; vmGenerate(); }
 function closeWarnModal(){ var m=$('warnModal'); if(m) m.classList.remove('open'); }
 function assessNext(){
   kbRelease(); if(nextIsTextQ()) kbPrime();
