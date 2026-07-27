@@ -46,21 +46,45 @@ const FROM = 'The Nuci <hello@thenuci.com>';
 
 function welcomeHtml(name, toEmail) {
   const unsubUrl = toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
-  const hi = name ? `Welcome, ${name}!` : 'Welcome to The Nuci!';
   return nuciShell({
       preheader: 'Your 7-day plan is ready.',
       eyebrow: 'Welcome',
-      titleHtml: `Let's help ${nuciAccent((body && (body.petName||body.name)) || 'your pet')}<br>feel calmer.`,
+      titleHtml: name ? `Welcome, ${nuciAccent(name)}.` : `Welcome to ${nuciAccent('The Nuci')}.`,
       bodyHtml: nuciPara("Your personalised 7-day behaviour plan is ready. Each day has a few small, specific steps: do them, check in each evening, and watch the pattern change.")
         + nuciPara("The most important habit? A daily check-in. It's how your plan adapts to what's actually happening.",10)
         + nuciBtn("Open the plan","https://thenuci.com/")
-        + nuciBox(`<div style="font-family:Georgia,serif;font-style:italic;font-size:15px;color:${NUCI.ink};line-height:1.5">"Every behavior has a cause."</div><div style="font-size:13px;color:${NUCI.sec};margin-top:6px;font-family:Arial,sans-serif">We'll help you find it, one day at a time.</div>`),
-      unsubUrl: email ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(email)}` : 'https://thenuci.com/'
+        + nuciBox(`<div style="font-family:Georgia,serif;font-style:italic;font-size:15px;color:${NUCI.ink};line-height:1.5">"Every behaviour has a cause."</div><div style="font-size:13px;color:${NUCI.sec};margin-top:6px;font-family:Arial,sans-serif">We'll help you find it, one day at a time.</div>`),
+      unsubUrl: unsubUrl
     });
 }
 
 export default async (req) => {
   const RESEND_API_KEY = process.env.THE_NUCI_RESEND_API_KEY;
+
+  // Health check: GET ...welcome-email?debug=1  (and optionally &to=you@email.com)
+  // Tells you if the key is present and, with &to=, actually sends a test welcome email.
+  try {
+    const url = new URL(req.url);
+    if (req.method === 'GET' && url.searchParams.get('debug') === '1') {
+      if (!RESEND_API_KEY) {
+        return new Response(JSON.stringify({ ok:false, reason:'THE_NUCI_RESEND_API_KEY missing in Netlify env' }), { status:200, headers:{'Content-Type':'application/json'} });
+      }
+      const to = url.searchParams.get('to');
+      if (!to) {
+        return new Response(JSON.stringify({ ok:true, keyPresent:true, note:'Key is set. Add &to=your@email.com to send a real test.' }), { status:200, headers:{'Content-Type':'application/json'} });
+      }
+      const r = await fetch('https://api.resend.com/emails', {
+        method:'POST',
+        headers:{ 'Authorization':`Bearer ${RESEND_API_KEY}`, 'Content-Type':'application/json' },
+        body: JSON.stringify({ from: FROM, to:[to], subject:'Welcome to The Nuci (test)', html: welcomeHtml('there', to) })
+      });
+      const txt = await r.text().catch(()=> '');
+      return new Response(JSON.stringify({ ok:r.ok, status:r.status, resend:txt.slice(0,400) }), { status:200, headers:{'Content-Type':'application/json'} });
+    }
+  } catch(e){
+    return new Response(JSON.stringify({ ok:false, reason:'debug error', detail:String(e) }), { status:200, headers:{'Content-Type':'application/json'} });
+  }
+
   if (!RESEND_API_KEY) {
     return new Response(JSON.stringify({ error: 'Email not configured' }), { status: 500 });
   }
