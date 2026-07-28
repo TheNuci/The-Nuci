@@ -278,6 +278,25 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .vm-btnrow .vm-ghost{background:rgba(107,143,113,.12);color:var(--forest)}
 .vm-btnrow .vm-ghost:disabled{opacity:.4;cursor:not-allowed}
 .vm-back{background:none;border:none;color:var(--secondary);font-family:inherit;font-size:.8rem;cursor:pointer;padding:8px 0;margin-top:4px}
+/* ── Vet tab (premium in-app page) ── */
+.vet-hero{background:linear-gradient(160deg,#8CA588,var(--sage) 55%,var(--forest));border-radius:26px;padding:26px 22px;color:#F2F1EC;position:relative;overflow:hidden;margin-bottom:18px}
+.vet-hero .vh-ic{width:46px;height:46px;border-radius:14px;background:rgba(242,241,236,.18);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.vet-hero h1{font-size:1.5rem;font-weight:400;letter-spacing:-.03em;line-height:1.15;margin-bottom:6px}
+.vet-hero h1 .accent{font-family:'Fraunces',Georgia,serif;font-style:italic}
+.vet-hero p{font-size:.9rem;color:rgba(242,241,236,.85);line-height:1.5}
+.vet-hero .vh-paw{position:absolute;right:-20px;bottom:-24px;opacity:.13;transform:rotate(-12deg)}
+.vet-sec{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:20px;margin-bottom:14px}
+.vet-sec .vs-eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--sage);font-weight:500;margin-bottom:8px}
+.vet-sec h3{font-size:1.05rem;font-weight:500;letter-spacing:-.02em;color:var(--text);margin-bottom:6px}
+.vet-sec .vs-desc{font-size:.86rem;color:var(--secondary);line-height:1.5;margin-bottom:14px}
+.vet-action{width:100%;border:none;border-radius:14px;padding:15px;font-family:inherit;font-size:.95rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px}
+.vet-action.primary{background:var(--forest);color:#F2F1EC}
+.vet-action.soft{background:rgba(107,143,113,.12);color:var(--forest)}
+.vet-tools{display:flex;gap:10px;margin-top:10px}
+.vet-tools button{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:16px 12px;font-family:inherit;font-size:.85rem;color:var(--forest);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;line-height:1.3;text-align:center;font-weight:500}
+.vet-tools button:hover{border-color:var(--sage)}
+.vet-tools button .vt-ic{width:38px;height:38px;border-radius:11px;background:rgba(107,143,113,.12);display:flex;align-items:center;justify-content:center}
+.vet-disclaimer{font-size:.76rem;color:var(--secondary);line-height:1.5;text-align:center;padding:6px 10px 0}
 /* warning card */
 .warncard{margin-top:16px;background:rgba(199,122,122,0.08);border:1.5px solid rgba(199,122,122,0.4);
   border-radius:14px;padding:13px 15px;font-size:0.86rem;line-height:1.45;color:var(--text);display:flex;gap:10px}
@@ -784,6 +803,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <div class="tabpage" id="tab-today"></div>
     <div class="tabpage" id="tab-plan"></div>
     <div class="tabpage" id="tab-progress"></div>
+    <div class="tabpage" id="tab-vet"></div>
     <div class="tabpage" id="tab-profile"></div>
   </div>
   <div class="navscrim"></div>
@@ -791,6 +811,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <button class="navitem on" data-tab="today" onclick="showTab('today')"><span class="nicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M4.5 11L12 5l7.5 6"/><path d="M6.6 9.7V19h10.8V9.7"/><path d="M10 19v-4.4h4V19"/></svg></span><span>Today</span></button>
     <button class="navitem" data-tab="plan" onclick="showTab('plan')"><span class="nicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M7.5 4h5.4l4.1 4.1V18a1.6 1.6 0 0 1-1.6 1.6H7.5A1.6 1.6 0 0 1 5.9 18V5.6A1.6 1.6 0 0 1 7.5 4z"/><path d="M12.8 4v4.4h4.2"/><path d="M9 12.5h5M9 15.5h3.4"/></svg></span><span>Plan</span></button>
     <button class="navitem" data-tab="progress" onclick="showTab('progress')"><span class="nicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M3 12h3.6l1.6-4.4 3.2 8.8 2.2-6.2 1.5 3.4H21"/></svg></span><span>Progress</span></button>
+    <button class="navitem" data-tab="vet" onclick="showTab('vet')"><span class="nicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M12 21s-7-4.35-9.5-8.5C1 9 3 5 6.5 5 9 5 12 8 12 8s3-3 5.5-3C21 5 23 9 21.5 12.5 19 16.65 12 21 12 21z"/><path d="M12 10.5v4M10 12.5h4"/></svg></span><span>Vet</span></button>
     <button class="navitem" data-tab="profile" onclick="showTab('profile')"><span class="nicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20c0-4.2 3.6-6.5 7.5-6.5s7.5 2.3 7.5 6.5"/></svg></span><span>Profile</span></button>
   </div>
 </section>
@@ -1120,17 +1141,29 @@ let _saveTimer=null;
 function persistState(){ clearTimeout(_saveTimer); _saveTimer=setTimeout(persistStateNow,900); }
 async function persistStateNow(){
   clearTimeout(_saveTimer);
-  // local snapshot first - works even before sign-in and without a session
-  try{ localStorage.setItem('nuciState', JSON.stringify(serializeState())); }catch(e){}
+  // Storage strategy (see auth rework):
+  // - Before purchase: keep progress ONLY in sessionStorage. It survives reloads within
+  //   the same tab, but is gone once the tab is closed -> a fresh visit starts over.
+  // - After purchase: also mirror to localStorage so a returning (still-logged-in) user
+  //   keeps their plan across tab closes, and push to Supabase as the source of truth.
+  try{
+    var snap=JSON.stringify(serializeState());
+    sessionStorage.setItem('nuciState', snap);
+    if(state.purchased){ localStorage.setItem('nuciState', snap); }
+    else { localStorage.removeItem('nuciState'); }
+  }catch(e){}
   if(!supa||!state.userEmail) return;
+  // Only write the questionnaire/plan blob to the account once they've purchased.
+  // A login-only user (no purchase) must not have their questionnaire saved to the profile.
   try{
     var _rec={
-      email:state.userEmail.toLowerCase(), data:serializeState(), updated_at:new Date().toISOString(),
+      email:state.userEmail.toLowerCase(), updated_at:new Date().toISOString(),
       timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null,
       last_checkin_date:state.lastCheckinDate||null,
       marketing_consent: !!state.marketingConsent,
       marketing_consent_at: state.marketingConsentAt||null
     };
+    if(state.purchased){ _rec.data=serializeState(); _rec.purchased=true; }
     // If they are giving consent now, clear any old opt-out flag (e.g. from a previous
     // delete-profile or unsubscribe) so a returning user actually receives emails again.
     if(state.marketingConsent){ _rec.marketing_opt_out=false; }
@@ -1370,6 +1403,107 @@ var SPCFG = {
 function spCfg(){ var t=state.answers.petType; return SPCFG[t]||SPCFG.cat; }
 function isGroupSpecies(t){ return SPECIES[t] && SPECIES[t].group; }
 
+
+// ═══════ ADAPTIVE FOLLOW-UP ENGINE ═══════
+// Given the free-text main issue, the species, and the pet name, return a list of
+// targeted follow-up questions. Themes are matched by keywords; each returns focused
+// questions so the assessment feels genuinely tailored. Questions use the same shapes
+// the renderer already supports: pills (one choice), multi (several), text, textarea.
+function adaptiveFollowups(mi, t, name){
+  var out=[];
+  var has=function(re){ return re.test(mi); };
+  var pet=name||'your pet';
+
+  // ---- SCRATCHING / DESTRUCTION ----
+  if(has(/scratch|claw|destroy|chew|dig|shred|rip|bite furniture|bar.?chew/)){
+    out.push({id:'scratchTarget',title:'What is '+esc(pet)+' <span class="accent">scratching or damaging?</span>',type:'multi',
+      options:['Furniture / sofa','Carpets or rugs','Doors or door frames','Walls','Their bed or cage','Curtains / blinds','My belongings','Themselves'],
+      subs:{'Themselves':'Scratching or over-grooming their own body'}});
+    out.push({id:'scratchWhen',title:'When does it <span class="accent">mostly happen?</span>',type:'multi',
+      options:['When left alone','At night','When excited or playful','When anxious or stressed','After meals','No clear pattern']});
+  }
+
+  // ---- TOILETING / SOILING ----
+  if(has(/pee|wee|urin|poop|poo|litter|toilet|soil|accident|mark|spray|wet/)){
+    out.push({id:'toiletWhere',title:'Where is it <span class="accent">happening?</span>',type:'multi',
+      options:['Just outside the litter tray / spot','Specific room or corner','On furniture or beds','Near doors or windows','Vertical surfaces (marking)','All over / unpredictable']});
+    out.push({id:'toiletChange',title:'Did anything change around when it <span class="accent">started?</span>',type:'multi',
+      options:['New litter or tray','Moved the tray','New pet or person','Less cleaning access','Nothing I noticed'],
+      subs:{'Nothing I noticed':'It seemed to start on its own'}});
+  }
+
+  // ---- NOISE / VOCALISING ----
+  if(has(/bark|whine|howl|meow|yowl|cry|scream|squawk|screech|vocal|noise|loud/)){
+    out.push({id:'noiseWhen',title:'When is '+esc(pet)+' <span class="accent">most vocal?</span>',type:'multi',
+      options:['When left alone','At specific times of day','When someone passes by / arrives','For food or attention','At night','When they see other animals']});
+    out.push({id:'noiseResponse',title:'What do you usually <span class="accent">do when it happens?</span>',type:'pills',
+      options:['Give attention / comfort','Tell them off','Give food or a treat','Ignore it','It varies']});
+  }
+
+  // ---- SEPARATION / ALONE ----
+  if(has(/alone|separation|left|leave|lonely|destroy.*alone|follow me|clingy/)){
+    out.push({id:'aloneSigns',title:'What does '+esc(pet)+' do when <span class="accent">left alone?</span>',type:'multi',
+      options:['Vocalises (barks / cries)','Destroys things','Toilets indoors','Paces or drools','Tries to escape','Refuses food','Not sure - I am not there']});
+    out.push({id:'aloneDuration',title:'How long can '+esc(pet)+' be alone <span class="accent">before it starts?</span>',type:'pills',
+      options:['Almost immediately','Within a few minutes','After 15-30 minutes','After an hour or more','Varies']});
+  }
+
+  // ---- AGGRESSION / BITING ----
+  if(has(/bite|biting|aggress|snap|growl|lunge|attack|hiss|nip|hostile/)){
+    out.push({id:'aggressionTrigger',title:'When does the <span class="accent">aggression</span> appear?',type:'multi',
+      options:['When handled or picked up','Near food or toys','When approached by strangers','Around other animals','When startled','When in pain or touched somewhere','No clear trigger'],
+      subs:{'No clear trigger':'It seems to come out of nowhere'}});
+    out.push({id:'aggressionWarning',title:'Does '+esc(pet)+' <span class="accent">warn first?</span>',type:'pills',
+      options:['Yes - clear warning signs','Sometimes','No - it is sudden'],
+      subs:{'Yes - clear warning signs':'e.g. growling, stiffening, ears back'}});
+    out.push({id:'aggressionTarget',title:'Who or what is it <span class="accent">directed at?</span>',type:'multi',
+      options:['Me / family','Strangers','Children','Other pets in the home','Animals outside','Specific objects']});
+  }
+
+  // ---- FEAR / ANXIETY ----
+  if(has(/fear|scared|afraid|anxious|anxiety|nervous|shy|hide|hiding|timid|phobia|panic|tremble|shak/)){
+    out.push({id:'fearTrigger',title:'What is '+esc(pet)+' <span class="accent">most afraid of?</span>',type:'multi',
+      options:['Loud noises','Strangers','Other animals','Being handled','Specific places','Car / travel','Being alone','Not sure']});
+    out.push({id:'fearShow',title:'How does the fear <span class="accent">show?</span>',type:'multi',
+      options:['Hiding','Trembling / shaking','Freezing','Trying to escape','Aggression when cornered','Toileting','Excessive vocalising']});
+  }
+
+  // ---- EATING / FOOD ----
+  if(has(/\beat|\bfood|appetite|hungry|\bfeed|refus|not eating|picky|fussy|swallow|\bbeg\b/) && !has(/feather/)){
+    out.push({id:'eatingPattern',title:'What is happening with '+esc(pet)+'\u2019s <span class="accent">eating?</span>',type:'pills',
+      options:['Eating much less','Refusing food entirely','Very picky / fussy','Eating too fast','Begging / stealing food','Eating non-food items'],
+      subs:{'Eating non-food items':'This can need a vet - we\u2019ll flag it'}});
+    out.push({id:'eatingDuration',title:'How long has the <span class="accent">eating change</span> been going on?',type:'pills',
+      options:['Today / since yesterday','A few days','About a week','Longer than a week']});
+  }
+
+  // ---- PULLING / WALKING (dogs) ----
+  if(t==='dog' && has(/pull|leash|lead|walk|reactive|lunge.*walk/)){
+    out.push({id:'walkIssue',title:'On walks, '+esc(pet)+' mainly:',type:'multi',
+      options:['Pulls constantly','Lunges at dogs','Lunges at people','Barks / reacts','Freezes or refuses to walk','Zig-zags / distracted']});
+  }
+
+  // ---- JUMPING / OVER-EXCITEMENT ----
+  if(has(/jump|hyper|excit|over.?excit|mouth|zoomies|can.?t settle|restless|hyperactive/)){
+    out.push({id:'exciteWhen',title:'When is '+esc(pet)+' <span class="accent">most over-excited?</span>',type:'multi',
+      options:['Greeting people','During play','Before walks / meals','When guests arrive','Random bursts','Evenings']});
+  }
+
+  // ---- FEATHER PLUCKING (birds) ----
+  if(t==='bird' && has(/pluck|feather|bald|over.?preen/)){
+    out.push({id:'pluckArea',title:'Where is '+esc(pet)+' <span class="accent">plucking?</span>',type:'multi',
+      options:['Chest','Wings','Legs','Back','Everywhere reachable','Not sure']});
+    out.push({id:'pluckContext',title:'When did you first <span class="accent">notice it?</span>',type:'pills',
+      options:['Recently (days)','A few weeks ago','Months ago','It comes and goes']});
+  }
+
+  // Always: let the owner add anything in their own words.
+  out.push({id:'extraContext',title:'Anything else you want <span class="accent">Nuci to know?</span>',type:'textarea',
+    placeholder:'Optional - the more context, the better the plan. e.g. what usually happens right before, what makes it better or worse...',optional:true});
+
+  return out;
+}
+
 function getQuestions(){
   const name=state.answers.petName||'your pet';
   const t=state.answers.petType;
@@ -1394,12 +1528,12 @@ function getQuestions(){
     {id:'frequency',title:'How often<br>does it <span class=\"accent\">happen?</span>',type:'pills',options:['Multiple times daily','Once a day','A few times a week','Once a week','Occasionally']},
     {id:'location',title:'Where does it<br><span class=\"accent\">usually happen?</span>',type:'multi',options:cfg.places}
   );
-  // Adaptive follow-up: if the issue looks like aggression, dig into triggers.
+  // ── Adaptive follow-ups ──
+  // Read the free-text issue and add targeted questions so the assessment feels like it
+  // truly understands the specific problem. Each theme adds 1-3 focused questions.
   var mi=(state.answers.mainIssue||'').toLowerCase();
-  var aggressive=/bite|biting|aggress|snap|growl|lunge|attack|hiss/.test(mi);
-  if(aggressive){
-    q.push({id:'aggressionTrigger',title:'When does the <span class="accent">aggression</span><br>usually appear?',type:'multi',options:['When handled or picked up','Near food or toys','When approached by strangers','Around other animals','When startled','No clear trigger'],subs:{'No clear trigger':'It seems to come out of nowhere'}});
-  }
+  var followups=adaptiveFollowups(mi, t, name);
+  followups.forEach(function(fq){ q.push(fq); });
   q.push(
     {id:'recentChanges',title:'Any recent changes<br><span class=\"accent\">at home?</span>',type:'multi',options:['New pet','New person','Move or travel','Schedule change','Diet change','New cage / enclosure','Nothing unusual'],subs:{'Nothing unusual':'Everything has been stable'}},
     {id:'tried',title:'What have you<br><span class=\"accent\">already tried?</span>',type:'multi',options:cfg.tried,subs:{'Nothing yet':"That's completely fine"}},
@@ -1553,12 +1687,11 @@ function renderQ(){
   }
 }
 function checkWarn(q){
-  if(!q.warning) return;
-  const sel=state.answers[q.id]||[];
-  const hit=sel.some(s=>q.warning.includes(s));
-  // show the centered popup the first time a warning sign becomes selected on this question
-  if(hit && !state.__warnShown){ state.__warnShown=true; openWarnModal(); }
-  if(!hit) state.__warnShown=false;  // reset if they deselect all warnings
+  // The warning signs are still recorded in the answers (the AI uses them), but we no
+  // longer interrupt the pre-payment questionnaire with a health popup - that pushed
+  // people straight to a vet before they ever reached the app. Vet help now lives in
+  // the in-app Vet tab instead.
+  return;
 }
 function openWarnModal(){
   var m=$('warnModal'); if(!m) return;
@@ -1573,6 +1706,34 @@ function openWarnModal(){
   var vb=document.getElementById('vetBtn'); if(vb) vb.style.display='';
   vetHelpButtons();   // show the "email the vet" / "phone script" helper buttons
   m.classList.add('open'); haptic(12);
+}
+// ═══════ VET TAB (premium in-app page) ═══════
+function renderVetTab(){
+  var el=document.getElementById('tab-vet'); if(!el) return;
+  var pet=state.answers.petName||'your pet';
+  el.innerHTML=
+    '<div class="vet-hero">'
+      +'<div class="vh-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M12 21s-7-4.35-9.5-8.5C1 9 3 5 6.5 5 9 5 12 8 12 8s3-3 5.5-3C21 5 23 9 21.5 12.5 19 16.65 12 21 12 21z"/><path d="M12 10.5v4M10 12.5h4"/></svg></div>'
+      +'<h1>Need a <span class="accent">vet?</span></h1>'
+      +'<p>Find a clinic near you, and let Nuci help you explain '+esc(pet)+'\u2019s situation clearly.</p>'
+      +'<div class="vh-paw"><svg viewBox="0 0 24 24" fill="currentColor" width="120" height="120"><ellipse cx="12" cy="15.6" rx="4.1" ry="3.2"/><ellipse cx="6.6" cy="11" rx="1.7" ry="2"/><ellipse cx="10" cy="8" rx="1.6" ry="2"/><ellipse cx="14" cy="8" rx="1.6" ry="2"/><ellipse cx="17.4" cy="11" rx="1.7" ry="2"/></svg></div>'
+    +'</div>'
+    +'<div class="vet-sec">'
+      +'<div class="vs-eyebrow">Nearby care</div>'
+      +'<h3>Find the nearest vet</h3>'
+      +'<div class="vs-desc">We\u2019ll use your location to show veterinary clinics close to you, with contact details and directions.</div>'
+      +'<button class="vet-action primary" id="vetBtn" onclick="findVets()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></svg>Find vets near me</button>'
+      +'<div id="vetFinder"></div>'
+    +'</div>'
+    +'<div class="vet-sec">'
+      +'<div class="vs-eyebrow">Nuci helps you explain</div>'
+      +'<h3>Prepare what to say</h3>'
+      +'<div class="vs-desc">Nuci can write a clear message about '+esc(pet)+'\u2019s behaviour \u2014 ready to email or read out on the phone, in your language.</div>'
+      +'<div id="vetHelp"></div>'
+    +'</div>'
+    +'<div class="vet-disclaimer">The Nuci offers behavioural guidance, not veterinary or medical advice. Always consult a qualified vet for health concerns.</div>';
+  // seed the helper buttons
+  vetHelpButtons();
 }
 // Find nearby vets: ask for location, call the server (which holds the Google key), render.
 function findVets(){
@@ -1715,12 +1876,12 @@ function assessNext(){
   const qs=getQuestions(), q=qs[state.currentQ];
   if(q.type==='text'||q.type==='textarea'){
     const v=(state.answers[q.id]||'').trim();
-    if(!v){ toast(q.id==='petName'?'Please enter a name':'Please answer to continue'); return; }
+    if(!v && !q.optional){ toast(q.id==='petName'?'Please enter a name':'Please answer to continue'); return; }
   }
   if(q.type==='pet-type'&&!state.answers.petType){ toast('Please choose one'); return; }
-  if(q.type==='pills'&&!state.answers[q.id]){ toast('Please choose one'); return; }
-  if(q.type==='options'&&!state.answers[q.id]){ toast('Please choose one'); return; }
-  if(q.type==='multi'&&(!state.answers[q.id]||!state.answers[q.id].length)){ toast('Select at least one'); return; }
+  if(q.type==='pills'&&!state.answers[q.id]&&!q.optional){ toast('Please choose one'); return; }
+  if(q.type==='options'&&!state.answers[q.id]&&!q.optional){ toast('Please choose one'); return; }
+  if(q.type==='multi'&&(!state.answers[q.id]||!state.answers[q.id].length)&&!q.optional){ toast('Select at least one'); return; }
   if(state.__editSingle){
     state.__editSingle=false;
     persistStateNow();
@@ -1855,21 +2016,35 @@ async function doLogin(){
     state.userEmail=email;
     const had=await loadStateForUser(email);
     btn.disabled=false; btn.textContent='Log in';
-    // Routing rules:
-    // - profile exists + has paid  -> straight into the app (their plan/profile)
-    // - profile exists + questionnaire done but NOT paid -> offer (payment)
-    // - profile exists but no questionnaire -> start questionnaire
-    // - no profile data at all -> tell them to create a profile
-    if(had && state.purchased && state.answers && state.answers.petName){ enterApp(); }
-    else if(had && state.answers && state.answers.petName){ buildOffer(); showScreen('screen-offer'); }
-    else if(had){ startFreshAssessment(); }
-    else { err.innerHTML='No profile found for this email. <span class="auth-link" onclick="prefillAndRegister()">Create a profile</span>'; }
+    // New routing rules:
+    // - has a purchased plan -> straight into their app/profile.
+    // - anything else (no purchase) -> a fresh questionnaire. We never drop a login-only
+    //   user back into a half-finished or previously-abandoned questionnaire.
+    if(state.purchased && state.answers && state.answers.petName){ enterApp(); }
+    else { startFreshState(); startFreshAssessment(); }
   }catch(e){ err.textContent='Something went wrong - please try again.'; btn.disabled=false; btn.textContent='Log in'; }
 }
 function prefillAndRegister(){
   var email=($('logEmail').value||'').trim().toLowerCase();
   welcomeNew();
   setTimeout(function(){ var e=$('regEmail'); if(e && email) e.value=email; },60);
+}
+function startFreshState(){
+  // Wipe any questionnaire / plan progress but keep who is logged in. Used when a
+  // login-only (unpurchased) user arrives, so they never inherit a stale questionnaire.
+  var keepEmail=state.userEmail, keepName=state.userName;
+  var keepConsent=state.marketingConsent, keepConsentAt=state.marketingConsentAt;
+  state.answers={}; state.currentQ=0; state.currentDay=1; state.viewDay=1; state.planLength=7;
+  state.checkins=[]; state.streak=0; state.lastCheckinDate=null; state.lastCheckinDay=0;
+  state.aiPlan=null; state.aiBehaviorExplain=null; state.aiCauses=null; state.aiWhatNotToDo=null;
+  state.planOverrides={}; state.taskOverrides={}; state.dayInsights={}; state.dayNotes={}; state.tasksDone={};
+  state.petPhoto=null; state.purchased=false; state.planCredits=0; state.paid=false;
+  state.__planSig=null; state.__previewSig=null; state.previewDay1=null;
+  state.pets=[]; state.archive=[]; state.activePet=0;
+  state.userEmail=keepEmail; state.userName=keepName;
+  state.marketingConsent=keepConsent; state.marketingConsentAt=keepConsentAt;
+  // clear any lingering local questionnaire snapshot (session copy is rewritten as they go)
+  try{ localStorage.removeItem('nuciState'); sessionStorage.removeItem('nuciState'); }catch(e){}
 }
 function startFreshAssessment(){
   state.currentQ=0; state.answers=state.answers||{}; showScreen('screen-assessment'); renderQ();
@@ -2413,6 +2588,7 @@ function showTab(t){
   if(t==='today') renderToday();
   if(t==='plan') renderPlanTab();
   if(t==='progress') renderProgressTab();
+  if(t==='vet') renderVetTab();
   if(t==='profile') renderProfileTab();
   window.scrollTo(0,0);
 }
@@ -3036,7 +3212,7 @@ async function doStartOver(){
   state.maintenance=false; state.maintenanceSince=null; state.maintenanceCheckins=[];
   state.lastMaintenanceDate=null;
   selectedPackage=null;
-  try{ localStorage.removeItem('nuciState'); }catch(e){}
+  try{ localStorage.removeItem('nuciState'); sessionStorage.removeItem('nuciState'); }catch(e){}
   try{ await persistStateNow(); }catch(e){}
   toast('Cleared - starting fresh');
   showScreen('screen-assessment'); renderQ();
@@ -3600,16 +3776,17 @@ function confirmDelete(){
 }
 async function doDelete(){
   var email = state.userEmail ? state.userEmail.toLowerCase() : null;
+  // Full erasure: a server function (service role) deletes the profile row AND the auth
+  // user, so they are no longer a user, hold no data, and get no emails.
   try{
-    if(supa && email){
-      await supa.from('profiles').update({
-        data:null, pet_name_pending:null, purchased:false, marketing_consent:false, marketing_opt_out:true
-      }).eq('email', email);
+    if(email){
+      await fetch('/.netlify/functions/delete-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email}),keepalive:true});
     }
   }catch(e){}
   try{ if(supa) await supa.auth.signOut(); }catch(e){}
   clearAllLocal();
-  try{ state.userEmail=null; state.answers={}; state.aiPlan=null; state.previewDay1=null; state.checkins=[]; }catch(e){}
+  try{ sessionStorage.removeItem('nuciState'); localStorage.removeItem('nuciState'); }catch(e){}
+  try{ state.userEmail=null; state.answers={}; state.aiPlan=null; state.previewDay1=null; state.checkins=[]; state.purchased=false; }catch(e){}
   location.replace('/');
 }
 
@@ -3759,7 +3936,16 @@ async function finishCheckin(){
 var PET_FIELDS=['answers','currentDay','planLength','checkins','streak','lastCheckinDate','lastCheckinDay','planComplete','planStartDate','planOverrides','aiPlan','aiBehaviorExplain','aiAssessment','aiSeekProfessional','aiProfessionalNote','aiCauses','aiWhatNotToDo','dayInsights','dayNotes','taskOverrides','tasksDone','petPhoto'];
 function snapshotPet(){ var o={}; PET_FIELDS.forEach(function(k){ o[k]=state[k]; }); return o; }
 function loadPet(o){ PET_FIELDS.forEach(function(k){ state[k]=o[k]; }); if(!state.tasksDone)state.tasksDone={}; if(!state.dayNotes)state.dayNotes={}; if(!state.dayInsights)state.dayInsights={}; if(!state.planOverrides)state.planOverrides={}; if(!Array.isArray(state.checkins))state.checkins=[]; }
-function syncActivePet(){ if(!Array.isArray(state.pets))state.pets=[]; if(state.pets.length===0){ state.pets=[snapshotPet()]; state.activePet=0; } else { state.pets[state.activePet]=snapshotPet(); } }
+function syncActivePet(){
+  if(!Array.isArray(state.pets))state.pets=[];
+  // Never commit a blank pet (no name) into the pets array - that's what created empty
+  // "ghost" pets when a refresh landed mid-flow with cleared answers.
+  var hasPet = state.answers && state.answers.petName;
+  if(!hasPet) return;
+  if(state.pets.length===0){ state.pets=[snapshotPet()]; state.activePet=0; }
+  else if(state.activePet>=state.pets.length){ state.pets.push(snapshotPet()); state.activePet=state.pets.length-1; }
+  else { state.pets[state.activePet]=snapshotPet(); }
+}
 function switchToPet(i){ if(i===state.activePet) return; syncActivePet(); state.activePet=i; loadPet(state.pets[i]); persistStateNow(); renderToday(); showTab('today'); toast('Switched to '+(state.answers.petName||'pet')); }
 function petsUsed(){ return Array.isArray(state.pets)?state.pets.length:1; }
 function spareCredits(){ return (state.planCredits||0) - petsUsed(); }
@@ -4070,27 +4256,63 @@ async function adaptNextDay(nextDay){
       try{ const raw=localStorage.getItem('pendingState'); if(raw){ const p=JSON.parse(raw); if(p&&p.userEmail) state.userEmail=p.userEmail; } }catch(e){}
       handlePaidReturn(false); return;
     }
+    // Is there a live login session? (survives tab close via Supabase's own storage)
     let session=null;
     try{ if(supa){ const r=await supa.auth.getSession(); session=r&&r.data&&r.data.session; } }catch(e){}
+
     if(session&&session.user&&session.user.email){
       state.userEmail=session.user.email;
       const had=await loadStateForUser(state.userEmail);
-      if(had&&state.purchased&&state.answers&&state.answers.petName){ enterApp(); return; }
-      if(had&&state.answers&&state.answers.petName){ buildOffer(); showScreen('screen-offer'); return; }
+      // Logged in AND has a purchased plan.
+      if(had && state.purchased && state.answers && state.answers.petName){
+        // If the AI plan never finished generating (e.g. they left mid-generation), don't
+        // drop them into an empty app or bounce them to payment - regenerate it now.
+        if(!state.aiPlan || !state.aiPlan.days || !state.aiPlan.days.length){
+          runGenerating(function(){ enterApp(); persistStateNow(); });
+        } else { enterApp(); }
+        return;
+      }
+      // Logged in but NO purchase -> they are a returning login-only user. We do NOT
+      // restore any half-finished questionnaire. Show the landing/welcome; a fresh
+      // questionnaire starts clean if they choose to begin one.
+      startFreshState();
+      showScreen('screen-welcome'); return;
     }
-    // No live session (browser closed, or arriving from an email link):
-    // fall back to the locally saved progress so nobody has to start over.
+
+    // No live session (tab was closed, or arriving cold).
+    // Within the SAME tab, sessionStorage holds in-progress questionnaire answers so a
+    // reload doesn't lose them. Across tab closes it's gone -> a fresh start, as intended.
+    try{
+      const sesRaw=sessionStorage.getItem('nuciState');
+      if(sesRaw){
+        const ss=JSON.parse(sesRaw);
+        if(ss && ss.answers && ss.answers.petName){
+          Object.assign(state, ss);
+          if(state.purchased && state.planCredits){
+            if(!state.aiPlan || !state.aiPlan.days || !state.aiPlan.days.length){
+              runGenerating(function(){ enterApp(); persistStateNow(); });
+            } else { enterApp(); }
+            return;
+          }
+          // mid-questionnaire in the same tab: resume the offer/assessment gently
+          if(state.aiPlan){ buildOffer(); showScreen('screen-offer'); return; }
+        }
+      }
+    }catch(e){}
+
+    // A purchased user who closed the tab but is still "remembered" locally.
     try{
       const localRaw=localStorage.getItem('nuciState');
       if(localRaw){
         const ls=JSON.parse(localRaw);
-        if(ls && ls.answers && ls.answers.petName){
+        if(ls && ls.purchased && ls.answers && ls.answers.petName){
+          // Stay logged in, but land on the welcome page; logging in takes them to their profile.
           Object.assign(state, ls);
-          if(state.purchased && state.planCredits){ enterApp(); return; }
-          buildOffer(); showScreen('screen-offer'); return;
+          showScreen('screen-welcome'); return;
         }
       }
     }catch(e){}
+
     if(wantLogin){ showScreen('screen-login'); return; }
     if(wantDemo){ try{ demoEnterApp(); }catch(e){ welcomeNew(); } return; }
     if(wantStart){ welcomeNew(); return; }
