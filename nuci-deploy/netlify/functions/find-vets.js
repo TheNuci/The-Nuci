@@ -32,50 +32,44 @@ exports.handler = async (event) => {
   if (!isFinite(lat) || !isFinite(lng)) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'bad_coords' }) };
 
   try {
-    // 1) Nearby search for veterinary care around the user
-    const nearbyUrl = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
-      + `?location=${lat},${lng}&rankby=distance&type=veterinary_care&key=${KEY}`;
-    const nr = await fetch(nearbyUrl);
-    const nd = await nr.json();
-    if (nd.status !== 'OK' && nd.status !== 'ZERO_RESULTS') {
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ error: 'places_' + nd.status, detail: nd.error_message || '', vets: [] }) };
+    // Use Places API (New): Nearby Search via POST. More reliable than the legacy endpoint
+    // and matches the "Places API (New)" the project has enabled.
+    const nbUrl = 'https://places.googleapis.com/v1/places:searchNearby';
+    const nbRes = await fetch(nbUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': KEY,
+        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.currentOpeningHours.openNow,places.googleMapsUri'
+      },
+      body: JSON.stringify({
+        includedTypes: ['veterinary_care'],
+        maxResultCount: 5,
+        rankPreference: 'DISTANCE',
+        locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 50000 } }
+      })
+    });
+    const nd = await nbRes.json();
+    if (!nbRes.ok) {
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ error: 'places_' + nbRes.status, detail: (nd.error && nd.error.message) || '', vets: [] }) };
     }
-    const top = (nd.results || []).slice(0, 5);
-
-    // 2) For each, fetch details (phone, website, opening hours)
-    const vets = [];
-    for (const pl of top) {
-      let phone = null, website = null, open = null;
-      try {
-        const detUrl = 'https://maps.googleapis.com/maps/api/place/details/json'
-          + `?place_id=${pl.place_id}&fields=formatted_phone_number,website,opening_hours&key=${KEY}`;
-        const dr = await fetch(detUrl);
-        const dd = await dr.json();
-        if (dd.result) {
-          phone = dd.result.formatted_phone_number || null;
-          website = dd.result.website || null;
-          if (dd.result.opening_hours && typeof dd.result.opening_hours.open_now === 'boolean') {
-            open = dd.result.opening_hours.open_now;
-          }
-        }
-      } catch (e) { /* details are best-effort */ }
-
-      const plLat = pl.geometry && pl.geometry.location ? pl.geometry.location.lat : null;
-      const plLng = pl.geometry && pl.geometry.location ? pl.geometry.location.lng : null;
+    const results = nd.places || [];
+    const vets = results.slice(0, 5).map((pl) => {
+      const plLat = pl.location ? pl.location.latitude : null;
+      const plLng = pl.location ? pl.location.longitude : null;
       const distance = (plLat != null) ? haversine(lat, lng, plLat, plLng) : null;
-
-      vets.push({
-        name: pl.name || 'Veterinary clinic',
-        address: pl.vicinity || pl.formatted_address || '',
-        phone, website,
+      return {
+        name: (pl.displayName && pl.displayName.text) || 'Veterinary clinic',
+        address: pl.formattedAddress || '',
+        phone: pl.nationalPhoneNumber || pl.internationalPhoneNumber || null,
+        website: pl.websiteUri || null,
         rating: pl.rating || null,
-        open,
+        open: (pl.currentOpeningHours && typeof pl.currentOpeningHours.openNow === 'boolean') ? pl.currentOpeningHours.openNow : null,
         distanceKm: distance != null ? Math.round(distance * 10) / 10 : null,
-        mapsUrl: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(pl.name || 'vet') + '&query_place_id=' + pl.place_id,
+        mapsUrl: pl.googleMapsUri || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((pl.displayName && pl.displayName.text) || 'vet')),
         lat: plLat, lng: plLng
-      });
-    }
-
+      };
+    });
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ vets }) };
   } catch (e) {
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ error: 'exception', detail: String(e && e.message || e), vets: [] }) };

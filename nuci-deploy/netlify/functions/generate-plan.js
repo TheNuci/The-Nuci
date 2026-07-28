@@ -70,7 +70,7 @@ exports.handler = async (event) => {
   catch (e) { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Bad JSON' }) }; }
 
   if (!ANTHROPIC_API_KEY) {
-    // graceful fallback so the app still works without a key — flagged so we can tell.
+    // graceful fallback so the app still works without a key - flagged so we can tell.
     const fb = fallbackPlan(answers); fb._fallback = 'no-api-key';
     return { statusCode: 200, headers: CORS, body: JSON.stringify(fb) };
   }
@@ -85,7 +85,8 @@ Rules:
 - Titles are 1-3 words. "sub" is a 2-4 word tag. "desc" is one sentence.
 - If any warning sign suggests a medical issue (aggression/biting, not eating or drinking, lethargy, vomiting/diarrhea), set seekProfessional=true and explain briefly in professionalNote.
 - "causes": 2-4 likely causes. "whatNotToDo": 2-4 concise items.
-- Base everything on the owner's answers. Be specific to ${pet}. Language: ${lang}.`;
+- Base everything on the owner's answers. Be specific to ${pet}. Language: ${lang}.
+- Never use em-dashes or en-dashes (— or –) anywhere in your output. Use a normal hyphen (-), a comma, or a full stop instead.`;
 
   const user = `Owner's answers (JSON):\n${JSON.stringify(answers, null, 2)}`;
 

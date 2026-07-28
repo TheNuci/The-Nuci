@@ -55,6 +55,7 @@ The email should: greet the vet politely, clearly state ${pet}'s species and the
   : `{"text": "<a short spoken script>"}
 The script is what the owner will SAY on the phone to book/ask. Keep it short and natural to speak aloud (about 4-6 sentences): who they are, their pet's species and name, the concern in one or two plain sentences with the key specifics (how long, how often, any warning signs), and that they'd like to book an appointment or ask advice. No markdown.`}
 
+Never use em-dashes or en-dashes (— or –) anywhere. Use a normal hyphen (-), comma, or full stop.
 Return ONLY the JSON object, nothing else.`;
 
   const user = `Owner's questionnaire answers (JSON):\n${known}\n\nExtra details the owner provided (JSON):\n${extraKnown}`;
