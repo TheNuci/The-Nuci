@@ -4436,18 +4436,19 @@ async function adaptNextDay(nextDay){
         } else { enterApp(); }
         return;
       }
-      // Logged in but NO purchase. If they explicitly clicked "Begin" on the landing page
-      // (?start=1), honour that and take them straight into the intro/questionnaire -
-      // don't show the in-app welcome screen again (that's the duplicate the user saw).
+      // Explicitly clicked "Begin" -> straight into a fresh questionnaire.
       if(wantStart){ startFreshState(); welcomeNew(); return; }
+      // Explicitly clicked "Log in" but this account has no plan -> send them to the login
+      // screen so they can switch account, rather than silently showing the welcome page.
+      if(wantLogin){ showScreen('screen-login'); return; }
       // Otherwise a returning login-only user: show the welcome; a fresh questionnaire
       // starts clean if they choose to begin one.
       startFreshState();
       showScreen('screen-welcome'); return;
     }
 
-    // Explicit "Begin" from the landing page always starts a clean intro/questionnaire,
-    // ahead of any restored progress. (A purchased logged-in user was already handled above.)
+    // Explicit intent from the landing page takes priority over any restored progress.
+    if(wantLogin){ showScreen('screen-login'); return; }
     if(wantStart){ startFreshState(); welcomeNew(); return; }
 
     // No live session (tab was closed, or arriving cold).
@@ -4484,7 +4485,6 @@ async function adaptNextDay(nextDay){
       }
     }catch(e){}
 
-    if(wantLogin){ showScreen('screen-login'); return; }
     if(wantDemo){ try{ demoEnterApp(); }catch(e){ welcomeNew(); } return; }
     showScreen('screen-welcome');
   };
