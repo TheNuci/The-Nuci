@@ -243,7 +243,12 @@ footer .brand .g{color:var(--sage)}
   .tsec .head{max-width:1100px}
   .tsec{padding:110px 0 30px}
 .swipe-hint{display:flex;align-items:center;justify-content:center;gap:7px;font-size:.76rem;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--secondary);margin-top:6px;opacity:.75}
+  text-transform:uppercase;color:var(--secondary);margin-top:6px;opacity:.75;padding:0 24px;text-align:center}
+.vetfeat .vf-h{font-size:clamp(2.2rem,7vw,3.4rem);font-weight:400;letter-spacing:-.03em;line-height:1.05;margin:10px 0 16px}
+.vetfeat .vf-p{font-size:1.05rem;line-height:1.6;color:var(--secondary);max-width:540px;margin-bottom:28px}
+.vetfeat .vf-points{display:flex;flex-direction:column;gap:16px}
+.vetfeat .vf-point{display:flex;align-items:center;gap:14px;font-size:1rem;color:var(--text);line-height:1.4}
+.vetfeat .vf-ic{flex-shrink:0;width:44px;height:44px;border-radius:13px;background:rgba(107,143,113,.12);color:var(--forest);display:flex;align-items:center;justify-content:center}
 .swipe-hint span{display:inline-block;animation:swipeNudge 1.8s ease-in-out infinite}
 @keyframes swipeNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
   /* final CTA bigger */
@@ -332,6 +337,20 @@ footer .brand .g{color:var(--sage)}
       <div class="stat"><div class="n">126</div><div class="l">early users are testing The Nuci during our beta.</div></div>
       <div class="rule"></div>
       <div class="stat"><div class="n">&#8734;</div><div class="l">languages - write or speak however feels natural.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VET FEATURE ============ -->
+<section class="pad vetfeat">
+  <div class="wrap">
+    <div class="eyebrow reveal">When it's more than behaviour</div>
+    <h2 class="reveal vf-h">A vet, <span class="accent">when you need one.</span></h2>
+    <p class="reveal vf-p">Some things need a professional. The Nuci helps you find a nearby clinic in seconds - and writes a clear, calm message about your pet that you can email or read out on the phone, in your language.</p>
+    <div class="vf-points">
+      <div class="vf-point reveal"><span class="vf-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></svg></span><span>Find nearby vets with contact details and directions.</span></div>
+      <div class="vf-point reveal"><span class="vf-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><span>Nuci drafts the message - you just send or read it.</span></div>
+      <div class="vf-point reveal"><span class="vf-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 21s-7-4.35-9.5-8.5C1 9 3 5 6.5 5 9 5 12 8 12 8s3-3 5.5-3C21 5 23 9 21.5 12.5 19 16.65 12 21 12 21z"/></svg></span><span>Written in your language, ready in seconds.</span></div>
     </div>
   </div>
 </section>

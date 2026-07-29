@@ -269,6 +269,15 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .vm-lang button.on{background:var(--forest);color:#F2F1EC;border-color:var(--forest)}
 .vm-langsel{width:100%;padding:14px 40px 14px 15px;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--text);font-family:inherit;font-size:.95rem;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235C6660' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
 .vm-langsel:focus{outline:none;border-color:var(--sage)}
+.vm-langpick{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--card)}
+.vm-langsearch{width:100%;padding:13px 15px;border:none;border-bottom:1px solid var(--border);background:transparent;font-family:inherit;font-size:.92rem;color:var(--text);box-sizing:border-box}
+.vm-langsearch:focus{outline:none}
+.vm-langlist{max-height:210px;overflow-y:auto}
+.vm-langitem{width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--border);padding:12px 15px;font-family:inherit;font-size:.9rem;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.vm-langitem:last-child{border-bottom:none}
+.vm-langitem:hover{background:var(--bg)}
+.vm-langitem.on{color:var(--forest);font-weight:500;background:rgba(107,143,113,.08)}
+.vm-langempty{padding:14px 15px;font-size:.84rem;color:var(--secondary);line-height:1.4}
 .vm-q{margin:10px 0}
 .vm-q label{display:block;font-size:.82rem;color:var(--text);margin-bottom:5px;font-weight:500}
 .vm-q input{width:100%;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font-family:inherit;font-size:.9rem;background:var(--card);color:var(--text)}
@@ -761,8 +770,8 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
       <button class="btn btn-primary" style="flex:1" id="unlockBtn" onclick="completePayment()">Unlock my plan</button>
     </div>
     <p class="secure-line" style="margin-top:9px"><span class="nicon" style="width:15px;height:15px;font-size:15px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="5.5" y="11" width="13" height="8.5" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></svg></span>Secure payment via Stripe · instant access</p>
+    <p style="text-align:center;font-size:0.78rem;color:var(--secondary);margin-top:6px">The exact price in your local currency is shown on the next step.</p>
     <!-- ⚠ TEST ONLY - remove before real launch. Skips payment to check the AI plan. -->
-    <button type="button" onclick="testSkipPayment()" style="width:100%;margin-top:10px;background:none;border:1px dashed #B9825B;color:#B9825B;border-radius:12px;padding:11px;font-size:.82rem;font-family:inherit;cursor:pointer">⚠ TEST - skip payment &amp; generate plan (remove before launch)</button>
   </div>
 
   <!-- Tap-challenge discount game (shows once per user, over the offer screen) -->
@@ -1058,13 +1067,48 @@ if(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase){
 }
 const AI_ENDPOINT='/.netlify/functions/generate-plan';
 const AI_ADAPT_ENDPOINT='/.netlify/functions/regenerate-day';
-const STRIPE_PAYMENT_LINK='https://buy.stripe.com/6oU5kw9Qj1Gh6VjgGAdIA00';
-const STRIPE_PAYMENT_LINK_3PACK='https://buy.stripe.com/6oU8wI2nR1Gh0wVaicdIA01';
-const STRIPE_PAYMENT_LINK_5PACK='https://buy.stripe.com/cNiaEQ9Qjet32F30HCdIA02';
+// ── Payment links: Slovenia vs the rest of the world ──
+// Slovenia gets its own Stripe links; everyone else gets the international set. Fill in
+// the Slovenian links below (TODO Urban). Until a SI link is set, we fall back to the
+// international one so nothing breaks.
+const LINKS_INTL={
+  single:'https://buy.stripe.com/14AcMYd2vet37Zn2PKdIA0d',   // INTL 9.95  (1 plan)
+  triple:'https://buy.stripe.com/9B65kw4vZ4St93rduodIA08',   // INTL 19.95 (3 plans)
+  five:'https://buy.stripe.com/dRmcMY8Mf2Kl4NbduodIA09'      // INTL 29.95 (5 plans)
+};
+const LINKS_SI={
+  single:'https://buy.stripe.com/6oUaEQ7HTcmH7dV7H9afS00',   // SI 9.95  (1 plan)
+  triple:'https://buy.stripe.com/cNi8wIbY9aez2XF3qTafS01',   // SI 19.95 (3 plans)
+  five:'https://buy.stripe.com/00w9AMbY9biDbub6D5afS02'      // SI 29.95 (5 plans)
+};
+const DISCOUNT_LINKS_INTL={
+  single:'https://buy.stripe.com/28EdR2bYret30wV0HCdIA0a',   // INTL 50OFF 4.95  (1 plan)
+  triple:'https://buy.stripe.com/bJe6oA1jN2KlcfDeysdIA0b',   // INTL 50OFF 9.95  (3 plans)
+  five:'https://buy.stripe.com/28E3co5A3doZ3J7fCwdIA0c'      // INTL 50OFF 14.95 (5 plans)
+};
+const DISCOUNT_LINKS_SI={
+  single:'https://buy.stripe.com/5kQaEQ3rD5YjeGngdFafS03',   // SI 50OFF 4.95  (1 plan)
+  triple:'https://buy.stripe.com/fZubIU3rDcmHeGn7H9afS04',   // SI 50OFF 9.95  (3 plans)
+  five:'https://buy.stripe.com/8x200c2nzbiD41J8LdafS05'      // SI 50OFF 14.95 (5 plans)
+};
+// Detect Slovenia from timezone and/or browser language (no extra API, privacy-friendly).
+function isSlovenia(){
+  try{
+    var tz=(Intl.DateTimeFormat().resolvedOptions().timeZone||'').toLowerCase();
+    if(tz.indexOf('ljubljana')>-1) return true;
+    var langs=(navigator.languages||[navigator.language||'']).join(',').toLowerCase();
+    if(/\bsl\b|sl-si|sl_si/.test(langs)) return true;
+  }catch(e){}
+  return false;
+}
+// Back-compat aliases used elsewhere
+const STRIPE_PAYMENT_LINK=LINKS_INTL.single;
+const STRIPE_PAYMENT_LINK_3PACK=LINKS_INTL.triple;
+const STRIPE_PAYMENT_LINK_5PACK=LINKS_INTL.five;
 const PACKAGES=[
-  {id:'single',credits:1,price:9.95, anchor:19.95,link:STRIPE_PAYMENT_LINK, name:'1 plan', sub:'For one pet or one issue'},
-  {id:'triple',credits:3,price:19.95,anchor:59.95,link:STRIPE_PAYMENT_LINK_3PACK, name:'3 plans', sub:'For multiple pets or issues'},
-  {id:'five',  credits:5,price:29.95,anchor:99.95,link:STRIPE_PAYMENT_LINK_5PACK, name:'5 plans', sub:'Best value for multi-pet homes'}
+  {id:'single',credits:1,price:9.95, anchor:19.95, name:'1 plan', sub:'For one pet or one issue'},
+  {id:'triple',credits:3,price:19.95,anchor:59.95, name:'3 plans', sub:'For multiple pets or issues'},
+  {id:'five',  credits:5,price:29.95,anchor:99.95, name:'5 plans', sub:'Best value for multi-pet homes'}
 ];
 let selectedPackage=PACKAGES[0];
 let appliedPromo=null;
@@ -1075,11 +1119,6 @@ let appliedPromo=null;
 // TODO(Urban): paste the discounted Stripe payment links here when ready. Until then the
 // discounted purchase falls back to the normal link so nothing breaks.
 const DISCOUNT_PCT=0.5;
-const DISCOUNT_LINKS={
-  single:'https://buy.stripe.com/6oU8wIaUnet3bbz3TOdIA03',   // €4.95  (was €9.95)
-  triple:'https://buy.stripe.com/8x200c3rVbgRfrPcqkdIA05',   // €9.95  (was €19.95)
-  five:'https://buy.stripe.com/00w7sE5A35Wx3J71LGdIA04'      // €14.95 (was €29.95)
-};
 function discountActive(){ try{ return localStorage.getItem('nuci_discount')==='1'; }catch(e){ return false; } }
 function pkgPrice(p){
   if(!discountActive()) return p.price;
@@ -1091,9 +1130,24 @@ function pkgPrice(p){
   if(snapped<0.95) snapped=0.95;
   return Math.round(snapped*100)/100;
 }
+// Country resolution: the user's explicit choice (Slovenia / not) wins; if they haven't
+// chosen, we fall back to geo-detection as a safety net.
+var userCountryChoice=null;   // 'si' | 'intl' | null
+function isSloveniaResolved(){
+  if(userCountryChoice==='si') return true;
+  if(userCountryChoice==='intl') return false;
+  return isSlovenia();
+}
 function pkgLink(p){
-  if(discountActive() && DISCOUNT_LINKS[p.id]) return DISCOUNT_LINKS[p.id];
-  return p.link;
+  var si=isSloveniaResolved();
+  // Choose the right set: discounted vs normal, Slovenia vs international.
+  // Every level falls back to the international link if a Slovenian one isn't set.
+  if(discountActive()){
+    if(si && DISCOUNT_LINKS_SI[p.id]) return DISCOUNT_LINKS_SI[p.id];
+    if(DISCOUNT_LINKS_INTL[p.id]) return DISCOUNT_LINKS_INTL[p.id];
+  }
+  if(si && LINKS_SI[p.id]) return LINKS_SI[p.id];
+  return LINKS_INTL[p.id];
 }
 function currentPrice(){ return selectedPackage?pkgPrice(selectedPackage):9.95; }
 
@@ -1330,10 +1384,12 @@ const ART4='<svg viewBox="0 0 200 150" fill="none" stroke="currentColor" stroke-
 const ART1='<svg viewBox="0 0 200 150" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="46" y="22" width="98" height="106" rx="13" fill="rgba(107,143,113,0.08)"/><path d="M64 50h46M64 68h62M64 86h40M64 104h54"/><circle cx="146" cy="38" r="19" fill="#FBFBF8"/><g transform="translate(146,38)" stroke-width="2.4"><ellipse cx="0" cy="5" rx="6.5" ry="5"/><ellipse cx="-6.5" cy="-3" rx="2.5" ry="3.2"/><ellipse cx="-2.2" cy="-7.5" rx="2.3" ry="3.2"/><ellipse cx="2.2" cy="-7.5" rx="2.3" ry="3.2"/><ellipse cx="6.5" cy="-3" rx="2.5" ry="3.2"/></g></svg>';
 const ART2='<svg viewBox="0 0 200 150" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="44" y="36" width="104" height="88" rx="12" fill="rgba(107,143,113,0.08)"/><path d="M44 60h104"/><path d="M68 30v14M124 30v14"/><g fill="#6B8F71" stroke="none"><circle cx="66" cy="78" r="3.4"/><circle cx="88" cy="78" r="3.4"/><circle cx="110" cy="78" r="3.4"/><circle cx="66" cy="100" r="3.4"/></g><circle cx="110" cy="100" r="9" fill="none" stroke="#6B8F71" stroke-width="2.6"/><path d="M164 44a15 15 0 1 1-12-17 11 11 0 0 0 12 17z" fill="#FBFBF8" stroke="currentColor" stroke-width="2.4"/></svg>';
 const ART3='<svg viewBox="0 0 200 150" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="42" y="28" width="116" height="98" rx="12" fill="rgba(107,143,113,0.06)"/><path d="M60 108h84" opacity="0.45"/><path d="M60 108V48" opacity="0.45"/><path d="M60 100c14-2 24-10 34-26s20-26 40-30" stroke="#6B8F71" stroke-width="3.2"/><g fill="#6B8F71" stroke="none"><circle cx="60" cy="100" r="4"/><circle cx="94" cy="74" r="4"/><circle cx="134" cy="44" r="4.5"/></g><path d="M126 40l10-4-2 10" stroke="#6B8F71" stroke-width="2.6"/></svg>';
+const ARTVET='<svg viewBox="0 0 200 150" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M100 128s-46-28-46-62a26 26 0 0 1 46-16 26 26 0 0 1 46 16c0 34-46 62-46 62z" fill="rgba(107,143,113,0.08)"/><path d="M100 66v26M87 79h26" stroke="#6B8F71" stroke-width="3.2"/><circle cx="150" cy="40" r="19" fill="#FBFBF8"/><g transform="translate(150,40)" stroke="#6B8F71" stroke-width="2.4"><rect x="-9" y="-5" width="18" height="12" rx="3"/><path d="M-9 -1l9 5 9-5"/></g></svg>';
 const INTRO=[
   {art:ART1,h:'A plan built <span class="accent">for your pet</span>',p:'Describe the behaviour and our AI creates a personalized 7-day plan - likely causes, what to do, and what to avoid.'},
   {art:ART2,h:'It <span class="accent">adapts</span> every day',p:"A quick evening check-in reshapes tomorrow's plan around what actually happened that day."},
   {art:ART3,h:'Watch the <span class="accent">change</span>',p:'Streaks, gentle insights and real, visible progress across the week - so you know it is working.'},
+  {art:ARTVET,h:'A vet, <span class="accent">when you need one</span>',p:'Find nearby clinics in seconds, and let Nuci write a clear message about your pet - ready to email or read out on the phone, in your language.'},
   {art:ART4,h:'Your words, <span class="accent">any language</span>',p:'Write or speak in whatever language feels natural - just talk, and The Nuci understands. No settings, no switching.'}
 ];
 let introIdx=0;
@@ -1795,7 +1851,7 @@ function vetFallback(lat,lng,msg){
 
 // ═══════ VET MESSAGE COMPOSER (AI-written email / phone script) ═══════
 var VM = { mode:null, lang:'English', regens:0, extra:{}, needInfo:null };
-var VM_LANGS=['English','Slovenščina','Deutsch','Italiano','Hrvatski','Srpski','Bosanski','Français','Español','Português','Nederlands','Polski','Čeština','Slovenčina','Magyar','Română','Български','Ελληνικά','Русский','Українська','Türkçe','Shqip','Македонски','Svenska','Norsk','Dansk','Suomi','Íslenska','Eesti','Latviešu','Lietuvių','中文 (Chinese)','日本語 (Japanese)','한국어 (Korean)','العربية (Arabic)','עברית (Hebrew)','हिन्दी (Hindi)','ไทย (Thai)','Tiếng Việt','Bahasa Indonesia'];
+var VM_LANGS=['English','Slovenščina (Slovenian)','Deutsch (German)','Italiano (Italian)','Hrvatski (Croatian)','Srpski (Serbian)','Bosanski (Bosnian)','Crnogorski (Montenegrin)','Français (French)','Español (Spanish)','Português (Portuguese)','Nederlands (Dutch)','Polski (Polish)','Čeština (Czech)','Slovenčina (Slovak)','Magyar (Hungarian)','Română (Romanian)','Български (Bulgarian)','Ελληνικά (Greek)','Русский (Russian)','Українська (Ukrainian)','Türkçe (Turkish)','Shqip (Albanian)','Македонски (Macedonian)','Svenska (Swedish)','Norsk (Norwegian)','Dansk (Danish)','Suomi (Finnish)','Íslenska (Icelandic)','Eesti (Estonian)','Latviešu (Latvian)','Lietuvių (Lithuanian)','Gaeilge (Irish)','Cymraeg (Welsh)','Català (Catalan)','Euskara (Basque)','Galego (Galician)','Malti (Maltese)','Lëtzebuergesch (Luxembourgish)','中文 (Chinese)','日本語 (Japanese)','한국어 (Korean)','العربية (Arabic)','עברית (Hebrew)','हिन्दी (Hindi)','বাংলা (Bengali)','தமிழ் (Tamil)','తెలుగు (Telugu)','ਪੰਜਾਬੀ (Punjabi)','ગુજરાતી (Gujarati)','मराठी (Marathi)','اردو (Urdu)','فارسی (Persian)','ไทย (Thai)','Tiếng Việt (Vietnamese)','Bahasa Indonesia (Indonesian)','Bahasa Melayu (Malay)','Filipino / Tagalog','ខ្មែរ (Khmer)','ລາວ (Lao)','မြန်မာ (Burmese)','සිංහල (Sinhala)','नेपाली (Nepali)','Kiswahili (Swahili)','isiZulu (Zulu)','Afrikaans','አማርኛ (Amharic)','Yorùbá (Yoruba)','Hausa','Igbo','Soomaali (Somali)','Kurdî (Kurdish)','Azərbaycan (Azerbaijani)','Қазақ (Kazakh)','O‘zbek (Uzbek)','ქართული (Georgian)','Հայերեն (Armenian)','Монгол (Mongolian)'];
 
 // Render the two entry buttons (called when the warn modal opens).
 function vetHelpButtons(){
@@ -1817,14 +1873,46 @@ function vmStart(mode){
 function vmRenderLang(){
   var el=document.getElementById('vetHelp');
   var title=VM.mode==='email'?'Email to the vet':'Phone script';
-  var opts=VM_LANGS.map(function(l){ return '<option value="'+esc(l)+'"'+(l===VM.lang?' selected':'')+'>'+esc(l)+'</option>'; }).join('');
   el.innerHTML='<div class="vm-panel"><div style="font-size:.9rem;font-weight:500;color:var(--text)">'+title+'</div>'
     +'<div style="font-size:.8rem;color:var(--secondary);margin-top:3px;margin-bottom:10px">Which language should it be written in?</div>'
-    +'<select class="vm-langsel" onchange="vmSetLang(this.value)">'+opts+'</select>'
-    +'<div class="vm-btnrow" style="margin-top:14px"><button class="vm-primary" onclick="vmGenerate()">Write it</button></div>'
+    +'<div class="vm-langpick">'
+      +'<input id="vmLangSearch" class="vm-langsearch" type="text" placeholder="Search language..." oninput="vmFilterLangs(this.value)" autocomplete="off">'
+      +'<div class="vm-langlist" id="vmLangList"></div>'
+    +'</div>'
+    +'<div class="vm-btnrow" style="margin-top:14px"><button class="vm-primary" onclick="vmConfirmLang()">Write it</button></div>'
     +'<button class="vm-back" onclick="vetHelpButtons()">\u2190 Back</button></div>';
+  vmFilterLangs('');
+}
+function vmFilterLangs(q){
+  var list=document.getElementById('vmLangList'); if(!list) return;
+  q=(q||'').trim().toLowerCase();
+  var matches=VM_LANGS.filter(function(l){ return !q || l.toLowerCase().indexOf(q)>-1; });
+  if(!matches.length){ list.innerHTML='<div class="vm-langempty">No match. Type any language and we\u2019ll use it.</div>'; return; }
+  list.innerHTML=matches.map(function(l){
+    return '<button class="vm-langitem'+(l===VM.lang?' on':'')+'" onclick="vmPickLang(\''+l.replace(/'/g,"\\'")+'\')">'+esc(l)
+      +(l===VM.lang?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15"><path d="M5 12l5 5L20 7"/></svg>':'')+'</button>';
+  }).join('');
+}
+function vmPickLang(l){
+  // If the user typed a language we don't list, honour their free text instead.
+  var typed=document.getElementById('vmLangSearch');
+  VM.lang=l||(typed?typed.value.trim():'English')||'English';
+  vmFilterLangs(typed?typed.value:'');
 }
 function vmSetLang(l){ VM.lang=l; }
+// When they press "Write it": if they typed an exact language not in the list, use that;
+// otherwise use whatever they picked (defaulting to English).
+function vmConfirmLang(){
+  var typed=document.getElementById('vmLangSearch');
+  var t=typed?typed.value.trim():'';
+  if(t){
+    // exact list match wins; otherwise honour the typed text as the language
+    var exact=VM_LANGS.find(function(l){ return l.toLowerCase()===t.toLowerCase(); });
+    VM.lang = exact || t;
+  }
+  if(!VM.lang) VM.lang='English';
+  vmGenerate();
+}
 
 // Step 2: call the AI. May return needInfo (ask questions) or a draft.
 function vmGenerate(){
@@ -2026,8 +2114,21 @@ async function doLogin(){
       return;
     }
     state.userEmail=email;
+    // Capture the fresh questionnaire the user may have just filled in (before login),
+    // because loadStateForUser is about to overwrite state with their saved account.
+    var pendingNewPet = (state.answers && state.answers.petName && !state.purchased)
+      ? { answers: JSON.parse(JSON.stringify(state.answers)),
+          aiPlan: state.aiPlan ? JSON.parse(JSON.stringify(state.aiPlan)) : null,
+          previewDay1: state.previewDay1 || null } : null;
     const had=await loadStateForUser(email);
     btn.disabled=false; btn.textContent='Log in';
+    // If they arrived with a NEW pet they just filled out, AND this account already has a
+    // purchased plan, don't silently discard or merge - ask what they want to do.
+    if(pendingNewPet && state.purchased && state.answers && state.answers.petName){
+      window.__pendingNewPet=pendingNewPet;
+      showExistingAccountChoice(pendingNewPet.answers.petName||'this pet');
+      return;
+    }
     // New routing rules:
     // - has a purchased plan -> straight into their app/profile.
     // - anything else (no purchase) -> a fresh questionnaire. We never drop a login-only
@@ -2035,6 +2136,62 @@ async function doLogin(){
     if(state.purchased && state.answers && state.answers.petName){ enterApp(); }
     else { startFreshState(); startFreshAssessment(); }
   }catch(e){ err.textContent='Something went wrong - please try again.'; btn.disabled=false; btn.textContent='Log in'; }
+}
+// When a returning user logs into an account that already has a plan, but they just
+// filled in a NEW pet's questionnaire, let them choose what to do with it.
+function showExistingAccountChoice(petName){
+  showScreen('screen-app');   // ensure the app shell is present behind the sheet
+  try{ enterApp(); }catch(e){}
+  openSheet(
+    '<div class="d-eb" style="color:var(--sage)">Welcome back</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-.02em;margin:6px 0 8px">This account already has a plan</h2>'
+    +'<p style="font-size:.9rem;color:var(--secondary);line-height:1.55;margin-bottom:18px">You just set up <b>'+esc(petName)+'</b>. What would you like to do?</p>'
+    +'<button class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="chooseAddPetToAccount()">Add '+esc(petName)+' to my account</button>'
+    +'<button class="btn" style="width:100%;background:rgba(107,143,113,.12);color:var(--forest);border:none" onclick="chooseNewAccountInstead()">Use a different account instead</button>'
+    +'<p style="font-size:.76rem;color:var(--secondary);line-height:1.5;margin-top:14px;text-align:center">Adding a new pet needs its own plan. You can pay for it on the next screen.</p>'
+  );
+}
+// Option A: keep the new pet, add it to the existing (paid) account as an extra pet.
+// A new pet needs its own plan credit, so we take them to the offer for that pet.
+function chooseAddPetToAccount(){
+  closeSheet();
+  var np=window.__pendingNewPet; if(!np){ enterApp(); return; }
+  // If they still have an unused plan credit, spend it; otherwise send them to the offer.
+  var hasCredit = (state.planCredits||0) > 0;
+  // add the new pet as a fresh slot alongside the existing one(s)
+  if(!Array.isArray(state.pets)) state.pets=[];
+  syncActivePet();
+  state.__newPetIndex=state.pets.length; state.pets.push(null); state.activePet=state.pets.length-1;
+  // load the questionnaire they just did
+  state.answers=np.answers; state.aiPlan=np.aiPlan; state.previewDay1=np.previewDay1;
+  state.currentDay=1; state.viewDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
+  state.lastCheckinDate=null; state.planComplete=false; state.planStartDate=null;
+  state.__planSig=null; state.__previewSig=null;
+  window.__pendingNewPet=null;
+  if(hasCredit){
+    state.planCredits=(state.planCredits||1)-1;
+    if(!state.aiPlan){ runGenerating(function(){ enterApp(); persistStateNow(); }); }
+    else { enterApp(); persistStateNow(); }
+  } else {
+    // needs payment for this additional pet
+    state.__buyAnotherPet=true;
+    buildOffer(); showScreen('screen-offer');
+  }
+}
+// Option B: they didn't mean to use this account - sign out and start a new registration
+// carrying the new pet's questionnaire forward.
+function chooseNewAccountInstead(){
+  closeSheet();
+  var np=window.__pendingNewPet; window.__pendingNewPet=null;
+  try{ if(supa) supa.auth.signOut(); }catch(e){}
+  // keep the fresh questionnaire, drop the account identity
+  var keepAnswers = np ? np.answers : (state.answers||{});
+  var keepPlan = np ? np.aiPlan : state.aiPlan;
+  var keepPreview = np ? np.previewDay1 : state.previewDay1;
+  startFreshState();
+  state.answers=keepAnswers; state.aiPlan=keepPlan; state.previewDay1=keepPreview;
+  // send them to the offer/registration path for a brand-new account
+  buildOffer(); showScreen('screen-offer');
 }
 function prefillAndRegister(){
   var email=($('logEmail').value||'').trim().toLowerCase();
@@ -2495,21 +2652,32 @@ function runGenerating(next){
 }
 
 // ═══════ PAID RETURN ═══════
-function testMode(){
-  if(LIVE) return false;   // production: no payment bypass, ever
-  try{ return sessionStorage.getItem('nuci_test')==='1'; }catch(e){ return false; }
-}
 function completePayment(){
   const pkg=selectedPackage||PACKAGES[0];
-  // Test mode: unlock exactly as a real purchase would, without touching Stripe.
-  if(testMode()){
-    state.planCredits=(state.planCredits||0)+pkg.credits;
-    state.packageId=pkg.id; state.pricePaid=currentPrice();
-    toast('Test mode - payment skipped');
-    handlePaidReturn(true);
-    return;
-  }
   if(DEMO){ state.planCredits=(state.planCredits||0)+pkg.credits; state.packageId=pkg.id; state.pricePaid=currentPrice(); handlePaidReturn(true); return; }
+  // Before sending to Stripe, the buyer must confirm their region so we use the correct
+  // payment account/link. Geo-detection is only a fallback pre-selection.
+  if(!userCountryChoice){ showCountryChoice(pkg); return; }
+  proceedToPayment(pkg);
+}
+// Region chooser - required step before checkout.
+function showCountryChoice(pkg){
+  var guess=isSlovenia();
+  openSheet(
+    '<div class="d-eb" style="color:var(--sage)">One quick thing</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-.02em;margin:6px 0 8px">Where are you buying from?</h2>'
+    +'<p style="font-size:.9rem;color:var(--secondary);line-height:1.55;margin-bottom:18px">This makes sure you are charged correctly in the right region.</p>'
+    +'<button class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="chooseCountry(\'si\')">I\u2019m in Slovenia</button>'
+    +'<button class="btn" style="width:100%;background:rgba(107,143,113,.12);color:var(--forest);border:none" onclick="chooseCountry(\'intl\')">I\u2019m somewhere else</button>'
+    +(guess?'<p style="font-size:.76rem;color:var(--secondary);text-align:center;margin-top:12px">We think you\u2019re in Slovenia - please confirm.</p>':'')
+  );
+}
+function chooseCountry(c){
+  userCountryChoice = (c==='si') ? 'si' : 'intl';
+  closeSheet();
+  proceedToPayment(selectedPackage||PACKAGES[0]);
+}
+function proceedToPayment(pkg){
   try{
     localStorage.setItem('pendingState',JSON.stringify({
       answers:state.answers, planLength:state.planLength, currentDay:state.currentDay,
@@ -2520,16 +2688,7 @@ function completePayment(){
   }catch(e){}
   var payLink=pkgLink(pkg);
   if(payLink){ window.location.href=payLink; return; }
-  // no link configured (e.g. 5-pack) -> complete locally so the flow isn't blocked
-  handlePaidReturn(true);
-}
-// ⚠ TEST ONLY - remove before real launch. Grants one credit and enters the app
-// without payment, so you can verify the AI plan generates. Works even when LIVE=true.
-function testSkipPayment(){
-  var pkg=selectedPackage||PACKAGES[0];
-  state.planCredits=(state.planCredits||0)+ (pkg.credits||1);
-  state.packageId=pkg.id||'single';
-  state.pricePaid=0;
+  // no link configured -> complete locally so the flow isn't blocked
   handlePaidReturn(true);
 }
 function handlePaidReturn(demo){
@@ -4254,11 +4413,6 @@ async function adaptNextDay(nextDay){
     })();
     return;
   }
-  // ?test=1 -> skip real Stripe payment (everything else behaves normally)
-  try{
-    if(params.get('test')==='1'){ sessionStorage.setItem('nuci_test','1'); }
-    if(params.get('test')==='0'){ sessionStorage.removeItem('nuci_test'); }
-  }catch(e){}
   try{ var _ref=params.get('ref'); if(_ref){ localStorage.setItem('nuci_ref', _ref.slice(0,40)); } }catch(e){}
   const route=async()=>{
     if(isPaid){
@@ -4355,16 +4509,6 @@ async function adaptNextDay(nextDay){
 // keep the text-question Next bar ~16px above the on-screen keyboard
 (function(){
   function upd(){}  // Next is positioned purely by CSS (top:48%) for reliability across browsers
-})();
-</script>
-<div id="testBadge" style="display:none;position:fixed;top:calc(env(safe-area-inset-top) + 6px);left:50%;transform:translateX(-50%);z-index:9999;background:#B4553F;color:#fff;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;padding:4px 12px;border-radius:99px;font-family:'Inter',sans-serif;pointer-events:none">Test mode - no payment</div>
-<script>
-(function(){
-  try{
-    if(sessionStorage.getItem('nuci_test')==='1'){
-      var b=document.getElementById('testBadge'); if(b) b.style.display='block';
-    }
-  }catch(e){}
 })();
 </script>
 </body>
