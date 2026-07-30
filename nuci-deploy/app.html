@@ -779,9 +779,9 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <div id="tgIntro">
       <div class="tg-eb">A little game</div>
       <h2>Fancy <span style="font-family:inherit;font-style:normal">50% off?</span></h2>
-      <div class="tg-sub">Tap the button <b>50 times in 3 seconds</b>. Beat it and half price unlocks on every plan - instantly.</div>
+      <div class="tg-sub">Tap the button <b>50 times in 3 seconds</b>. You get <b>2 tries</b> - win and half price unlocks on every plan!</div>
       <div class="tg-btns">
-        <button class="tg-btn" onclick="tgStart()">Let's go</button>
+        <button class="tg-btn" onclick="tgStart()">Let's play</button>
         <button class="tg-btn ghost" onclick="tgSkip()">No thanks</button>
       </div>
     </div>
@@ -793,6 +793,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
       <div style="margin-top:26px"><div class="tg-target" id="tgTarget" onclick="tgTap()"></div></div>
     </div>
     <div id="tgDone" style="display:none">
+      <div id="tgDoneIc"></div>
       <div class="tg-result" id="tgResult"></div>
       <div class="tg-sub" id="tgDoneSub" style="margin-bottom:22px"></div>
       <div class="tg-btns"><button class="tg-btn" id="tgDoneBtn" onclick="tgClose()">Continue</button></div>
@@ -1289,6 +1290,88 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;',
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function yesterdayKey(){ const d=new Date(Date.now()-86400000); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// ── Date-driven plan progression (all in the USER'S local time) ──
+// A plan day is tied to a calendar date, not to whether the user checked in. The plan
+// starts on planStartDate (Day 1) and advances one day per calendar day after that.
+function dateKeyToNum(k){ if(!k) return null; var p=k.split('-'); return Date.UTC(+p[0], (+p[1])-1, +p[2]); }
+function daysBetween(a,b){ var na=dateKeyToNum(a), nb=dateKeyToNum(b); if(na==null||nb==null) return 0; return Math.round((nb-na)/86400000); }
+// Which plan day should be active today, purely from the calendar. 1-based, capped at planLength.
+function computedDay(){
+  if(!state.planStartDate) return state.currentDay||1;
+  var elapsed=daysBetween(state.planStartDate, todayKey());   // 0 on the start date
+  var d=elapsed+1;
+  if(d<1) d=1;
+  var L=state.planLength||7;
+  if(d>L) d=L;
+  return d;
+}
+// The correct Day-1 date given the purchase time: same day if bought before 15:00 local,
+// otherwise the next day.
+function planStartFromPurchase(){
+  var now=new Date();
+  var base=now;
+  if(now.getHours()>=15){ base=new Date(Date.now()+86400000); }  // after 15:00 -> starts tomorrow
+  return base.getFullYear()+'-'+String(base.getMonth()+1).padStart(2,'0')+'-'+String(base.getDate()).padStart(2,'0');
+}
+// Check-in window: strictly 20:00-22:59 local time, and only on the active day's date.
+function checkinWindowState(){
+  // returns 'before' | 'open' | 'after'
+  var h=new Date().getHours();
+  if(h<20) return 'before';
+  if(h<23) return 'open';
+  return 'after';
+}
+// Has the plan not yet started (bought after 15:00, starts tomorrow)?
+function planNotStartedYet(){
+  if(!state.planStartDate) return false;
+  return daysBetween(todayKey(), state.planStartDate) > 0;   // start date is in the future
+}
+// Detect days that passed with no check-in (for the "pet isn't happy" nudge).
+function missedCheckinDays(){
+  // Any active-day date strictly before today where no check-in was recorded.
+  if(!state.planStartDate) return 0;
+  var today=computedDay();
+  var missed=0;
+  for(var d=1; d<today; d++){
+    var did=(state.checkins||[]).some(function(c){ return c.day===d; });
+    if(!did) missed++;
+  }
+  return missed;
+}
+// Advance the plan to the date-appropriate day, adapt any newly-entered days, and, if the
+// user skipped one or more days, remember that so we can show the gentle nudge once.
+function syncPlanDay(){
+  if(!state.purchased || state.planComplete) return;
+  if(planNotStartedYet()){ return; }   // bought after 15:00 - starts tomorrow
+  var target=computedDay();
+  var prev=state.currentDay||1;
+  if(target>prev){
+    // Days advanced while they were away. Note any missed check-ins for the nudge.
+    var missed=0;
+    for(var dd=prev; dd<target; dd++){
+      var did=(state.checkins||[]).some(function(c){ return c.day===dd; });
+      if(!did) missed++;
+    }
+    state.currentDay=target;
+    // make sure the newly active days have plan content
+    try{ for(var d2=prev+1; d2<=target; d2++){ if(!state.planOverrides[d2] && state.aiPlan && state.aiPlan.days && state.aiPlan.days[d2-1]){ var ad=state.aiPlan.days[d2-1]; state.planOverrides[d2]={title:ad.title,sub:ad.sub,desc:ad.desc,tasks:ad.tasks}; } } }catch(e){}
+    if(missed>0){ state.__pendingMissed=(state.__pendingMissed||0)+missed; }
+    persistStateNow();
+  }
+}
+// A gentle, non-shaming nudge when the user skipped day(s) without checking in.
+function showMissedNudge(n){
+  var pet=state.answers.petName||'Your pet';
+  var t=state.answers.petType||'other';
+  openSheet('<div style="text-align:center;padding:6px 0 2px">'
+    +'<div style="width:64px;height:64px;margin:0 auto 14px;opacity:.9">'+petSvg(t,'64px')+'</div>'
+    +'<h2 style="font-size:1.35rem;letter-spacing:-.02em;margin:0 0 8px">'+esc(pet)+' missed you</h2>'
+    +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.55;max-width:32ch;margin:0 auto 18px">'
+    +'You skipped '+(n===1?'a day':n+' days')+' without a check-in. That\u2019s okay - what matters is getting back to it. '
+    +'The best results come from a steady evening check-in each day.</p>'
+    +'<button class="btn btn-primary" style="width:100%" onclick="closeSheet()">Back on track</button></div>');
+  haptic(14);
+}
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const el=$(id); if(el) el.classList.add('active');
@@ -1394,6 +1477,11 @@ const INTRO=[
 ];
 let introIdx=0;
 function welcomeNew(){ introIdx=0; renderIntro(); showScreen('screen-intro'); }
+// Entry from "Get started": show the tap game first (once), then the carousel. If the game
+// shouldn't show (already played, discount already unlocked), go straight to the carousel.
+function startFlow(){
+  if(!showGameThenStart()){ welcomeNew(); }
+}
 function renderIntro(){
   const c=INTRO[introIdx];
   const card=$('introCard'); card.classList.remove('intro-anim'); void card.offsetWidth; card.classList.add('intro-anim');
@@ -2156,25 +2244,27 @@ function showExistingAccountChoice(petName){
 function chooseAddPetToAccount(){
   closeSheet();
   var np=window.__pendingNewPet; if(!np){ enterApp(); return; }
-  // If they still have an unused plan credit, spend it; otherwise send them to the offer.
   var hasCredit = (state.planCredits||0) > 0;
-  // add the new pet as a fresh slot alongside the existing one(s)
-  if(!Array.isArray(state.pets)) state.pets=[];
-  syncActivePet();
-  state.__newPetIndex=state.pets.length; state.pets.push(null); state.activePet=state.pets.length-1;
-  // load the questionnaire they just did
-  state.answers=np.answers; state.aiPlan=np.aiPlan; state.previewDay1=np.previewDay1;
-  state.currentDay=1; state.viewDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
-  state.lastCheckinDate=null; state.planComplete=false; state.planStartDate=null;
-  state.__planSig=null; state.__previewSig=null;
-  window.__pendingNewPet=null;
   if(hasCredit){
+    // Spend a credit and commit the new pet right away.
+    if(!Array.isArray(state.pets)) state.pets=[];
+    syncActivePet();
+    state.pets.push(null); state.activePet=state.pets.length-1;
+    state.answers=np.answers; state.aiPlan=np.aiPlan; state.previewDay1=np.previewDay1;
+    state.currentDay=1; state.viewDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
+    state.lastCheckinDate=null; state.planComplete=false; state.planStartDate=null;
+    state.__planSig=null; state.__previewSig=null;
+    window.__pendingNewPet=null;
     state.planCredits=(state.planCredits||1)-1;
     if(!state.aiPlan){ runGenerating(function(){ enterApp(); persistStateNow(); }); }
-    else { enterApp(); persistStateNow(); }
+    else { generatePlanAI().then(function(){ enterApp(); persistStateNow(); }); }
   } else {
-    // needs payment for this additional pet
+    // Needs payment. Do NOT touch state.pets/answers yet - if they back out of the offer,
+    // nothing should have changed. We keep the new pet parked in __pendingNewPet and only
+    // commit it after a successful payment (see handlePaidReturn / buildOffer add-pet path).
     state.__buyAnotherPet=true;
+    state.__addPetPending=np;          // remember what to add once paid
+    window.__pendingNewPet=null;
     buildOffer(); showScreen('screen-offer');
   }
 }
@@ -2251,6 +2341,15 @@ function dayData(n){
   return ov?{title:ov.title||base.title,sub:ov.sub||base.sub,desc:ov.desc||base.desc,tasks:(ov.tasks&&ov.tasks.length?ov.tasks:base.tasks)}:base;
 }
 function offerBack(){
+  // Backing out of the "add another pet" offer must NOT grant a plan. Clear the pending
+  // pet and return to the existing (already-paid) pet's app - nothing was charged, nothing
+  // is added.
+  if(state.__buyAnotherPet || state.__addPetPending){
+    state.__buyAnotherPet=false; state.__addPetPending=null;
+    // restore the active pet's own data (the offer flow may have loaded the new answers)
+    try{ if(Array.isArray(state.pets) && state.pets[state.activePet]) loadPet(state.pets[state.activePet]); }catch(e){}
+    enterApp(); return;
+  }
   if(state.purchased){ enterApp(); return; }
   // Back from the plan/pricing screen returns to the registration details, so a
   // mistyped email or name can be corrected before paying.
@@ -2433,24 +2532,38 @@ function dayOnePreviewHtml(d, pet){
 }
 // ═══════ TAP-CHALLENGE DISCOUNT GAME ═══════
 var TG_GOAL=50, TG_SECONDS=3;
-var tgState={count:0,running:false,endAt:0,raf:0,tick:0};
+var TG_MAX_ATTEMPTS=2;
+var tgState={count:0,running:false,endAt:0,raf:0,tick:0,attempt:0};
 function tgSeen(){ try{ return localStorage.getItem('nuci_tapgame')==='1'; }catch(e){ return true; } }
 function tgMarkSeen(){ try{ localStorage.setItem('nuci_tapgame','1'); }catch(e){} }
-// Show the game once, when the user first lands on the offer screen (and hasn't bought).
+// Show the game at the very start (right after "Get started"), before the carousel.
+// Returns true if the game was shown, false if it should be skipped (already seen / has
+// discount / already purchased) so the caller can go straight to the carousel.
+function showGameThenStart(){
+  if(tgSeen() || discountActive() || state.purchased) return false;
+  var el=document.getElementById('tapGame'); if(!el) return false;
+  tgState.attempt=0;
+  document.getElementById('tgIntro').style.display='';
+  document.getElementById('tgPlay').style.display='none';
+  document.getElementById('tgDone').style.display='none';
+  var t=(state.answers&&state.answers.petType)||'other';
+  var tgt=document.getElementById('tgTarget'); if(tgt) tgt.innerHTML=petSvg(t,'96px');
+  el.classList.add('open');
+  return true;
+}
 function maybeShowTapGame(){
   if(tgSeen() || discountActive()) return;
   if(state.purchased) return;
   var el=document.getElementById('tapGame'); if(!el) return;
-  // reset to intro
+  tgState.attempt=0;
   document.getElementById('tgIntro').style.display='';
   document.getElementById('tgPlay').style.display='none';
   document.getElementById('tgDone').style.display='none';
-  // put the user's pet in the target
   var t=(state.answers&&state.answers.petType)||'other';
   var tgt=document.getElementById('tgTarget'); if(tgt) tgt.innerHTML=petSvg(t,'96px');
   el.classList.add('open');
 }
-function tgSkip(){ tgMarkSeen(); document.getElementById('tapGame').classList.remove('open'); }
+function tgSkip(){ tgMarkSeen(); document.getElementById('tapGame').classList.remove('open'); tgAfterGame(); }
 // Tiny sound engine (Web Audio). First unlocked by a user gesture (the "Let's go" tap),
 // so it also works on iOS. Silently no-ops if audio is unavailable.
 var tgAudio=null;
@@ -2469,6 +2582,7 @@ function tgBeep(freq,dur,vol){
   }catch(e){}
 }
 function tgStart(){
+  tgState.attempt++;
   document.getElementById('tgIntro').style.display='none';
   document.getElementById('tgPlay').style.display='';
   // reset the play view, but don't start counting yet - run a 3-2-1-GO countdown first
@@ -2526,29 +2640,65 @@ function tgFinish(){
   tgState.running=false; cancelAnimationFrame(tgState.raf);
   var tgt=document.getElementById('tgTarget'); if(tgt) tgt.classList.remove('pulse');
   var won=tgState.count>=TG_GOAL;
+
+  if(won){
+    // WIN - unlock discount, big celebration.
+    tgMarkSeen();
+    try{ localStorage.setItem('nuci_discount','1'); }catch(e){}
+    document.getElementById('tgPlay').style.display='none';
+    document.getElementById('tgDone').style.display='';
+    try{ launchConfetti(); haptic(24); }catch(e){}
+    tgBeep(523,0.12,0.14); setTimeout(function(){tgBeep(659,0.12,0.14);},110);
+    setTimeout(function(){tgBeep(784,0.12,0.14);},220); setTimeout(function(){tgBeep(1047,0.24,0.14);},330);
+    document.getElementById('tgDoneIc').innerHTML='';
+    document.getElementById('tgResult').textContent='You won! 50% off unlocked \ud83c\udf89';
+    document.getElementById('tgDoneSub').textContent='Amazing tapping! Start with a few quick questions and claim your half-price plan at the end.';
+    document.getElementById('tgDoneBtn').textContent='Start with questions';
+    return;
+  }
+
+  // NOT reached the goal.
+  if(tgState.attempt < TG_MAX_ATTEMPTS){
+    // First miss -> sad face + one more try (keep it playful, not discouraging).
+    try{ haptic(10); }catch(e){}
+    tgBeep(392,0.16,0.10); setTimeout(function(){tgBeep(294,0.26,0.10);},150);
+    document.getElementById('tgPlay').style.display='none';
+    document.getElementById('tgDone').style.display='';
+    document.getElementById('tgDoneIc').innerHTML='<div style="font-size:3.2rem;line-height:1;margin-bottom:6px">\ud83d\ude22</div>';
+    document.getElementById('tgResult').textContent='So close - '+tgState.count+' taps';
+    document.getElementById('tgDoneSub').textContent="Don't worry - I'll give you one more try!";
+    document.getElementById('tgDoneBtn').textContent='Try again';
+    return;
+  }
+
+  // Second miss -> still framed positively. No discount, but they don't feel it.
   tgMarkSeen();
   document.getElementById('tgPlay').style.display='none';
   document.getElementById('tgDone').style.display='';
-  if(won){
-    try{ localStorage.setItem('nuci_discount','1'); }catch(e){}
-    try{ launchConfetti(); haptic(20); }catch(e){}
-    // happy rising arpeggio
-    tgBeep(523,0.12,0.14); setTimeout(function(){tgBeep(659,0.12,0.14);},110);
-    setTimeout(function(){tgBeep(784,0.12,0.14);},220); setTimeout(function(){tgBeep(1047,0.22,0.14);},330);
-    document.getElementById('tgResult').textContent='You did it! 50% off unlocked.';
-    document.getElementById('tgDoneSub').textContent='Every plan is now half price. The new prices are waiting for you.';
-    document.getElementById('tgDoneBtn').textContent='See my discount';
-  }else{
-    tgBeep(392,0.18,0.12); setTimeout(function(){tgBeep(294,0.28,0.12);},160);  // gentle "aw" fall
-    document.getElementById('tgResult').textContent='So close - '+tgState.count+' taps.';
-    document.getElementById('tgDoneSub').textContent='You needed '+TG_GOAL+' in '+TG_SECONDS+' seconds. The plans are still a great deal though.';
-    document.getElementById('tgDoneBtn').textContent='Continue';
-  }
+  try{ haptic(12); }catch(e){}
+  tgBeep(440,0.14,0.10); setTimeout(function(){tgBeep(554,0.18,0.10);},130);
+  var t=(state.answers&&state.answers.petType)||'other';
+  document.getElementById('tgDoneIc').innerHTML='<div style="width:76px;height:76px;margin:0 auto 8px">'+petSvg(t,'76px')+'</div>';
+  document.getElementById('tgResult').textContent='Good effort!';
+  document.getElementById('tgDoneSub').textContent="Don't be sad - you still get a great price. Claim it at the end!";
+  document.getElementById('tgDoneBtn').textContent='Start with questions';
 }
 function tgClose(){
+  var btnLabel=document.getElementById('tgDoneBtn').textContent;
+  // "Try again" -> immediately run another attempt (no intro screen).
+  if(btnLabel==='Try again'){
+    document.getElementById('tgDone').style.display='none';
+    document.getElementById('tgPlay').style.display='';
+    tgStart();
+    return;
+  }
+  // Otherwise finish the game and move on to the questionnaire flow.
   document.getElementById('tapGame').classList.remove('open');
-  // re-render prices so a win is reflected immediately
-  try{ renderPkgs(); }catch(e){}
+  tgAfterGame();
+}
+// Where the game hands off to once it's done (win, lose, or skip): the intro carousel.
+function tgAfterGame(){
+  if(typeof welcomeNew==='function'){ welcomeNew(); }
 }
 function buildOffer(){
   const pet=state.answers.petName||'your pet';
@@ -2564,7 +2714,6 @@ function buildOffer(){
   }
   renderPkgs();
   renderDayOnePreview();
-  setTimeout(maybeShowTapGame, 450);   // let the offer paint, then surface the game once
   requestAnimationFrame(()=>{
     const th=$('offerTop').offsetHeight;
     const sc=$('offerScroll');
@@ -2582,6 +2731,19 @@ async function generatePlanAI(){
   var sig = answersSignature();
   if(state.aiPlan && state.aiPlan.days && state.aiPlan.days.length>=(state.planLength||7)
      && state.__planSig === sig){
+    // Plan already generated (e.g. during the pre-purchase preview). Make sure the day
+    // overrides that actually render the plan are populated from it - otherwise the app
+    // falls back to the generic template even though a real AI plan exists.
+    if(!state.planOverrides) state.planOverrides={};
+    var needRebuild=false;
+    for(var i=0;i<state.aiPlan.days.length;i++){ if(!state.planOverrides[i+1]){ needRebuild=true; break; } }
+    if(needRebuild){
+      state.aiPlan.days.forEach(function(d,i){ state.planOverrides[i+1]={title:d.title,sub:d.sub,desc:d.desc,tasks:d.tasks}; });
+    }
+    // also restore the AI narrative fields if they were dropped
+    if(!state.aiBehaviorExplain && state.aiPlan.behaviorExplain) state.aiBehaviorExplain=state.aiPlan.behaviorExplain;
+    if(!state.aiCauses && state.aiPlan.causes) state.aiCauses=state.aiPlan.causes;
+    if(!state.aiWhatNotToDo && state.aiPlan.whatNotToDo) state.aiWhatNotToDo=state.aiPlan.whatNotToDo;
     return;
   }
   try{
@@ -2693,6 +2855,18 @@ function proceedToPayment(pkg){
 }
 function handlePaidReturn(demo){
   window.__handlingPaidReturn=true;
+  // If this payment was for an ADDITIONAL pet on an existing account, commit that pet now
+  // (it was parked until payment succeeded, so backing out earlier granted nothing).
+  if(state.__addPetPending){
+    var ap=state.__addPetPending; state.__addPetPending=null; state.__buyAnotherPet=false;
+    if(!Array.isArray(state.pets)) state.pets=[];
+    try{ syncActivePet(); }catch(e){}
+    state.pets.push(null); state.activePet=state.pets.length-1;
+    state.answers=ap.answers; state.aiPlan=ap.aiPlan||null; state.previewDay1=ap.previewDay1||null;
+    state.currentDay=1; state.viewDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
+    state.lastCheckinDate=null; state.planComplete=false; state.planStartDate=null;
+    state.__planSig=null; state.__previewSig=null;
+  }
   let p=null;
   try{ const raw=localStorage.getItem('pendingState'); if(raw) p=JSON.parse(raw); }catch(e){}
   try{ localStorage.removeItem('pendingState'); }catch(e){}
@@ -2707,7 +2881,8 @@ function handlePaidReturn(demo){
       __planSig:p.__planSig||null});
   }
   state.paid=true; state.purchased=true;
-  if(!state.planStartDate) state.planStartDate=todayKey();
+  if(!state.planStartDate) state.planStartDate=planStartFromPurchase();
+  state.currentDay=computedDay();
   if(!Array.isArray(state.transactions)) state.transactions=[];
   state.transactions.push({date:new Date().toISOString(),packageId:state.packageId||'single',price:state.pricePaid!=null?state.pricePaid:9.95,credits:state.planCredits||1});
   try{ if(supa&&state.userEmail) supa.from('profiles').update({purchased:true}).eq('email',state.userEmail.toLowerCase()); }catch(e){}
@@ -2785,6 +2960,13 @@ function toggleRitual(headEl,part){
   __openRituals[part]=willOpen;
 }
 function toggleTask(day,idx,ev){
+  // A day whose date has passed is read-only: you can look back at it, but you can't tick
+  // it off after the fact. Only the current active day can be completed.
+  if(state.purchased && day < (state.currentDay||1)){
+    toast('That day has passed - you can view it, but not change it');
+    if(ev&&ev.currentTarget){ ev.currentTarget.classList.toggle('done', getTasksDone(day).indexOf(idx)>-1); }
+    return;
+  }
   const arr=getTasksDone(day); const i=arr.indexOf(idx);
   const nowDone=(i<0);
   if(i>-1) arr.splice(i,1); else arr.push(idx);
@@ -3123,6 +3305,10 @@ function petBuddy(){
 }
 function renderToday(){
   if(state.maintenance){ renderMaintenanceToday(); return; }
+  // Advance the plan by the calendar (user's local date), independent of check-ins.
+  syncPlanDay();
+  // If days were skipped without a check-in, gently let them know (once).
+  if(state.__pendingMissed>0){ var m=state.__pendingMissed; state.__pendingMissed=0; setTimeout(function(){ showMissedNudge(m); }, 500); }
   var day=state.currentDay||1, d=dayData(day), done=getTasksDone(day);
   var pet=state.answers.petName||'your pet';
   var pct=Math.round(((day-1)+(done.length/Math.max(1,d.tasks.length)))/(state.planLength||7)*100);
@@ -4079,16 +4265,16 @@ async function finishCheckin(){
   state.lastCheckinDate=tk;
   if(ciData.notes){ var arr=getDayNotes(state.currentDay); arr.push({text:ciData.notes,ts:Date.now()}); state.dayNotes[state.currentDay]=arr; }
   closeCheckin();
-  const nextDay=Math.min((state.currentDay||1)+1,state.planLength||7);
   const finished=(state.currentDay||1)>=(state.planLength||7);
   if(!finished){
-    // normal saved sheet + adapt next day
+    // Check-in saved. The day does NOT advance here anymore - the calendar advances it
+    // (tomorrow becomes Day n+1 automatically). We just adapt the upcoming day's plan.
+    var nextDay=Math.min((state.currentDay||1)+1,state.planLength||7);
     openSheet('<div style="text-align:center;padding:8px 0 4px">'+icon('moon','54px',1.6,'var(--sage)')
       +'<h2 style="font-size:1.5rem;letter-spacing:-0.03em;margin:14px 0 8px">Check-in saved</h2>'
       +'<p style="font-size:0.92rem;color:var(--secondary);line-height:1.5;max-width:32ch;margin:0 auto 18px">'
       +'Tomorrow\u2019s plan is being adapted to what you told us. Streak: '+(state.streak||0)+' day'+((state.streak||0)>1?'s':'')+'.'
       +'</p><button class="btn btn-primary" onclick="closeSheet()">Done</button></div>');
-    state.currentDay=nextDay;
     adaptNextDay(nextDay);
     showTab('today');
     persistStateNow(); try{ checkNewBadges(); }catch(e){};
@@ -4437,7 +4623,7 @@ async function adaptNextDay(nextDay){
         return;
       }
       // Explicitly clicked "Begin" -> straight into a fresh questionnaire.
-      if(wantStart){ startFreshState(); welcomeNew(); return; }
+      if(wantStart){ startFreshState(); startFlow(); return; }
       // Explicitly clicked "Log in" but this account has no plan -> send them to the login
       // screen so they can switch account, rather than silently showing the welcome page.
       if(wantLogin){ showScreen('screen-login'); return; }
@@ -4449,7 +4635,7 @@ async function adaptNextDay(nextDay){
 
     // Explicit intent from the landing page takes priority over any restored progress.
     if(wantLogin){ showScreen('screen-login'); return; }
-    if(wantStart){ startFreshState(); welcomeNew(); return; }
+    if(wantStart){ startFreshState(); startFlow(); return; }
 
     // No live session (tab was closed, or arriving cold).
     // Within the SAME tab, sessionStorage holds in-progress questionnaire answers so a

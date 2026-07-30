@@ -65,8 +65,8 @@ exports.handler = async (event) => {
 
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
 
-  let answers = {}, lang = 'en';
-  try { const b = JSON.parse(event.body || '{}'); answers = b.answers || {}; lang = b.lang || 'en'; }
+  let answers = {}, lang = 'en', previewOnly = false;
+  try { const b = JSON.parse(event.body || '{}'); answers = b.answers || {}; lang = b.lang || 'en'; previewOnly = !!b.previewOnly; }
   catch (e) { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Bad JSON' }) }; }
 
   if (!ANTHROPIC_API_KEY) {
@@ -76,7 +76,19 @@ exports.handler = async (event) => {
   }
 
   const pet = answers.petName || 'the pet';
-  const sys = `You are an expert companion-animal behaviourist. Produce a practical, safe, 7-day behaviour plan.
+  // Preview mode: generate ONLY day 1 (plus the short explanation the preview shows). This
+  // is ~7x less text than the full plan, so it returns in a couple of seconds instead of ~10.
+  // The full 7-day plan is generated after payment, on the "generating" screen.
+  const sys = previewOnly ? `You are an expert companion-animal behaviourist. Produce just the FIRST day of a 7-day behaviour plan, as a teaser.
+Return ONLY valid minified JSON (no markdown, no preamble) with EXACTLY these keys:
+{"behaviorExplain":string,"causes":string[],"days":[{"title":string,"sub":string,"desc":string,"tasks":[{"title":string,"detail":string}]}]}
+Rules:
+- "days" MUST contain EXACTLY 1 item (day 1 only). It MUST have 5-6 tasks.
+- Each task is an OBJECT: "title" is a short imperative action (3-7 words), "detail" is one concrete sentence explaining HOW or WHY (12-24 words), specific to this pet and issue.
+- "title" is 1-3 words, "sub" a 2-4 word tag, "desc" one sentence.
+- "behaviorExplain": 1-2 sentences on what is likely going on. "causes": 2-4 likely causes.
+- Be specific to ${pet}. Language: ${lang}.
+- Never use em-dashes or en-dashes (— or –). Use a hyphen (-), comma, or full stop.` : `You are an expert companion-animal behaviourist. Produce a practical, safe, 7-day behaviour plan.
 Return ONLY valid minified JSON (no markdown, no preamble) with EXACTLY these keys:
 {"behaviorExplain":string,"assessment":string,"seekProfessional":boolean,"professionalNote":string,"causes":string[],"whatNotToDo":string[],"days":[{"title":string,"sub":string,"desc":string,"tasks":[{"title":string,"detail":string}]}]}
 Rules:
@@ -94,7 +106,7 @@ Rules:
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 8000, system: sys, messages: [{ role: 'user', content: user }] })
+      body: JSON.stringify({ model: MODEL, max_tokens: previewOnly ? 1500 : 8000, system: sys, messages: [{ role: 'user', content: user }] })
     });
     if (!resp.ok) {
       const t = await resp.text();
