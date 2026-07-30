@@ -6,7 +6,7 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>The Nuci - Every behaviour has a cause</title>
+<title>The Nuci. Every behaviour has a cause</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&display=swap" rel="stylesheet">
@@ -77,7 +77,7 @@ nav .nav-cta{background:var(--forest);color:#fff;border:none;padding:11px 20px;b
 .cause-dot{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:330;color:var(--forest);position:relative;display:inline-block}
 .cause-dot .grow{display:none}
 #greenCurtain{position:fixed;top:0;left:0;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;background:var(--forest);
-  z-index:1;pointer-events:none;transform:scale(0);transform-origin:center;opacity:0}
+  z-index:1;pointer-events:none;transform:scale(0);transform-origin:center;opacity:0;will-change:transform,opacity}
 .hero-sub{color:var(--secondary);margin-top:26px;font-size:1.05rem;line-height:1.6;max-width:34ch}
 .hero-scroll{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:45;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--secondary);display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.7}
 .hero-scroll .line{width:1px;height:34px;background:var(--secondary);animation:scrollLine 2s ease-in-out infinite;transform-origin:top}
@@ -97,8 +97,8 @@ section{position:relative}
 
 /* ---- the 3D-ish rotating cause/effect wheel ---- */
 .wheel-sec{padding:20px 0}
-.wheel-stick{height:min(52svh,340px);display:flex;align-items:center;justify-content:center;overflow:visible}
-.wheel{position:relative;width:min(56vw,260px);aspect-ratio:1;perspective:900px}
+.wheel-stick{height:min(74svh,420px);display:flex;align-items:center;justify-content:center;overflow:visible}
+.wheel{position:relative;width:min(68vw,320px);aspect-ratio:1;perspective:900px}
 .wheel .ring{position:absolute;inset:0;border:1px solid rgba(255,255,255,.14);border-radius:50%}
 .wheel .chip{position:absolute;top:50%;left:50%;background:rgba(107,143,113,.10);border:1px solid var(--border);border-radius:99px;
   padding:8px 16px;font-size:.82rem;white-space:nowrap;
@@ -323,7 +323,7 @@ footer .brand .g{color:var(--sage)}
     <div class="rule"></div>
     <div class="stat"><div class="n" data-count="126">0</div><div class="l">early users are testing The Nuci during our beta.</div></div>
     <div class="rule"></div>
-    <div class="stat"><div class="n">&#8734;</div><div class="l">languages - write or speak however feels natural.</div></div>
+    <div class="stat" id="lastStat"><div class="n">&#8734;</div><div class="l">languages. Write or speak however feels natural.</div></div>
   </div>
   <div class="band-light" id="bandLight" aria-hidden="true">
     <div class="wrap">
@@ -331,7 +331,7 @@ footer .brand .g{color:var(--sage)}
       <div class="rule"></div>
       <div class="stat"><div class="n">126</div><div class="l">early users are testing The Nuci during our beta.</div></div>
       <div class="rule"></div>
-      <div class="stat"><div class="n">&#8734;</div><div class="l">languages - write or speak however feels natural.</div></div>
+      <div class="stat"><div class="n">&#8734;</div><div class="l">languages. Write or speak however feels natural.</div></div>
     </div>
   </div>
 </section>
@@ -354,7 +354,7 @@ footer .brand .g{color:var(--sage)}
           <svg viewBox="0 0 200 150" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="44" y="34" width="112" height="82" rx="12" fill="rgba(107,143,113,0.08)"/><path d="M44 44l56 38 56-38"/><path d="M64 96h40" opacity=".6"/></svg>
         </div>
         <h3 class="icard-h">Nuci <span class="accent">writes it</span></h3>
-        <p class="icard-p">A clear, calm message about your pet is drafted for you - ready to email or read out on the phone.</p>
+        <p class="icard-p">A clear, calm message about your pet is drafted for you, ready to email or read out on the phone.</p>
       </div>
       <div class="icard reveal d2">
         <div class="icard-fig">
@@ -414,7 +414,7 @@ footer .brand .g{color:var(--sage)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M4.5 8h15M4.5 16h15"/></svg>
       </div>
       <h3 class="lang-h">Write or speak in <span class="accent">any language</span></h3>
-      <p class="lang-p">Describe what is happening however feels natural - type it, or tap the mic and simply speak. The Nuci understands every language automatically, in the questions, the plan, and each evening check-in.</p>
+      <p class="lang-p">Describe what is happening however feels natural. Type it, or tap the mic and simply speak. The Nuci understands every language automatically, in the questions, the plan, and each evening check-in.</p>
     </div>
   </div>
 </section>
@@ -439,7 +439,7 @@ footer .brand .g{color:var(--sage)}
     <a href="app.html?legal=terms">Terms</a> ·
     <a href="app.html?legal=refund">No refunds</a> ·
     <a href="app.html?legal=cookies">Cookies</a>
-    <div style="margin-top:14px;opacity:.7">© 2026 The Nuci - All rights reserved</div>
+    <div style="margin-top:14px;opacity:.7">© 2026 The Nuci. All rights reserved</div>
   </div>
 </footer>
 
@@ -526,6 +526,29 @@ function onScroll(){
   if(__scrollRAF) return;
   __scrollRAF=true;
   requestAnimationFrame(onScrollWork);
+  startCurtainLoop();
+}
+// The green circle used to update only on scroll events, which land in bursts - so it
+// visibly stepped/jumped. Instead we run a short continuous rAF loop that repaints it every
+// frame while it's on screen (and near it), giving a smooth 60fps grow/shrink. The loop
+// stops itself once the circle is fully gone and the user has stopped scrolling, so it
+// costs nothing at rest.
+var __curtainLoop=false, __curtainIdle=0;
+function startCurtainLoop(){
+  if(__curtainLoop) return;
+  __curtainLoop=true; __curtainIdle=0;
+  requestAnimationFrame(curtainTick);
+}
+function curtainTick(){
+  greenCurtain();
+  var c=document.getElementById('greenCurtain');
+  var sc=0; if(c){ var m=c.style.transform.match(/scale\(([^)]+)\)/); sc=m?parseFloat(m[1]):0; }
+  // keep running while the circle is doing anything; once it's been idle (invisible) for a
+  // bit, stop until the next scroll.
+  if(sc>0.02){ __curtainIdle=0; }
+  else { __curtainIdle++; }
+  if(__curtainIdle>30){ __curtainLoop=false; return; }   // ~0.5s idle -> stop
+  requestAnimationFrame(curtainTick);
 }
 
 // ---- hero orb parallax + slow rotate ----
@@ -571,15 +594,21 @@ function greenCurtain(){
   // progress:
   //  grow  : from when premise enters bottom (first.top ~ vh) until it reaches ~40% up
   //  hold  : while the green zone occupies the screen
-  //  shrink: as the LAST green zone (stats) leaves the top
+  //  shrink: only once the stats band's BOTTOM has passed the top of the screen, so the
+  //          circle stays full through the whole statistics section and starts disappearing
+  //          after it, not in the middle of the numbers.
   var growP = clamp( (vh - first.top) / (vh*0.55), 0, 1 );          // 0..1 grow
-  var reviewsTop = vh;
-  var rv=document.querySelector('.tsec');
-  if(rv){ reviewsTop = rv.getBoundingClientRect().top; }
+  var band=document.getElementById('bandSec');
+  // Start clearing the green as the stats scroll up - keyed to the TOP of the band so the
+  // circle is fading through the numbers and is fully gone by the last ("languages") line,
+  // rather than lingering behind it.
+  var bandTop = band ? band.getBoundingClientRect().top : vh;       // px from top of viewport
   var isPhone = window.innerWidth < 760;
-  var shrinkStartRef = isPhone ? vh*1.35 : vh*1.6;
-  var shrinkSpan     = isPhone ? vh*0.75 : vh*0.62;
-  var shrinkP = clamp( (shrinkStartRef - reviewsTop) / shrinkSpan, 0, 1 );
+  // When the band's top reaches ~55% up the screen, begin shrinking; finish within ~0.55 screens
+  // so the green is fully cleared by the time the last ("languages") line is centred.
+  var shrinkStartRef = vh*0.55;
+  var shrinkSpan     = isPhone ? vh*0.55 : vh*0.5;
+  var shrinkP = clamp( (shrinkStartRef - bandTop) / shrinkSpan, 0, 1 );
 
   var scale = cover * growP * (1 - shrinkP);   // single smooth product, monotonic
 
