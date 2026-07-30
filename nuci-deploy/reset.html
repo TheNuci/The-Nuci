@@ -11,7 +11,8 @@
     --border:#E5E3DC; --danger:#B4553F; --card:#fff; }
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);
-    min-height:100vh;min-height:100svh;display:flex;align-items:center;justify-content:center;padding:24px;line-height:1.5}
+    min-height:100vh;min-height:100svh;display:flex;align-items:flex-start;justify-content:center;
+    padding:max(24px,8vh) 24px 24px;line-height:1.5}
   .card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:22px;
     padding:34px 28px;box-shadow:0 10px 40px rgba(26,33,28,.06)}
   .brand{font-size:1.25rem;letter-spacing:-.03em;margin-bottom:24px;text-align:center}
@@ -22,6 +23,11 @@
   input{width:100%;padding:14px 15px;border:1px solid var(--border);border-radius:13px;font-family:inherit;
     font-size:1rem;color:var(--text);background:var(--bg);margin-bottom:16px}
   input:focus{outline:none;border-color:var(--sage)}
+  .pw-wrap{position:relative}
+  .pw-wrap input{padding-right:64px}
+  .pw-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);margin-top:-8px;background:none;
+    border:none;color:var(--sage);font-family:inherit;font-size:.82rem;font-weight:500;cursor:pointer;
+    padding:8px 10px;width:auto}
   button{width:100%;padding:14px;border:none;border-radius:13px;background:var(--forest);color:#fff;
     font-family:inherit;font-size:1rem;font-weight:500;cursor:pointer;transition:opacity .15s}
   button:disabled{opacity:.55;cursor:default}
@@ -58,9 +64,14 @@
       <h1>Choose a new password</h1>
       <p class="sub">Enter a new password for your account. You can do this on your phone or computer.</p>
       <label for="pw">New password</label>
-      <input id="pw" type="password" placeholder="At least 8 characters" autocomplete="new-password">
+      <div class="pw-wrap">
+        <input id="pw" type="password" placeholder="At least 8 characters" autocomplete="new-password">
+        <button type="button" class="pw-eye" onclick="togglePw()" aria-label="Show password">Show</button>
+      </div>
       <label for="pw2">Confirm password</label>
-      <input id="pw2" type="password" placeholder="Repeat your new password" autocomplete="new-password">
+      <div class="pw-wrap">
+        <input id="pw2" type="password" placeholder="Repeat your new password" autocomplete="new-password">
+      </div>
       <button id="save" onclick="saveNew()">Update password</button>
       <div class="msg" id="msg"></div>
     </div>
@@ -103,6 +114,14 @@ function show(id){ ['checking','invalid','form','done'].forEach(function(s){ doc
   }, 1400);
 })();
 
+function togglePw(){
+  var pw=document.getElementById('pw'), pw2=document.getElementById('pw2');
+  var btn=document.querySelector('.pw-eye');
+  var show = pw.type==='password';
+  pw.type = show ? 'text' : 'password';
+  pw2.type = show ? 'text' : 'password';
+  if(btn) btn.textContent = show ? 'Hide' : 'Show';
+}
 async function saveNew(){
   var pw=document.getElementById('pw').value;
   var pw2=document.getElementById('pw2').value;
