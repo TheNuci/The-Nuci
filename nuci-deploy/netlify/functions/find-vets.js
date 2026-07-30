@@ -13,6 +13,8 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
+const { rateLimit } = require('./_ratelimit');
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
 
@@ -24,6 +26,10 @@ exports.handler = async (event) => {
   }
 
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
+
+  // Rate limit to protect the Google Places bill.
+  const rl = rateLimit(event, { max: 15, windowMs: 60000 });
+  if (!rl.ok) return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: 'rate_limited' }) };
   if (!KEY) return { statusCode: 200, headers: CORS, body: JSON.stringify({ error: 'not_configured', vets: [] }) };
 
   let lat, lng;

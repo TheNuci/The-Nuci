@@ -76,8 +76,8 @@ function emailHtml(toEmail) {
       titleHtml: 'How was your pet<br>today?',
       bodyHtml: nuciPara("A quick daily check-in keeps your pet's plan on track and your streak alive. It only takes a minute.")
         + nuciPara("Tomorrow's steps adapt to your answer.",10)
-        + nuciBtn("Check in for today","https://thenuci.com/")
-        + nuciBox(`<div style="text-align:center"><div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${NUCI.sec};font-family:Arial,sans-serif">Your check-in window</div><div style="font-family:Georgia,serif;font-size:26px;color:${NUCI.forest};margin-top:4px">20:00 – 23:00</div></div>`),
+        + nuciBtn("Check in for today","https://thenuci.com/?checkin=1")
+        + nuciBox(`<div style="text-align:center"><div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${NUCI.sec};font-family:Arial,sans-serif">Your check-in window</div><div style="font-family:Georgia,serif;font-size:26px;color:${NUCI.forest};margin-top:4px">20:00 - 23:00</div></div>`),
       unsubUrl: toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/'
     });
 }

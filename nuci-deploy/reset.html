@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Reset password · The Nuci</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{ --bg:#FBFBF8; --text:#1A211C; --secondary:#5C6660; --forest:#3E5A47; --sage:#6B8F71;
+    --border:#E5E3DC; --danger:#B4553F; --card:#fff; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);
+    min-height:100vh;min-height:100svh;display:flex;align-items:center;justify-content:center;padding:24px;line-height:1.5}
+  .card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:22px;
+    padding:34px 28px;box-shadow:0 10px 40px rgba(26,33,28,.06)}
+  .brand{font-size:1.25rem;letter-spacing:-.03em;margin-bottom:24px;text-align:center}
+  .brand b{color:var(--sage)}
+  h1{font-size:1.4rem;letter-spacing:-.02em;margin-bottom:8px}
+  p.sub{font-size:.9rem;color:var(--secondary);margin-bottom:22px}
+  label{display:block;font-size:.8rem;color:var(--secondary);margin-bottom:6px}
+  input{width:100%;padding:14px 15px;border:1px solid var(--border);border-radius:13px;font-family:inherit;
+    font-size:1rem;color:var(--text);background:var(--bg);margin-bottom:16px}
+  input:focus{outline:none;border-color:var(--sage)}
+  button{width:100%;padding:14px;border:none;border-radius:13px;background:var(--forest);color:#fff;
+    font-family:inherit;font-size:1rem;font-weight:500;cursor:pointer;transition:opacity .15s}
+  button:disabled{opacity:.55;cursor:default}
+  .msg{font-size:.88rem;margin-top:14px;text-align:center;min-height:20px}
+  .msg.err{color:var(--danger)}
+  .msg.ok{color:var(--forest)}
+  .foot{text-align:center;margin-top:20px;font-size:.85rem}
+  .foot a{color:var(--sage);text-decoration:none}
+  .hidden{display:none}
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);
+    border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand"><span style="color:var(--sage)">The</span> Nuci<b>.</b></div>
+
+    <!-- State: verifying the link -->
+    <div id="checking">
+      <h1>Checking your link…</h1>
+      <p class="sub">One moment while we verify your reset link.</p>
+    </div>
+
+    <!-- State: link invalid / expired -->
+    <div id="invalid" class="hidden">
+      <h1>This link isn't valid</h1>
+      <p class="sub">Password reset links expire after a while and can only be used once. Please request a new one from the app on your phone.</p>
+      <div class="foot"><a href="/">← Back to The Nuci</a></div>
+    </div>
+
+    <!-- State: enter a new password -->
+    <div id="form" class="hidden">
+      <h1>Choose a new password</h1>
+      <p class="sub">Enter a new password for your account. You can do this on your phone or computer.</p>
+      <label for="pw">New password</label>
+      <input id="pw" type="password" placeholder="At least 8 characters" autocomplete="new-password">
+      <label for="pw2">Confirm password</label>
+      <input id="pw2" type="password" placeholder="Repeat your new password" autocomplete="new-password">
+      <button id="save" onclick="saveNew()">Update password</button>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <!-- State: done -->
+    <div id="done" class="hidden">
+      <h1>Password updated</h1>
+      <p class="sub">Your password has been changed. You can now log in with your new password in the app on your phone.</p>
+      <div class="foot"><a href="/">← Back to The Nuci</a></div>
+    </div>
+  </div>
+
+<script>
+const SUPABASE_URL = 'https://dsuiqkcjfayazzvfwdqk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzdWlxa2NqZmF5YXp6dmZ3ZHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTA3NDksImV4cCI6MjA5NjI4Njc0OX0.WFQe-Vs3tbCemGKvNF-aQd_a1THR9C8kww9hA-LCgbE';
+var supa=null;
+function show(id){ ['checking','invalid','form','done'].forEach(function(s){ document.getElementById(s).classList.toggle('hidden', s!==id); }); }
+
+(async function(){
+  try{ supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth:{ detectSessionInUrl:true, flowType:'implicit' } }); }
+  catch(e){ show('invalid'); return; }
+
+  // Supabase puts the recovery token in the URL hash (#access_token=...&type=recovery) or,
+  // for the newer PKCE flow, as ?code=... The client library parses it automatically; we
+  // just wait for it to establish a recovery session, then show the form.
+  var settled=false;
+  supa.auth.onAuthStateChange(function(evt, session){
+    if(settled) return;
+    if(evt==='PASSWORD_RECOVERY' || (session && session.user)){ settled=true; show('form'); }
+  });
+
+  // Fallback: give the library a moment to process the URL, then check for a session.
+  setTimeout(async function(){
+    if(settled) return;
+    try{
+      var r=await supa.auth.getSession();
+      if(r && r.data && r.data.session){ settled=true; show('form'); }
+      else { settled=true; show('invalid'); }
+    }catch(e){ settled=true; show('invalid'); }
+  }, 1400);
+})();
+
+async function saveNew(){
+  var pw=document.getElementById('pw').value;
+  var pw2=document.getElementById('pw2').value;
+  var msg=document.getElementById('msg');
+  msg.className='msg';
+  if(pw.length<8){ msg.className='msg err'; msg.textContent='Password must be at least 8 characters.'; return; }
+  if(pw!==pw2){ msg.className='msg err'; msg.textContent='The two passwords do not match.'; return; }
+  var btn=document.getElementById('save');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Updating…';
+  try{
+    var r=await supa.auth.updateUser({ password: pw });
+    if(r && r.error){ throw r.error; }
+    show('done');
+  }catch(e){
+    btn.disabled=false; btn.textContent='Update password';
+    msg.className='msg err';
+    msg.textContent=(e && e.message) ? e.message : 'Could not update password. The link may have expired - request a new one.';
+  }
+}
+</script>
+</body>
+</html>

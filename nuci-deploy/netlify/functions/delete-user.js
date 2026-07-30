@@ -6,12 +6,15 @@
 //   SUPABASE_URL
 //   THE_NUCI_SUPABASE_SERVICE_ROLE_KEY   (service role - server side only, never in the browser)
 //
-// Request:  POST { email: string }
+// Request:  POST { email: string }  with header  Authorization: Bearer <user access token>
+// The caller must prove they ARE this user: we verify the token against Supabase and only
+// delete if the token's own email matches the requested email. Without this, anyone could
+// delete anyone's account by sending their email.
 // Response: { ok: true } on success
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
@@ -21,12 +24,31 @@ exports.handler = async (event) => {
 
   const URL = process.env.SUPABASE_URL;
   const KEY = process.env.THE_NUCI_SUPABASE_SERVICE_ROLE_KEY;
+  const ANON = process.env.SUPABASE_ANON_KEY || '';
   if (!URL || !KEY) return { statusCode: 200, headers: CORS, body: JSON.stringify({ error: 'not_configured' }) };
 
   let email;
   try { email = (JSON.parse(event.body || '{}').email || '').trim().toLowerCase(); }
   catch (e) { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'bad_json' }) }; }
   if (!email || email.indexOf('@') < 0) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'bad_email' }) };
+
+  // ── Verify the caller owns this account ──
+  // Read the bearer token and ask Supabase who it belongs to. Only proceed if it resolves
+  // to the same email being deleted.
+  const authHeader = event.headers['authorization'] || event.headers['Authorization'] || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'no_token' }) };
+  try {
+    const who = await fetch(`${URL}/auth/v1/user`, { headers: { 'apikey': ANON || KEY, 'Authorization': 'Bearer ' + token } });
+    if (!who.ok) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'bad_token' }) };
+    const u = await who.json();
+    const tokenEmail = (u && u.email || '').trim().toLowerCase();
+    if (!tokenEmail || tokenEmail !== email) {
+      return { statusCode: 403, headers: CORS, body: JSON.stringify({ error: 'not_your_account' }) };
+    }
+  } catch (e) {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'auth_check_failed' }) };
+  }
 
   const h = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' };
 

@@ -3,6 +3,7 @@
 // returns: { behaviorExplain, assessment, seekProfessional, professionalNote, causes[], whatNotToDo[], days[{title,sub,desc,tasks[]}] }
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
+const { rateLimit } = require('./_ratelimit');
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -64,6 +65,12 @@ exports.handler = async (event) => {
   }
 
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
+
+  // Rate limit real generation (protects the Anthropic bill from scripted abuse).
+  const rl = rateLimit(event, { max: 12, windowMs: 60000 });
+  if (!rl.ok) return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: 'rate_limited', message: 'Too many requests, please wait a moment.' }) };
+  // Cap request body size so a huge payload can't be used to run up token costs.
+  if ((event.body || '').length > 12000) return { statusCode: 413, headers: CORS, body: JSON.stringify({ error: 'too_large' }) };
 
   let answers = {}, lang = 'en', previewOnly = false;
   try { const b = JSON.parse(event.body || '{}'); answers = b.answers || {}; lang = b.lang || 'en'; previewOnly = !!b.previewOnly; }

@@ -19,6 +19,13 @@
   to = "/app.html"
   status = 200
 
+# Password reset page - works on phone AND desktop (people often reset on a computer).
+# Served from the clean /reset path; the recovery token arrives in the URL hash.
+[[redirects]]
+  from = "/reset"
+  to = "/reset.html"
+  status = 200
+
 # ============ SCHEDULED EMAIL JOBS ============
 # Netlify runs these on a cron schedule (UTC). Each function decides internally
 # whether a given user is actually due an email, so frequent runs are safe.

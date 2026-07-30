@@ -34,7 +34,7 @@ HARD RULES:
 2. Answer ONLY with established, factual, mainstream animal-behaviour knowledge. Do not speculate, invent studies, cite fake sources, or state uncertain claims as fact. If something is genuinely not known or depends on the individual animal, say so plainly.
 3. You are NOT a veterinarian. This is educational behavioural guidance, not veterinary diagnosis or treatment. If the question suggests a medical problem, injury, pain, sudden behaviour change, or safety risk, briefly advise seeing a vet.
 4. Never recommend medication, dosages, or medical procedures.
-5. Keep it to 2–4 short, practical sentences. Be specific to a ${species} where relevant. Plain text only, no markdown. Language: ${lang}.`;
+5. Keep it to 2-4 short, practical sentences. Be specific to a ${species} where relevant. Plain text only, no markdown. Language: ${lang}.`;
 
   const user = `Pet profile: ${JSON.stringify(answers)}
 Plan context: ${plan || '(none)'}

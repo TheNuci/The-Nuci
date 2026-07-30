@@ -24,6 +24,11 @@ const MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
+
+  const { rateLimit } = require('./_ratelimit');
+  const rl = rateLimit(event, { max: 12, windowMs: 60000 });
+  if (!rl.ok) return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: 'rate_limited' }) };
+  if ((event.body || '').length > 12000) return { statusCode: 413, headers: CORS, body: JSON.stringify({ error: 'too_large' }) };
   if (!ANTHROPIC_API_KEY) return { statusCode: 200, headers: CORS, body: JSON.stringify({ error: 'not_configured' }) };
 
   let mode, lang, answers, extra;
