@@ -143,12 +143,13 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .intro-anim{animation:screenIn .4s var(--ease)}
 
 /* hello */
-.hello-wrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;padding:0 32px max(34px,env(safe-area-inset-bottom))}
+.hello-wrap{position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 24px) 32px max(38px,env(safe-area-inset-bottom))}
+.hello-track{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .hello-hand{width:78px;height:78px;color:var(--sage);margin-bottom:24px}
 .hello-h{font-size:clamp(2.6rem,10vw,3.4rem);letter-spacing:-0.045em;line-height:1;margin-bottom:20px}
 .hello-p{color:var(--secondary);font-size:1.05rem;line-height:1.6;max-width:30ch}
-.hello-p .accent{font-size:1.02em}
+.hello-quote{font-family:'Fraunces',Georgia,serif;font-style:italic;color:var(--forest);font-size:1.08em}
 
 /* questionnaire */
 .qtop{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;justify-content:space-between;
@@ -662,12 +663,12 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 <!-- HELLO -->
 <section class="screen" id="screen-hello">
   <div class="hello-wrap">
-    <svg class="hello-hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V6.2a1.3 1.3 0 0 1 2.6 0V11m0-.4V5a1.3 1.3 0 0 1 2.6 0v5.6m0-.3V6.4a1.3 1.3 0 0 1 2.6 0V13c0 4-2.4 6.8-6 6.8-2.2 0-3.6-1-4.7-2.8L6 13.6c-.6-1 .1-2.2 1.2-2.2.6 0 1.1.3 1.4.9z"/></svg>
-    <div class="hello-h">Hello.</div>
-    <p class="hello-p">To get started, we'd like to ask you <span class="accent">a few questions</span> about your pet.</p>
-    <p class="hello-p" style="margin-top:14px">Your answers help our AI craft the right 7-day plan.</p>
-    <div style="height:44px"></div>
-    <div style="display:flex;align-items:center;gap:11px;width:100%;max-width:380px">
+    <div class="hello-track">
+      <svg class="hello-hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V6.2a1.3 1.3 0 0 1 2.6 0V11m0-.4V5a1.3 1.3 0 0 1 2.6 0v5.6m0-.3V6.4a1.3 1.3 0 0 1 2.6 0V13c0 4-2.4 6.8-6 6.8-2.2 0-3.6-1-4.7-2.8L6 13.6c-.6-1 .1-2.2 1.2-2.2.6 0 1.1.3 1.4.9z"/></svg>
+      <div class="hello-h">Hello.</div>
+      <p class="hello-p">To get started, we'd like to ask you <span class="hello-quote">"a few questions about your pet"</span></p>
+    </div>
+    <div style="display:flex;align-items:center;gap:11px">
       <button class="rback" onclick="helloBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button>
       <button class="btn btn-primary" style="flex:1;white-space:nowrap" onclick="helloReady()">Let's get started</button>
     </div>
@@ -1506,42 +1507,42 @@ var SPECIES = {
 var SPCFG = {
   cat: {
     env:[{icon:'home',label:'Indoor',sub:'Stays mostly inside'},{icon:'tree',label:'Indoor + outdoor',sub:'Comes and goes'},{icon:'swap',label:'Outdoor',sub:'Mostly outside'}],
-    issueEg:'e.g. suddenly peeing outside the litter box, scratching furniture, night-time yowling…',
+    issueEg:'e.g. peeing outside the litter box, scratching furniture…',
     places:['Litter box area','On furniture','Bedroom','Kitchen','By windows','Everywhere','Only when alone'],
     tried:['Ignored it','Said no / scolded','A second litter box','More play / toys','Feliway / calming spray','Vet visit','Nothing yet'],
     warn:['Aggression or biting','Not eating or drinking','Straining in the litter box','Lethargy or weakness','Vomiting or diarrhea','Hiding constantly','None of these'],
     warnFlag:['Aggression or biting','Not eating or drinking','Straining in the litter box','Lethargy or weakness','Vomiting or diarrhea'] },
   dog: {
     env:[{icon:'home',label:'Mostly indoors',sub:'House or apartment'},{icon:'tree',label:'Indoors + yard',sub:'Access to outside'},{icon:'swap',label:'Lots of outdoors',sub:'Yard or land'}],
-    issueEg:'e.g. barking at the door, pulling on the lead, chewing, accidents indoors…',
+    issueEg:'e.g. barking at the door, pulling on the lead…',
     places:['At home','In the yard','On walks','When left alone','Around other dogs','Around strangers','Everywhere'],
     tried:['Ignored it','Said no / scolded','Reward-based training','More exercise','A trainer or class','Vet visit','Nothing yet'],
     warn:['Aggression or biting','Not eating or drinking','Lethargy or weakness','Vomiting or diarrhea','Sudden fearfulness','Limping or pain','None of these'],
     warnFlag:['Aggression or biting','Not eating or drinking','Lethargy or weakness','Vomiting or diarrhea','Limping or pain'] },
   rabbit: {
     env:[{icon:'home',label:'Indoors (free-roam)',sub:'Lives in the home'},{icon:'home',label:'Indoor hutch / pen',sub:'Enclosed inside'},{icon:'tree',label:'Outdoor hutch',sub:'Lives outside'}],
-    issueEg:'e.g. biting, refusing to be handled, not using the litter tray, chewing everything…',
+    issueEg:'e.g. biting, refusing to be handled, chewing…',
     places:['In the hutch / pen','Litter area','When picked up','Free-roam time','Around other rabbits','Everywhere'],
     tried:['Ignored it','More space / time out','Litter training','More hay / enrichment','Bonding steps','Vet visit','Nothing yet'],
     warn:['Aggression or biting','Not eating or drinking','No droppings / small droppings','Lethargy or weakness','Head tilt','Overgrown teeth','None of these'],
     warnFlag:['Aggression or biting','Not eating or drinking','No droppings / small droppings','Lethargy or weakness','Head tilt','Overgrown teeth'] },
   bird: {
     env:[{icon:'home',label:'In a cage',sub:'Mostly caged'},{icon:'swap',label:'Cage + free time',sub:'Out daily'},{icon:'tree',label:'Free-roam / aviary',sub:'Lots of freedom'}],
-    issueEg:'e.g. feather plucking, screaming, biting, not stepping up, fear of hands…',
+    issueEg:'e.g. feather plucking, screaming, fear of hands…',
     places:['In the cage','When let out','On you / your shoulder','Around new people','Near the cage','Everywhere'],
     tried:['Ignored it','Covered the cage','More out-of-cage time','Target / step-up training','Diet change','Avian vet visit','Nothing yet'],
     warn:['Aggression or biting','Not eating or drinking','Feather plucking / self-harm','Fluffed up / lethargic','Sitting on cage floor','Laboured breathing','None of these'],
     warnFlag:['Not eating or drinking','Feather plucking / self-harm','Fluffed up / lethargic','Sitting on cage floor','Laboured breathing'] },
   rodent: {
     env:[{icon:'home',label:'In a cage / tank',sub:'Mostly enclosed'},{icon:'swap',label:'Cage + play time',sub:'Out daily'},{icon:'tree',label:'Free-roam area',sub:'Lots of space'}],
-    issueEg:'e.g. biting when picked up, bar-chewing, freezing, fighting a cage-mate, hiding…',
+    issueEg:'e.g. biting when picked up, bar-chewing, hiding…',
     places:['In the cage','When handled','During play time','Around cage-mates','Near food','Everywhere'],
     tried:['Ignored it','Slow hand-taming','A bigger cage / more enrichment','Separated cage-mates','Diet change','Exotic vet visit','Nothing yet'],
     warn:['Aggression or biting','Not eating or drinking','Lethargy or weakness','Laboured breathing','Wet tail / diarrhea','Overgrown teeth','None of these'],
     warnFlag:['Not eating or drinking','Lethargy or weakness','Laboured breathing','Wet tail / diarrhea','Overgrown teeth'] },
   reptile: {
     env:[{icon:'home',label:'In a vivarium',sub:'Glass tank / terrarium'},{icon:'swap',label:'Tank + handling',sub:'Handled regularly'},{icon:'tree',label:'Large enclosure',sub:'Lots of space'}],
-    issueEg:'e.g. not eating, glass surfing, aggression when handled, hiding constantly, colour changes…',
+    issueEg:'e.g. not eating, glass surfing, hiding constantly…',
     places:['In the enclosure','When handled','At feeding time','Basking area','Everywhere'],
     tried:['Ignored it','Checked heat / UVB','Adjusted the setup','Changed feeding','Slow handling','Exotic vet visit','Nothing yet'],
     warn:['Aggression or biting','Not eating (beyond normal)','Lethargy / not basking','Sunken eyes / dehydration','Laboured or open-mouth breathing','Discoloured skin','None of these'],
@@ -1646,7 +1647,7 @@ function adaptiveFollowups(mi, t, name){
 
   // Always: let the owner add anything in their own words.
   out.push({id:'extraContext',title:'Anything else you want <span class="accent">Nuci to know?</span>',type:'textarea',
-    placeholder:'Optional - the more context, the better the plan. e.g. what usually happens right before, what makes it better or worse...',optional:true});
+    placeholder:'Optional - any more context we should know?',optional:true});
 
   return out;
 }
