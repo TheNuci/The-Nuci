@@ -5,8 +5,9 @@
 // Required environment variables (set in Netlify > Site settings > Environment):
 //   SUPABASE_URL                        your project URL, e.g. https://xxxx.supabase.co
 //   THE_NUCI_SUPABASE_SERVICE_ROLE_KEY  service_role secret (server-only, bypasses RLS)
-//   STRIPE_WEBHOOK_SECRET               the signing secret from the Stripe webhook (whsec_...)
-//   STRIPE_SECRET_KEY                   your Stripe secret key (sk_live_... or sk_test_...)
+//   STRIPE_WEBHOOK_SECRET               signing secret for account 1's webhook (whsec_...)
+//   STRIPE_WEBHOOK_SECRET_2             signing secret for account 2's webhook (whsec_...)
+//   (No Stripe Secret Key is needed - payments use Payment Links + webhook verification.)
 //
 // Stripe setup:
 //   - In Stripe Dashboard > Developers > Webhooks, add an endpoint:

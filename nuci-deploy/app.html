@@ -4476,7 +4476,7 @@ function diagnoseNotWorking(kind){
         +'<h2 style="font-size:1.4rem;letter-spacing:-.03em;margin:6px 0 10px">Worsening behaviour deserves a real examination</h2>'
         +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.6;margin-bottom:12px">A behaviour that gets worse under a calm, consistent routine often has a physical cause underneath - pain, illness, or something that changed at home. That is beyond what any plan should try to solve on its own.</p>'
         +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.6;margin-bottom:16px">Please have '+esc(pet)+' seen by a vet. Bring your check-in history - it is exactly the kind of record that helps them.</p>'
-        +'<button class="btn btn-primary" onclick="closeSheet();downloadPlanPdf&&downloadPlanPdf()">Export history for the vet</button>'
+        +'<button class="btn btn-primary" onclick="closeSheet();exportCurrentPDF()">Export history for the vet</button>'
         +'<button class="btn btn-ghost" style="margin-top:8px;color:var(--secondary)" onclick="closeSheet()">Close</button>';
       openSheet(body4);
     }
