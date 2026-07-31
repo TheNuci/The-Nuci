@@ -562,7 +562,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 .nuci-buddy .nb-heart{position:absolute;font-size:15px;opacity:0;animation:nbFloat 1.2s ease-out forwards}
 @keyframes nbFloat{0%{opacity:0;transform:translateY(0) scale(.5)}20%{opacity:1}100%{opacity:0;transform:translateY(-60px) scale(1.1)}}
 /* ── tap-challenge discount game ── */
-#tapGame{position:fixed;inset:0;z-index:120;background:linear-gradient(165deg,#8CA588,var(--sage) 55%,var(--forest));display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:34px 24px;color:#F2F1EC}
+#tapGame{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100vh;height:100dvh;z-index:120;background:linear-gradient(165deg,#8CA588,var(--sage) 55%,var(--forest));display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:34px 24px;color:#F2F1EC}
 #tapGame.open{display:flex}
 #tapGame .tg-eb{font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:rgba(242,241,236,.7);margin-bottom:14px}
 #tapGame h2{font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:1.9rem;line-height:1.1;margin-bottom:10px}
@@ -640,28 +640,6 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 <!-- SPLASH -->
 
 <!-- WELCOME -->
-<section class="screen" id="screen-welcome">
-  <div class="wel-wrap wel-editorial">
-    <div class="logo-mark"><span class="g">The</span> Nuci<span class="g">.</span></div>
-    <div class="wel-hero">
-      <div class="wel-rule"></div>
-      <div class="wel-eyebrow">Behaviour, understood</div>
-      <h1 class="wel-h">Every<br>behaviour<br>has a <span class="accent">cause.</span></h1>
-      <p class="wel-p">A considered, seven-day plan for your pet, written by AI from what you observe at home.</p>
-    </div>
-    <div class="wel-btns">
-      <button class="btn btn-primary" onclick="welcomeNew()">Begin</button>
-      <button class="wel-textlink" onclick="showScreen('screen-login')">I already have an account</button>
-      <div class="wel-trust">In beta with <span>126</span> early users</div>
-      <button class="btn btn-ghost" id="demoBtn" style="display:none;margin-top:2px;font-size:0.85rem" onclick="enableDemo();welcomeNew()">Preview the app - no account needed</button>
-      <button class="btn btn-ghost" style="display:none;margin-top:0;font-size:0.85rem" onclick="demoEnterApp()">Skip straight to the app (preview)</button>
-      <div id="devButtons" style="display:none;gap:8px;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
-        <button class="btn btn-muted" style="flex:1;font-size:0.82rem;padding:11px" onclick="demoEnterApp()">🔧 Open app (test)</button>
-        <button class="btn btn-muted" style="flex:1;font-size:0.82rem;padding:11px" onclick="demoToOffer()">🔧 Open offer (test)</button>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- INTRO (3 slides) -->
 <section class="screen" id="screen-intro">
@@ -775,30 +753,6 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   </div>
 
   <!-- Tap-challenge discount game (shows once per user, over the offer screen) -->
-  <div id="tapGame">
-    <div id="tgIntro">
-      <div class="tg-eb">A little game</div>
-      <h2>Fancy <span style="font-family:inherit;font-style:normal">50% off?</span></h2>
-      <div class="tg-sub">Tap the button <b>50 times in 3 seconds</b>. You get <b>2 tries</b> - win and half price unlocks on every plan!</div>
-      <div class="tg-btns">
-        <button class="tg-btn" onclick="tgStart()">Let's play</button>
-        <button class="tg-btn ghost" onclick="tgSkip()">No thanks</button>
-      </div>
-    </div>
-    <div id="tgPlay" style="display:none">
-      <div class="tg-eb" id="tgPlayEb">Tap!</div>
-      <div class="tg-count" id="tgCount">0</div>
-      <div class="tg-timer" id="tgTimer">3.0s</div>
-      <div class="tg-bar"><span id="tgBar"></span></div>
-      <div style="margin-top:26px"><div class="tg-target" id="tgTarget" onclick="tgTap()"></div></div>
-    </div>
-    <div id="tgDone" style="display:none">
-      <div id="tgDoneIc"></div>
-      <div class="tg-result" id="tgResult"></div>
-      <div class="tg-sub" id="tgDoneSub" style="margin-bottom:22px"></div>
-      <div class="tg-btns"><button class="tg-btn" id="tgDoneBtn" onclick="tgClose()">Continue</button></div>
-    </div>
-  </div>
 </section>
 
 <!-- GENERATING -->
@@ -1400,7 +1354,6 @@ function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const el=$(id); if(el) el.classList.add('active');
   window.scrollTo(0,0);
-  if(id==='screen-welcome'){ var wc=document.getElementById('welChar'); if(wc){ try{ wc.innerHTML=welcomeCharacter(); }catch(e){} } }
 }
 function welcomeCharacter(){
   // friendly generic character for the welcome hook (cat-style, warm)
@@ -1504,7 +1457,22 @@ function welcomeNew(){ introIdx=0; renderIntro(); showScreen('screen-intro'); }
 // Entry from "Get started": show the tap game first (once), then the carousel. If the game
 // shouldn't show (already played, discount already unlocked), go straight to the carousel.
 function startFlow(){
-  if(!showGameThenStart()){ welcomeNew(); }
+  // The tap game must never be able to blank the whole app (it did on some Safari builds).
+  // Each step is guarded so a failure in one part can't stop the app from rendering; if the
+  // game can't show, we always fall through to the carousel.
+  var gameShown=false;
+  try{ gameShown = showGameThenStart(); }
+  catch(e){
+    try{ var g=document.getElementById('tapGame'); if(g) g.classList.remove('open'); }catch(_){}
+    gameShown=false;
+  }
+  if(!gameShown){
+    try{ welcomeNew(); }
+    catch(e2){
+      // Absolute last resort: make sure SOMETHING is on screen rather than a blank page.
+      try{ welcomeNew(); }catch(_){}
+    }
+  }
 }
 function renderIntro(){
   const c=INTRO[introIdx];
@@ -4679,10 +4647,9 @@ async function adaptNextDay(nextDay){
       // Explicitly clicked "Log in" but this account has no plan -> send them to the login
       // screen so they can switch account, rather than silently showing the welcome page.
       if(wantLogin){ showScreen('screen-login'); return; }
-      // Otherwise a returning login-only user: show the welcome; a fresh questionnaire
-      // starts clean if they choose to begin one.
+      // Otherwise a returning login-only user (no purchase): straight into a fresh start.
       startFreshState();
-      showScreen('screen-welcome'); return;
+      startFlow(); return;
     }
 
     // Explicit intent from the landing page takes priority over any restored progress.
@@ -4716,15 +4683,18 @@ async function adaptNextDay(nextDay){
       if(localRaw){
         const ls=JSON.parse(localRaw);
         if(ls && ls.purchased && ls.answers && ls.answers.petName){
-          // Stay logged in, but land on the welcome page; logging in takes them to their profile.
+          // Stay logged in -> take them straight into their app (their plan/profile).
           Object.assign(state, ls);
-          showScreen('screen-welcome'); return;
+          if(!state.aiPlan || !state.aiPlan.days || !state.aiPlan.days.length){
+            runGenerating(function(){ enterApp(); persistStateNow(); });
+          } else { enterApp(); }
+          return;
         }
       }
     }catch(e){}
 
     if(wantDemo){ try{ demoEnterApp(); }catch(e){ welcomeNew(); } return; }
-    showScreen('screen-welcome');
+    startFreshState(); startFlow();
   };
   route();
   // Tidy the address bar once every param above has been read into a variable.
@@ -4750,5 +4720,32 @@ async function adaptNextDay(nextDay){
   function upd(){}  // Next is positioned purely by CSS (top:48%) for reliability across browsers
 })();
 </script>
+  <!-- Tap game: must live at body level, NOT inside a .screen (a hidden screen would
+  <!-- give it zero height). Shown as a full-screen overlay by startFlow(). -->
+  <div id="tapGame">
+    <div id="tgIntro">
+      <div class="tg-eb">A little game</div>
+      <h2>Fancy <span style="font-family:inherit;font-style:normal">50% off?</span></h2>
+      <div class="tg-sub">Tap the button <b>50 times in 3 seconds</b>. You get <b>2 tries</b> - win and half price unlocks on every plan!</div>
+      <div class="tg-btns">
+        <button class="tg-btn" onclick="tgStart()">Let's play</button>
+        <button class="tg-btn ghost" onclick="tgSkip()">No thanks</button>
+      </div>
+    </div>
+    <div id="tgPlay" style="display:none">
+      <div class="tg-eb" id="tgPlayEb">Tap!</div>
+      <div class="tg-count" id="tgCount">0</div>
+      <div class="tg-timer" id="tgTimer">3.0s</div>
+      <div class="tg-bar"><span id="tgBar"></span></div>
+      <div style="margin-top:26px"><div class="tg-target" id="tgTarget" onclick="tgTap()"></div></div>
+    </div>
+    <div id="tgDone" style="display:none">
+      <div id="tgDoneIc"></div>
+      <div class="tg-result" id="tgResult"></div>
+      <div class="tg-sub" id="tgDoneSub" style="margin-bottom:22px"></div>
+      <div class="tg-btns"><button class="tg-btn" id="tgDoneBtn" onclick="tgClose()">Continue</button></div>
+    </div>
+  </div>
+
 </body>
 </html>

@@ -821,15 +821,22 @@ function toggleTranslate(btn){
   strip.innerHTML=one+one+one;
   function third(){ return strip.scrollWidth/3; }
   function centerStart(){ strip.scrollLeft=third(); }
-  // seamless wrap: keep scrollLeft within the middle third
+  // Seamless wrap: only jump when the user reaches the very edge of the first/last copy,
+  // and jump by exactly one set so their position within the visible cards is preserved -
+  // no snapping back to the start mid-scroll. We also guard against re-entrancy so the jump
+  // itself doesn't retrigger.
+  var wrapping=false;
   strip.addEventListener('scroll',function(){
+    if(wrapping) return;
     var t=third();
-    if(strip.scrollLeft < t*0.5){ strip.scrollLeft += t; }
-    else if(strip.scrollLeft > t*1.5){ strip.scrollLeft -= t; }
+    if(strip.scrollLeft < t*0.05){ wrapping=true; strip.scrollLeft += t; wrapping=false; }
+    else if(strip.scrollLeft > t*1.95){ wrapping=true; strip.scrollLeft -= t; wrapping=false; }
   },{passive:true});
+  // Center on load once (so both directions are available) - but NOT on a timer that would
+  // yank the user back while they're reading. Only re-center on resize.
   requestAnimationFrame(centerStart);
-  setTimeout(centerStart,300);
-  window.addEventListener('resize',centerStart);
+  var rt;
+  window.addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(centerStart,200); });
 })();
 function testimonialScroll(){ /* manual infinite scroll handled above */ }
 
