@@ -457,9 +457,22 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   box-shadow:0 12px 36px rgba(0,0,0,0.14),inset 0 1px 0 rgba(255,255,255,0.65);
   display:flex;justify-content:space-around;align-items:center;padding:9px 8px}
 .navitem{display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--secondary);font-size:0.72rem;
-  padding:7px 16px;border-radius:20px;background:transparent;border:none;transition:background .18s,color .18s}
-.navitem.on{background:rgba(107,143,113,0.16);color:var(--forest)}
-.navitem .nicon{width:24px;height:24px;font-size:24px}
+  padding:7px 16px;border-radius:20px;background:transparent;border:none;transition:color .22s ease;position:relative;z-index:2}
+.navitem.on{color:var(--forest)}
+.navitem .nicon{width:24px;height:24px;font-size:24px;transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+/* icon springs up when its tab is tapped */
+.navitem.tap-bounce .nicon{animation:navBounce .42s cubic-bezier(.34,1.56,.64,1)}
+@keyframes navBounce{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-6px) scale(1.12)}100%{transform:translateY(0) scale(1)}}
+/* the sliding green pill that moves between tabs */
+.nav-pill{position:absolute;top:9px;bottom:9px;border-radius:20px;background:rgba(107,143,113,0.16);
+  z-index:1;transition:transform .34s cubic-bezier(.4,.9,.3,1),width .34s cubic-bezier(.4,.9,.3,1);pointer-events:none;left:0}
+/* page transition variants set on the container just before switching */
+.tabpage.slide-in-right{animation:tpSlideR .34s cubic-bezier(.32,.9,.28,1)}
+.tabpage.slide-in-left{animation:tpSlideL .34s cubic-bezier(.32,.9,.28,1)}
+.tabpage.fade-in{animation:tpFade .34s ease}
+@keyframes tpSlideR{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
+@keyframes tpSlideL{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:translateX(0)}}
+@keyframes tpFade{from{opacity:0}to{opacity:1}}
 
 /* plan tab timeline */
 .pl-row{display:flex;gap:14px;align-items:flex-start;position:relative;margin-bottom:12px}
@@ -628,9 +641,10 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 .nuci-mood{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage);font-weight:600;text-align:center;margin-top:8px}
 
 /* Plan timeline day expand/collapse */
-.a-dayexp{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .42s cubic-bezier(.4,0,.2,1),opacity .3s ease;will-change:grid-template-rows}
-.a-dayexp>.a-dayexp-inner{overflow:hidden;min-height:0}
+.a-dayexp{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .6s cubic-bezier(.33,.9,.28,1),opacity .5s ease;will-change:grid-template-rows}
+.a-dayexp>.a-dayexp-inner{overflow:hidden;min-height:0;transform:translateY(-6px);transition:transform .6s cubic-bezier(.33,.9,.28,1)}
 .a-dayexp.open{grid-template-rows:1fr;opacity:1}
+.a-dayexp.open>.a-dayexp-inner{transform:translateY(0)}
 .a-daynode{transition:background .3s ease,border-color .3s ease,color .3s ease}
 .a-dayrow .a-daylbl{transition:font-weight .2s ease,color .2s ease}
 </style>
@@ -775,6 +789,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   </div>
   <div class="navscrim"></div>
   <div class="nav">
+    <div class="nav-pill" id="navPill"></div>
     <button class="navitem on" data-tab="today" onclick="showTab('today')"><span class="nicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M4.5 11L12 5l7.5 6"/><path d="M6.6 9.7V19h10.8V9.7"/><path d="M10 19v-4.4h4V19"/></svg></span><span>Today</span></button>
     <button class="navitem" data-tab="plan" onclick="showTab('plan')"><span class="nicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M7.5 4h5.4l4.1 4.1V18a1.6 1.6 0 0 1-1.6 1.6H7.5A1.6 1.6 0 0 1 5.9 18V5.6A1.6 1.6 0 0 1 7.5 4z"/><path d="M12.8 4v4.4h4.2"/><path d="M9 12.5h5M9 15.5h3.4"/></svg></span><span>Plan</span></button>
     <button class="navitem" data-tab="progress" onclick="showTab('progress')"><span class="nicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M3 12h3.6l1.6-4.4 3.2 8.8 2.2-6.2 1.5 3.4H21"/></svg></span><span>Progress</span></button>
@@ -2650,16 +2665,20 @@ function tgTap(){
   if(tgState.count>=TG_GOAL){ tgFinish(); }
 }
 function tgRevealDone(delay){
-  // After the game ends, hide the play area immediately but hold the result screen back for
-  // a beat. The player's finger is still tapping where the circle was, so showing the button
-  // instantly would catch a stray tap. We fade the result in after ~1s instead.
+  // Show the result text + animal IMMEDIATELY with a soft fade, so the player sees the
+  // outcome the instant the game ends. Only the button is held back (~1s), because the
+  // player's finger is still tapping where the circle was and would otherwise hit it.
   var done=document.getElementById('tgDone');
+  var btns=done.querySelector('.tg-btns');
   document.getElementById('tgPlay').style.display='none';
   done.style.display='';
   done.style.opacity='0';
-  done.style.pointerEvents='none';
-  done.style.transition='opacity .4s ease';
-  setTimeout(function(){ done.style.opacity='1'; done.style.pointerEvents=''; }, delay||1000);
+  done.style.transition='opacity .45s ease';
+  // hide only the button until the delay passes
+  if(btns){ btns.style.opacity='0'; btns.style.pointerEvents='none'; btns.style.transition='opacity .4s ease'; }
+  // fade the result in on the next frame
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ done.style.opacity='1'; }); });
+  setTimeout(function(){ if(btns){ btns.style.opacity='1'; btns.style.pointerEvents=''; } }, delay||1000);
 }
 function tgFinish(){
   if(!tgState.running) return;
@@ -2675,8 +2694,8 @@ function tgFinish(){
     try{ launchConfetti(); haptic(24); }catch(e){}
     tgBeep(523,0.12,0.14); setTimeout(function(){tgBeep(659,0.12,0.14);},110);
     setTimeout(function(){tgBeep(784,0.12,0.14);},220); setTimeout(function(){tgBeep(1047,0.24,0.14);},330);
-    document.getElementById('tgDoneIc').innerHTML='';
-    document.getElementById('tgResult').textContent='You won! 50% off unlocked \ud83c\udf89';
+    document.getElementById('tgDoneIc').innerHTML='<div style="width:82px;height:82px;margin:0 auto 8px;color:#F2F1EC"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12l6 8"/><path d="M48 12l-6 8"/><path d="M16 12c-1 5-1 9 0 13"/><path d="M48 12c1 5 1 9 0 13"/><path d="M14 30c0-8 8-12 18-12s18 4 18 12v2c0 9-8 16-18 16s-18-7-18-16z"/><path d="M23 30c1.2-1.4 3.4-1.4 4.6 0" /><path d="M36.4 30c1.2-1.4 3.4-1.4 4.6 0"/><path d="M28 40c1.2 1.2 2.6 1.6 4 1.6s2.8-.4 4-1.6"/><path d="M32 36v3"/></svg></div>';
+    document.getElementById('tgResult').textContent='You won! 50% off unlocked';
     document.getElementById('tgDoneSub').textContent='Amazing tapping! Start with a few quick questions and claim your half-price plan at the end.';
     document.getElementById('tgDoneBtn').textContent='Start with questions';
     return;
@@ -2688,7 +2707,7 @@ function tgFinish(){
     try{ haptic(10); }catch(e){}
     tgBeep(392,0.16,0.10); setTimeout(function(){tgBeep(294,0.26,0.10);},150);
     tgRevealDone(1000);
-    document.getElementById('tgDoneIc').innerHTML='<div style="font-size:3.2rem;line-height:1;margin-bottom:6px">\ud83d\ude22</div>';
+    document.getElementById('tgDoneIc').innerHTML='<div style="width:82px;height:82px;margin:0 auto 8px;color:#F2F1EC"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20c-4-2-9-1-9 4 0 3 2 5 5 6"/><path d="M44 20c4-2 9-1 9 4 0 3-2 5-5 6"/><path d="M18 24c0-9 6-14 14-14s14 5 14 14v6c0 8-6 15-14 15s-14-7-14-15z"/><circle cx="25" cy="30" r="1.6" fill="currentColor" stroke="none"/><circle cx="39" cy="30" r="1.6" fill="currentColor" stroke="none"/><path d="M27 38c1.4 1.4 3.2 2 5 2s3.6-.6 5-2"/><path d="M43 34c1 2 1 4 0 6" opacity=".8"/></svg></div>';
     document.getElementById('tgResult').textContent='So close - '+tgState.count+' taps';
     document.getElementById('tgDoneSub').textContent="Don't worry - I'll give you one more try!";
     document.getElementById('tgDoneBtn').textContent='Try again';
@@ -2915,7 +2934,7 @@ function handlePaidReturn(demo){
 
 // ═══════ APP SHELL ═══════
 let curTab='today';
-function enterApp(){ showScreen('screen-app'); window.__tabStack=['today']; window.__navFromPop=true; showTab('today'); window.__navFromPop=false; }
+function enterApp(){ showScreen('screen-app'); window.__tabStack=['today']; window.__navFromPop=true; showTab('today'); window.__navFromPop=false; requestAnimationFrame(function(){ positionNavPill(curTab||'today'); }); }
 function renderAppHead(){
   const pet=state.answers.petName||'Your pet';
   const t=state.answers.petType||'other';
@@ -2936,7 +2955,18 @@ function setupHeadCollapse(){
     $('appHead').classList.toggle('mini',window.scrollY>52);
   },{passive:true});
 }
+function positionNavPill(t){
+  var pill=document.getElementById('navPill');
+  var item=document.querySelector('.navitem[data-tab="'+t+'"]');
+  if(!pill || !item) return;
+  var nav=item.parentElement;
+  // measure the active item relative to the nav container and move the pill under it
+  var ir=item.getBoundingClientRect(), nr=nav.getBoundingClientRect();
+  pill.style.width=ir.width+'px';
+  pill.style.transform='translateX('+(ir.left-nr.left)+'px)';
+}
 function showTab(t){
+  var prevTab=curTab;
   curTab=t;
   // Record tab changes for the browser back button, but ONLY while the main app is
   // showing (never during assessment/offer/payment). We push a history entry so the
@@ -2951,9 +2981,27 @@ function showTab(t){
       }
     }
   }catch(e){}
-  document.querySelectorAll('.navitem').forEach(n=>n.classList.toggle('on',n.dataset.tab===t));
-  document.querySelectorAll('.tabpage').forEach(p=>p.classList.remove('active'));
-  $('tab-'+t).classList.add('active');
+  var TAB_ORDER=['today','plan','progress','vet','profile'];
+  document.querySelectorAll('.navitem').forEach(function(n){
+    var on=n.dataset.tab===t;
+    n.classList.toggle('on',on);
+    if(on){
+      // bounce the tapped icon
+      n.classList.remove('tap-bounce'); void n.offsetWidth; n.classList.add('tap-bounce');
+    }
+  });
+  positionNavPill(t);
+  // Choose the page transition: neighbouring tabs slide (in the travel direction), tabs that
+  // are further apart cross-fade. This mirrors the little journey between them.
+  var from=TAB_ORDER.indexOf(prevTab), to=TAB_ORDER.indexOf(t);
+  var page=$('tab-'+t);
+  document.querySelectorAll('.tabpage').forEach(function(p){ p.classList.remove('active','slide-in-right','slide-in-left','fade-in'); });
+  page.classList.add('active');
+  if(prevTab && prevTab!==t && from>=0 && to>=0){
+    var dist=Math.abs(to-from);
+    if(dist===1){ page.classList.add(to>from?'slide-in-right':'slide-in-left'); }
+    else { page.classList.add('fade-in'); }
+  }
   if(t==='today') renderToday();
   if(t==='plan') renderPlanTab();
   if(t==='progress') renderProgressTab();
@@ -3451,7 +3499,7 @@ function openDay(n){
     var finish=function(){ if(done) return; done=true; pe.removeEventListener('transitionend',onEnd); state.__dayAnimating=false; expandNew(); };
     var onEnd=function(ev){ if(ev.propertyName==='grid-template-rows') finish(); };
     pe.addEventListener('transitionend',onEnd);
-    setTimeout(finish, 480);   // fallback in case transitionend doesn't fire
+    setTimeout(finish, 680);   // fallback in case transitionend doesn't fire
   } else {
     // nothing open yet -> just open (this is the 1->2 case)
     expandNew();
