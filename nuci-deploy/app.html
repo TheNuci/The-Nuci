@@ -2551,7 +2551,8 @@ function tgMarkSeen(){ try{ localStorage.setItem('nuci_tapgame','1'); }catch(e){
 // Returns true if the game was shown, false if it should be skipped (already seen / has
 // discount / already purchased) so the caller can go straight to the carousel.
 function showGameThenStart(){
-  if(tgSeen() || discountActive() || state.purchased) return false;
+  // DIAGNOSTIC: always show the game (gates temporarily removed) so we can see whether the
+  // game itself is what blanks the screen for a brand-new user.
   var el=document.getElementById('tapGame'); if(!el) return false;
   tgState.attempt=0;
   document.getElementById('tgIntro').style.display='';
@@ -4696,7 +4697,14 @@ async function adaptNextDay(nextDay){
     if(wantDemo){ try{ demoEnterApp(); }catch(e){ welcomeNew(); } return; }
     startFreshState(); startFlow();
   };
-  route();
+  // The tap-game element lives lower in the HTML than this script, so at first execution it
+  // may not exist yet. Wait for the full DOM before routing, otherwise showGameThenStart()
+  // sees a null element and the app can render inconsistently (blank screen on some phones).
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', route, {once:true});
+  } else {
+    route();
+  }
   // Tidy the address bar once every param above has been read into a variable.
   // We keep the current path and simply strip the query string (?start, ?paid, ?login,
   // ?demo, ?resume, ?test, ?ref...). Cosmetic only - values are already captured, and
