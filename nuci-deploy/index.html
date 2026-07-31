@@ -129,7 +129,9 @@ section{position:relative}
 .trust-line .stars{color:#D6A84E;font-size:1rem;letter-spacing:1px}
 .trust-line b{color:var(--text);font-weight:600}
 .tscroll{display:flex;align-items:flex-start;gap:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;
-  padding:4px 30px 20px;scrollbar-width:none}
+  padding:4px 30px 20px;scrollbar-width:none;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 8%,#000 92%,transparent 100%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 8%,#000 92%,transparent 100%)}
 .tscroll::-webkit-scrollbar{display:none}
 .rcard{flex:0 0 74%;max-width:290px;height:290px;display:flex;flex-direction:column;background:linear-gradient(160deg,rgba(107,143,113,0.10),rgba(200,178,140,0.06));border:1px solid var(--border);border-radius:20px;padding:24px 22px;box-shadow:0 10px 30px rgba(35,39,31,.05)}
 .rcard .q{flex:1}
@@ -821,22 +823,47 @@ function toggleTranslate(btn){
   strip.innerHTML=one+one+one;
   function third(){ return strip.scrollWidth/3; }
   function centerStart(){ strip.scrollLeft=third(); }
-  // Seamless wrap: only jump when the user reaches the very edge of the first/last copy,
-  // and jump by exactly one set so their position within the visible cards is preserved -
-  // no snapping back to the start mid-scroll. We also guard against re-entrancy so the jump
-  // itself doesn't retrigger.
+
+  // Seamless wrap: jump by exactly one set at the extreme edges so position is preserved.
   var wrapping=false;
-  strip.addEventListener('scroll',function(){
-    if(wrapping) return;
+  function keepInRange(){
     var t=third();
     if(strip.scrollLeft < t*0.05){ wrapping=true; strip.scrollLeft += t; wrapping=false; }
     else if(strip.scrollLeft > t*1.95){ wrapping=true; strip.scrollLeft -= t; wrapping=false; }
-  },{passive:true});
-  // Center on load once (so both directions are available) - but NOT on a timer that would
-  // yank the user back while they're reading. Only re-center on resize.
+  }
+  strip.addEventListener('scroll',function(){ if(!wrapping) keepInRange(); },{passive:true});
+
+  // Auto-drift: the reviews glide slowly on their own. The moment the user touches or scrolls
+  // manually, the drift stops and the strip simply stays wherever they leave it (until the
+  // page is refreshed). It does NOT resume on its own, so reading is never interrupted.
+  var SPEED=0.35;          // px per frame (~21px/s) - a calm, readable drift
+  var userTook=false;      // becomes true on any manual interaction, permanently
+  var driftRAF=null, lastT=0;
+  function drift(ts){
+    if(userTook) return;   // user has taken over - stop forever
+    if(!lastT) lastT=ts;
+    var dt=ts-lastT; lastT=ts;
+    // advance proportionally to elapsed time so speed is consistent across framerates
+    strip.scrollLeft += SPEED*(dt/16.67);
+    keepInRange();
+    driftRAF=requestAnimationFrame(drift);
+  }
+  function stopDrift(){
+    if(userTook) return;
+    userTook=true;
+    if(driftRAF) cancelAnimationFrame(driftRAF);
+  }
+  // Any of these means the user has taken control - freeze wherever they land.
+  ['touchstart','pointerdown','wheel','mousedown','keydown'].forEach(function(ev){
+    strip.addEventListener(ev, stopDrift, {passive:true});
+  });
+
   requestAnimationFrame(centerStart);
+  // start the drift just after centering
+  requestAnimationFrame(function(){ lastT=0; driftRAF=requestAnimationFrame(drift); });
+
   var rt;
-  window.addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(centerStart,200); });
+  window.addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(function(){ if(userTook) return; centerStart(); },200); });
 })();
 function testimonialScroll(){ /* manual infinite scroll handled above */ }
 

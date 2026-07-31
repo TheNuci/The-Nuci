@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="The Nuci">
 <link rel="manifest" href='data:application/manifest+json,{"name":"The Nuci","short_name":"The Nuci","start_url":".","display":"standalone","background_color":"#F2F1EC","theme_color":"#F2F1EC","icons":[{"src":"the-nuci-favicon-512.png","sizes":"512x512","type":"image/png"}]}'>
-<title>The Nuci - Understand your pet</title>
+<title>The Nuci. Understand your pet</title>
 <meta name="description" content="A personalized 7-day pet behaviour plan, built by AI. Every behaviour has a cause.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -702,7 +702,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     </div>
     <div class="checkrow" id="regMarketing" onclick="this.classList.toggle('on')" style="margin-top:10px">
       <span class="cbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>
-      <span>Send me occasional pet behaviour tips by email. Optional - you can unsubscribe any time.</span>
+      <span>Send me occasional pet behaviour tips by email. Optional, you can unsubscribe any time.</span>
     </div>
     <div class="auth-err" id="regErr"></div>
     <p style="font-size:0.88rem;color:var(--secondary);margin-top:6px">Already have an account? <span class="auth-link" onclick="showScreen('screen-login')">Log in</span></p>
@@ -807,7 +807,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   <div class="wm-card">
     <div class="wm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M12 4.5l8 14H4z"/><path d="M12 10v4"/><circle cx="12" cy="16.4" r="0.5" fill="currentColor" stroke="none"/></svg></div>
     <div class="wm-t">A vet check is recommended</div>
-    <div class="wm-p" id="warnModalText">Some of the signs you selected can have a medical cause. Please have your pet checked by a veterinarian before or alongside this behaviour plan - your plan will take this into account.</div>
+    <div class="wm-p" id="warnModalText">Some of the signs you selected can have a medical cause. Please have your pet checked by a veterinarian before or alongside this behaviour plan. Your plan will take this into account.</div>
     <div id="vetFinder"></div>
     <div id="vetHelp"></div>
     <button class="wm-btn wm-vet" id="vetBtn" onclick="findVets()" style="background:rgba(107,143,113,.14);color:var(--forest);margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M12 21s-7-4.35-9.5-8.5C1 9 3 5 6.5 5 9 5 12 8 12 8s3-3 5.5-3C21 5 23 9 21.5 12.5 19 16.65 12 21 12 21z"/></svg>Find the nearest vet</button>
@@ -1844,7 +1844,7 @@ function openWarnModal(){
   var m=$('warnModal'); if(!m) return;
   // The badge celebration reuses this modal and rewrites its contents, so always restore
   // the original vet-check text/title/icon/button before showing the health warning.
-  document.getElementById('warnModalText').textContent='Some of the signs you selected can have a medical cause. Please have your pet checked by a veterinarian before or alongside this behaviour plan - your plan will take this into account.';
+  document.getElementById('warnModalText').textContent='Some of the signs you selected can have a medical cause. Please have your pet checked by a veterinarian before or alongside this behaviour plan. Your plan will take this into account.';
   var t=m.querySelector('.wm-t'); if(t) t.textContent='A vet check is recommended';
   var ic=m.querySelector('.wm-ic'); if(ic){ ic.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M12 4.5l8 14H4z"/><path d="M12 10v4"/><circle cx="12" cy="16.4" r="0.5" fill="currentColor" stroke="none"/></svg>'; ic.style.background=''; ic.style.color=''; }
   var btn=m.querySelector('.wm-btn'); if(btn){ btn.textContent='I understand'; btn.setAttribute('onclick','closeWarnModal()'); }
@@ -2551,8 +2551,9 @@ function tgMarkSeen(){ try{ localStorage.setItem('nuci_tapgame','1'); }catch(e){
 // Returns true if the game was shown, false if it should be skipped (already seen / has
 // discount / already purchased) so the caller can go straight to the carousel.
 function showGameThenStart(){
-  // DIAGNOSTIC: always show the game (gates temporarily removed) so we can see whether the
-  // game itself is what blanks the screen for a brand-new user.
+  // Show the tap game only once per user: skip if they've seen it, already have a discount,
+  // or already purchased.
+  if(tgSeen() || discountActive() || state.purchased) return false;
   var el=document.getElementById('tapGame'); if(!el) return false;
   tgState.attempt=0;
   document.getElementById('tgIntro').style.display='';
@@ -2647,6 +2648,18 @@ function tgTap(){
   tgBeep(300+Math.min(tgState.count,50)*8, 0.05, 0.07);   // rising pitch as you tap faster
   if(tgState.count>=TG_GOAL){ tgFinish(); }
 }
+function tgRevealDone(delay){
+  // After the game ends, hide the play area immediately but hold the result screen back for
+  // a beat. The player's finger is still tapping where the circle was, so showing the button
+  // instantly would catch a stray tap. We fade the result in after ~1s instead.
+  var done=document.getElementById('tgDone');
+  document.getElementById('tgPlay').style.display='none';
+  done.style.display='';
+  done.style.opacity='0';
+  done.style.pointerEvents='none';
+  done.style.transition='opacity .4s ease';
+  setTimeout(function(){ done.style.opacity='1'; done.style.pointerEvents=''; }, delay||1000);
+}
 function tgFinish(){
   if(!tgState.running) return;
   tgState.running=false; cancelAnimationFrame(tgState.raf);
@@ -2657,8 +2670,7 @@ function tgFinish(){
     // WIN - unlock discount, big celebration.
     tgMarkSeen();
     try{ localStorage.setItem('nuci_discount','1'); }catch(e){}
-    document.getElementById('tgPlay').style.display='none';
-    document.getElementById('tgDone').style.display='';
+    tgRevealDone(1000);
     try{ launchConfetti(); haptic(24); }catch(e){}
     tgBeep(523,0.12,0.14); setTimeout(function(){tgBeep(659,0.12,0.14);},110);
     setTimeout(function(){tgBeep(784,0.12,0.14);},220); setTimeout(function(){tgBeep(1047,0.24,0.14);},330);
@@ -2674,8 +2686,7 @@ function tgFinish(){
     // First miss -> sad face + one more try (keep it playful, not discouraging).
     try{ haptic(10); }catch(e){}
     tgBeep(392,0.16,0.10); setTimeout(function(){tgBeep(294,0.26,0.10);},150);
-    document.getElementById('tgPlay').style.display='none';
-    document.getElementById('tgDone').style.display='';
+    tgRevealDone(1000);
     document.getElementById('tgDoneIc').innerHTML='<div style="font-size:3.2rem;line-height:1;margin-bottom:6px">\ud83d\ude22</div>';
     document.getElementById('tgResult').textContent='So close - '+tgState.count+' taps';
     document.getElementById('tgDoneSub').textContent="Don't worry - I'll give you one more try!";
@@ -2685,8 +2696,7 @@ function tgFinish(){
 
   // Second miss -> still framed positively. No discount, but they don't feel it.
   tgMarkSeen();
-  document.getElementById('tgPlay').style.display='none';
-  document.getElementById('tgDone').style.display='';
+  tgRevealDone(1000);
   try{ haptic(12); }catch(e){}
   tgBeep(440,0.14,0.10); setTimeout(function(){tgBeep(554,0.18,0.10);},130);
   var t=(state.answers&&state.answers.petType)||'other';
@@ -4734,18 +4744,18 @@ async function adaptNextDay(nextDay){
     <div id="tgIntro">
       <div class="tg-eb">A little game</div>
       <h2>Fancy <span style="font-family:inherit;font-style:normal">50% off?</span></h2>
-      <div class="tg-sub">Tap the button <b>50 times in 3 seconds</b>. You get <b>2 tries</b> - win and half price unlocks on every plan!</div>
+      <div class="tg-sub">Tap the button <b>50 times in 3 seconds</b>. You get <b>2 tries</b>. Win and half price unlocks on every plan!</div>
       <div class="tg-btns">
         <button class="tg-btn" onclick="tgStart()">Let's play</button>
         <button class="tg-btn ghost" onclick="tgSkip()">No thanks</button>
       </div>
     </div>
-    <div id="tgPlay" style="display:none">
+    <div id="tgPlay" style="display:none;width:100%;text-align:center">
       <div class="tg-eb" id="tgPlayEb">Tap!</div>
       <div class="tg-count" id="tgCount">0</div>
       <div class="tg-timer" id="tgTimer">3.0s</div>
       <div class="tg-bar"><span id="tgBar"></span></div>
-      <div style="margin-top:26px"><div class="tg-target" id="tgTarget" onclick="tgTap()"></div></div>
+      <div style="margin-top:26px;display:flex;justify-content:center"><div class="tg-target" id="tgTarget" onclick="tgTap()"></div></div>
     </div>
     <div id="tgDone" style="display:none">
       <div id="tgDoneIc"></div>
