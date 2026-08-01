@@ -163,6 +163,8 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .pring text{font-family:'Inter',sans-serif}
 .qfixed{position:fixed;left:0;right:0;z-index:25;padding:0 26px 12px;
   top:calc(env(safe-area-inset-top) + 92px);pointer-events:none}
+.qfixed::after,.ci-top::after{content:'';position:absolute;left:0;right:0;top:100%;height:26px;
+  background:linear-gradient(to bottom,var(--bg),transparent);pointer-events:none}
 .qbody{position:absolute;inset:0;display:block;overflow-y:auto;
   padding:calc(env(safe-area-inset-top) + 118px) 26px 120px;overflow-y:auto;-webkit-overflow-scrolling:touch;
   scrollbar-width:none;
@@ -682,7 +684,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <div class="hello-track">
       <svg class="hello-hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V6.2a1.3 1.3 0 0 1 2.6 0V11m0-.4V5a1.3 1.3 0 0 1 2.6 0v5.6m0-.3V6.4a1.3 1.3 0 0 1 2.6 0V13c0 4-2.4 6.8-6 6.8-2.2 0-3.6-1-4.7-2.8L6 13.6c-.6-1 .1-2.2 1.2-2.2.6 0 1.1.3 1.4.9z"/></svg>
       <div class="hello-h">Hello.</div>
-      <p class="hello-p">To get started, we'd like to ask you <span class="hello-quote">a few questions about your pet</span></p>
+      <p class="hello-p">To get started, we'd like to ask you<br><span class="hello-quote">a few questions about your pet</span></p>
     </div>
     <div style="display:flex;align-items:center;gap:11px">
       <button class="rback" onclick="helloBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button>
@@ -4208,10 +4210,15 @@ function clearAllLocal(){
   ['nuciState','pendingState','nuci_intro_seen','nuci_ref'].forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
   try{ sessionStorage.clear(); }catch(e){}
 }
-async function signOut(){
-  try{ if(supa) await supa.auth.signOut(); }catch(e){}
-  clearAllLocal();
-  try{ state.userEmail=null; state.answers={}; state.aiPlan=null; state.previewDay1=null; }catch(e){}
+function signOut(){
+  // Clear local state and leave immediately. We fire the Supabase sign-out but do NOT await
+  // it - if the network is slow it must not block the redirect (that was why sign-out only
+  // appeared to work after a manual refresh). A hard replace to the landing guarantees a
+  // clean slate.
+  try{ if(supa) supa.auth.signOut(); }catch(e){}
+  try{ clearAllLocal(); }catch(e){}
+  try{ state.userEmail=null; state.answers={}; state.aiPlan=null; state.previewDay1=null; state.purchased=false; state.paid=false; }catch(e){}
+  try{ closeSheet(); }catch(e){}
   location.replace('/');
 }
 function confirmDelete(){
@@ -4287,8 +4294,8 @@ function renderCI(){
         body.style.paddingTop=pad+'px'; body.style.setProperty('--fadeTop',pad+'px'); };
       requestAnimationFrame(()=>{ centerCI(); requestAnimationFrame(centerCI); });
     } else {
-      body.style.paddingTop='calc(env(safe-area-inset-top) + '+(90+fh)+'px)';
-      body.style.setProperty('--fadeTop','calc(env(safe-area-inset-top) + '+(90+fh)+'px)');
+      body.style.paddingTop='calc(env(safe-area-inset-top) + '+(104+fh)+'px)';
+      body.style.setProperty('--fadeTop','calc(env(safe-area-inset-top) + '+(104+fh)+'px)');
     }
     body.scrollTop=0; });
   $('ciBottom').style.display=isTextCI?'none':'flex';
@@ -4339,6 +4346,33 @@ function renderCI(){
     setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){ inp.focus(); } },50);
     setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){} },160);
     setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){} kbLock(inp); },330);
+  }
+  // For non-text steps: decide whether this step actually needs to scroll. If every option
+  // fits on screen (like a 6-option time picker), LOCK it - pin the content just below the
+  // title with no scrolling, so nothing ever slides up behind the question. Only when the
+  // options genuinely overflow do we allow scrolling (and keep the title clearance).
+  if(!isTextCI){
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        var fh2=$('ciFixed').offsetHeight;
+        var titleBottom=$('ciFixed').getBoundingClientRect().bottom;
+        var midEl=$('ciMid');
+        var contentH=midEl?midEl.scrollHeight:0;
+        var avail=window.innerHeight - titleBottom - 120; // space between title and bottom bar
+        if(contentH<=avail){
+          // fits -> lock, pin under the title
+          body.classList.add('q-top');
+          body.style.paddingTop='calc(env(safe-area-inset-top) + '+(104+fh2)+'px)';
+          if(midEl){ midEl.style.minHeight='0'; midEl.style.justifyContent='flex-start'; midEl.style.paddingTop='0'; }
+        } else {
+          // overflows -> allow scroll, keep title clearance + fade
+          body.classList.remove('q-top');
+          body.style.paddingTop='calc(env(safe-area-inset-top) + '+(104+fh2)+'px)';
+          body.style.setProperty('--fadeTop','calc(env(safe-area-inset-top) + '+(104+fh2)+'px)');
+        }
+        body.scrollTop=0;
+      });
+    });
   }
 }
 function ciNext(){
