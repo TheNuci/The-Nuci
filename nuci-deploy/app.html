@@ -163,8 +163,13 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .pring text{font-family:'Inter',sans-serif}
 .qfixed{position:fixed;left:0;right:0;z-index:25;padding:0 26px 12px;
   top:calc(env(safe-area-inset-top) + 92px);pointer-events:none}
-.qfixed::after,.ci-top::after{content:'';position:absolute;left:0;right:0;top:100%;height:26px;
-  background:linear-gradient(to bottom,var(--bg),transparent);pointer-events:none}
+/* Solid backing that covers everything from the top of the screen down to the title's
+   bottom, so scrolling content disappears completely behind the title instead of showing
+   through. The gradient tail fades the last bit softly. */
+.qfixed::before,.ci-top::before{content:'';position:absolute;left:0;right:0;
+  top:calc(-1 * (env(safe-area-inset-top) + 92px));bottom:0;background:var(--bg);pointer-events:none;z-index:-1}
+.qfixed::after,.ci-top::after{content:'';position:absolute;left:0;right:0;top:100%;height:28px;
+  background:linear-gradient(to bottom,var(--bg),transparent);pointer-events:none;z-index:-1}
 .qbody{position:absolute;inset:0;display:block;overflow-y:auto;
   padding:calc(env(safe-area-inset-top) + 118px) 26px 120px;overflow-y:auto;-webkit-overflow-scrolling:touch;
   scrollbar-width:none;
@@ -1852,6 +1857,40 @@ function renderQ(){
     });
     mid.appendChild(l);
     const w=document.createElement('div'); w.id='qWarn'; mid.appendChild(w); if(!(state.answers[q.id]||[]).some(x=>(q.warning||[]).includes(x))) state.__warnShown=false; checkWarn(q);
+  }
+  // Same rule as the check-in: if the options all fit on screen, LOCK it - no scrolling,
+  // content pinned just under the title. Only allow scrolling when the content genuinely
+  // overflows. This stops short questions from scrolling their answers up behind the title.
+  // Exception: a few long multi-select questions always scroll (they have enough options
+  // that pinning them looks cramped even when they technically fit).
+  var ALWAYS_SCROLL=['location','recentChanges','tried','warningSigns'];
+  if(!isText){
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        var qf=$('qFixed'); if(!qf) return;
+        var fh2=qf.offsetHeight;
+        var titleBottom=qf.getBoundingClientRect().bottom;
+        var midEl=$('qMid');
+        var contentH=midEl?midEl.scrollHeight:0;
+        var avail=window.innerHeight - titleBottom - 120; // space between title and bottom bar
+        var forceScroll=ALWAYS_SCROLL.indexOf(q.id)>=0;
+        if(contentH<=avail && !forceScroll){
+          body.classList.add('q-top');
+          body.style.paddingTop='calc(env(safe-area-inset-top) + '+(104+fh2)+'px)';
+          body.style.paddingBottom='';
+          if(midEl){ midEl.style.minHeight='0'; midEl.style.justifyContent='flex-start'; midEl.style.paddingTop='0'; }
+        } else {
+          body.classList.remove('q-top');
+          body.style.paddingTop='calc(env(safe-area-inset-top) + '+(104+fh2)+'px)';
+          body.style.setProperty('--fadeTop','calc(env(safe-area-inset-top) + '+(104+fh2)+'px)');
+          if(midEl){ midEl.style.minHeight='0'; midEl.style.justifyContent='flex-start'; }
+          // For the always-scroll questions, guarantee real scroll room at the bottom of the
+          // scroll container itself, so the list can genuinely move up and down.
+          body.style.paddingBottom = forceScroll ? '260px' : '';
+        }
+        body.scrollTop=0;
+      });
+    });
   }
 }
 function checkWarn(q){
