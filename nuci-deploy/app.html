@@ -394,6 +394,8 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
   padding:calc(env(safe-area-inset-top) + 52px) 26px}
 .gen-h{font-size:2rem;letter-spacing:-0.04em;line-height:1.12;text-align:center}
 .gen-circle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.gen-phase{position:absolute;top:calc(50% + 115px);left:0;right:0;text-align:center;color:var(--secondary);
+  font-size:0.95rem;letter-spacing:.01em;transition:opacity .4s ease;min-height:1.4em;padding:0 30px}
 
 /* ═══════ APP SHELL ═══════ */
 #screen-app{padding-bottom:130px}
@@ -775,6 +777,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   <div class="gen-wrap">
     <h1 class="gen-h">Generating your<br><span class="accent">7-day plan...</span></h1>
     <div class="gen-circle" id="genCircle"></div>
+    <div class="gen-phase" id="genPhase"></div>
   </div>
 </section>
 
@@ -1069,7 +1072,7 @@ const LINKS_INTL={
   five:'https://buy.stripe.com/dRmcMY8Mf2Kl4NbduodIA09'      // INTL 29.95 (5 plans)
 };
 const LINKS_SI={
-  single:'https://buy.stripe.com/6oUaEQ7HTcmH7dV7H9afS00',   // SI 9.95  (1 plan)
+  single:'https://buy.stripe.com/test_6oUaEQ7HTcmH7dV7H9afS00',   // ⚠️ TEMP TEST LINK - revert to live before launch! Original: https://buy.stripe.com/6oUaEQ7HTcmH7dV7H9afS00  (SI 9.95, 1 plan)
   triple:'https://buy.stripe.com/cNi8wIbY9aez2XF3qTafS01',   // SI 19.95 (3 plans)
   five:'https://buy.stripe.com/00w9AMbY9biDbub6D5afS02'      // SI 29.95 (5 plans)
 };
@@ -2818,41 +2821,58 @@ function answersSignature(){
 function runGenerating(next){
   showScreen('screen-generating');
   let pct=0, done=false, failed=false;
+  const startT=Date.now();
+  const MIN_MS=5000;   // always let the generation breathe for ~5s, even if the AI is faster
   const draw=()=>{ $('genCircle').innerHTML=
     '<svg viewBox="0 0 120 120" width="170" height="170"><circle cx="60" cy="60" r="52" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="7"/>'
     +'<circle cx="60" cy="60" r="52" fill="none" stroke="#3E5A47" stroke-width="7" stroke-linecap="round" stroke-dasharray="326" stroke-dashoffset="'+(326*(1-pct/100))+'" transform="rotate(-90 60 60)"/>'
     +'<text x="60" y="62" text-anchor="middle" dominant-baseline="central" font-size="28" fill="#1A211C">'+Math.round(pct)+'<tspan font-size="15" fill="#5C6660">%</tspan></text></svg>'; };
   draw();
 
-  // Kick off the real work first. The bar is paced to the AI, not a fixed timer:
-  //  - while the AI is still working, the bar eases toward a ceiling of 88% and waits
-  //    there (so it never shows 100% before the plan exists)
-  //  - once the AI resolves, it sweeps smoothly to 100% and only THEN enters the app,
-  //    so the plan is fully in place before the profile/today screen appears.
+  // Phased status text - gives the sense the AI is genuinely working through the pet's case.
+  var petNm=(state.answers&&state.answers.petName)||'your pet';
+  var phases=[
+    'Reading what you told us about '+petNm+'...',
+    'Looking for the cause behind the behaviour...',
+    'Shaping a plan around '+petNm+'...',
+    'Writing day-by-day steps...',
+    'Adding the finishing touches...'
+  ];
+  var phaseEl=$('genPhase'); var pIdx=-1;
+  function setPhase(i){
+    if(!phaseEl || i===pIdx) return; pIdx=i;
+    phaseEl.style.opacity='0';
+    setTimeout(function(){ phaseEl.textContent=phases[i]; phaseEl.style.opacity='1'; }, 180);
+  }
+  setPhase(0);
+
+  // Kick off the real work. The bar is paced to BOTH the AI and the 5s minimum: it never
+  // reaches 100% until the plan exists AND at least MIN_MS has passed.
   generatePlanAI().then(()=>{ done=true; }).catch(()=>{ done=true; failed=true; });
 
   const iv=setInterval(()=>{
-    if(done){
-      // AI finished - sweep the remaining distance quickly but visibly
+    var elapsed=Date.now()-startT;
+    var timeReady=elapsed>=MIN_MS;
+    // drive the phase text off elapsed time so it steps through all five over ~5s
+    setPhase(Math.min(phases.length-1, Math.floor(elapsed/ (MIN_MS/phases.length))));
+
+    if(done && timeReady){
+      // both the AI and the minimum time are satisfied - sweep to 100%
       pct += Math.max(2, (100-pct)*0.25);
       if(pct>=100){
         pct=100; draw(); clearInterval(iv);
-        // hand off only after the bar has actually painted 100%
-        setTimeout(next, 260);
+        setTimeout(next, 300);
         return;
       }
     } else {
-      // AI still working - ease toward 90% over roughly ten seconds and hold there,
-      // never implying completion. Tuned so a ~10s generation stays in step with the
-      // bar; a faster AI simply finishes and the bar sweeps to 100% early.
-      // ease toward 90% quickly, then keep creeping very slowly toward 99% so it never
-      // looks frozen while the AI finishes (it snaps to 100% the moment the plan is ready)
-      if(pct<90){ pct += (90-pct)*0.012 + 0.12; }
-      else if(pct<99){ pct += (99-pct)*0.008 + 0.02; }
-      // else: sit just under 90, waiting for the AI
+      // still waiting on the AI and/or the 5s floor. Ease the bar toward a ceiling that
+      // tracks how much of the minimum time has passed, so it feels paced, not frozen.
+      var ceil = timeReady ? 92 : Math.min(90, (elapsed/MIN_MS)*90);
+      if(pct<ceil){ pct += (ceil-pct)*0.06 + 0.15; }
+      else if(pct<99 && timeReady){ pct += (99-pct)*0.01+0.02; }
     }
     draw();
-  }, 80);
+  }, 60);
 }
 
 // ═══════ PAID RETURN ═══════
