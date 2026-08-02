@@ -381,6 +381,10 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
   font-size:0.6rem;letter-spacing:0.12em;padding:4px 40px;text-transform:uppercase;z-index:2}
 /* locked offer layout */
 .offer-top{position:fixed;left:0;right:0;z-index:25;padding:calc(env(safe-area-inset-top) + 22px) 26px 8px;pointer-events:none}
+.offer-tabs{display:flex;gap:6px;background:rgba(107,143,113,.1);border-radius:13px;padding:4px}
+.offer-tab{flex:1;border:none;background:transparent;color:var(--secondary);font-family:inherit;font-size:0.8rem;
+  font-weight:500;padding:9px 6px;border-radius:10px;cursor:pointer;transition:all .22s cubic-bezier(.4,.9,.3,1)}
+.offer-tab.on{background:var(--bg);color:var(--forest);box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .offer-scroll{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
   padding:calc(env(safe-area-inset-top) + 150px) 26px 190px;
   -webkit-mask-image:linear-gradient(to bottom,transparent calc(var(--fadeTop,120px) - 6px),#000 calc(var(--fadeTop,120px) + 26px),#000 calc(100% - 165px),transparent calc(100% - 120px));
@@ -762,21 +766,23 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   <div class="offer-top" id="offerTop">
     <div class="eyebrow" id="offerEyebrow">Unlock the full week</div>
     <h1 class="offer-h" id="offerH" style="margin-bottom:0">A <span class="accent">7-day journey</span><br>to a calmer pet.</h1>
-    <div style="margin-top:12px;pointer-events:auto;display:flex;gap:8px;flex-wrap:wrap"><button type="button" onclick="openAnswers(true)" style="background:rgba(107,143,113,.12);color:var(--forest);border:none;border-radius:12px;padding:11px 18px;font-size:0.88rem;font-family:inherit;cursor:pointer;pointer-events:auto">Review my answers</button><button type="button" onclick="confirmStartOver()" style="background:none;border:1px solid var(--border);color:var(--secondary);border-radius:12px;padding:11px 16px;font-size:0.88rem;font-family:inherit;cursor:pointer;pointer-events:auto">Start over</button></div>
+    <div class="offer-tabs" style="margin-top:14px;pointer-events:auto">
+      <button type="button" class="offer-tab" data-otab="review" onclick="offerTab('review')">Review</button>
+      <button type="button" class="offer-tab on" data-otab="preview" onclick="offerTab('preview')">Preview ✨</button>
+      <button type="button" class="offer-tab" data-otab="restart" onclick="offerTab('restart')">Start again</button>
+    </div>
   </div>
   <div class="offer-scroll" id="offerScroll">
     <div id="dayOnePreview"></div>
     <div id="pkgList"></div>
-    <div id="offerProof"></div>
   </div>
   <div class="offer-bottom">
     <div class="row">
       <button class="rback" onclick="offerBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button>
       <button class="btn btn-primary" style="flex:1" id="unlockBtn" onclick="completePayment()">Unlock my plan</button>
     </div>
-    <p class="secure-line" style="margin-top:9px"><span class="nicon" style="width:15px;height:15px;font-size:15px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="5.5" y="11" width="13" height="8.5" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></svg></span>Secure payment via Stripe · instant access</p>
-    <p style="text-align:center;font-size:0.78rem;color:var(--secondary);margin-top:6px">The exact price in your local currency is shown on the next step.</p>
-    <!-- ⚠ TEST ONLY - remove before real launch. Skips payment to check the AI plan. -->
+    <p class="secure-line" style="margin-top:9px;font-size:0.6rem"><span class="nicon" style="width:12px;height:12px;font-size:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><rect x="5.5" y="11" width="13" height="8.5" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></svg></span>Secure payment via Stripe · instant access</p>
+    <p style="text-align:center;font-size:0.55rem;color:var(--secondary);margin-top:4px">The exact price in your local currency is shown on the next step.</p>
   </div>
 
   <!-- Tap-challenge discount game (shows once per user, over the offer screen) -->
@@ -2605,16 +2611,27 @@ async function renderDayOnePreview(){
 function dayOnePreviewHtml(d, pet){
   var tasks=(d.tasks||[]).slice(0,3);
   var cause=state.aiBehaviorExplain||'';
-  return '<div class="card" style="margin-bottom:14px;border:1.5px solid rgba(107,143,113,.35)">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-      +'<div class="d-eb" style="color:var(--sage)">Day one - free preview</div>'
-      +'<span style="font-size:.7rem;color:var(--forest);background:rgba(107,143,113,.14);padding:4px 9px;border-radius:99px">Written for '+esc(pet)+'</span>'
+  var t=(state.answers&&state.answers.petType)||'other';
+  // 7 dots showing this is day 1 of a 7-day arc - makes the preview feel like a real journey.
+  var dots='';
+  for(var i=0;i<7;i++){ dots+='<span style="width:7px;height:7px;border-radius:50%;background:'+(i===0?'var(--sage)':'rgba(107,143,113,.25)')+'"></span>'; }
+  return '<div class="card" style="margin-bottom:14px;border:1.5px solid rgba(107,143,113,.35);overflow:hidden;padding:0">'
+    +'<div style="background:linear-gradient(135deg,rgba(107,143,113,.16),rgba(107,143,113,.04));padding:16px 18px 14px">'
+      +'<div style="display:flex;align-items:center;gap:11px;margin-bottom:10px">'
+        +'<span style="flex:0 0 auto;width:42px;height:42px;border-radius:12px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+petSvg(t,'26px')+'</span>'
+        +'<div style="flex:1">'
+          +'<div class="d-eb" style="color:var(--sage)">Day one · free preview</div>'
+          +'<div style="font-size:1.12rem;letter-spacing:-.02em;margin-top:1px">'+esc(d.title||'Day 1')+'</div>'
+        +'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:5px;align-items:center">'+dots+'<span style="font-size:.72rem;color:var(--secondary);margin-left:6px">1 of 7 days</span></div>'
     +'</div>'
-    +'<div style="font-size:1.1rem;letter-spacing:-.02em;margin-bottom:6px">'+esc(d.title||'Day 1')+'</div>'
+    +'<div style="padding:14px 18px 18px">'
     +(d.sub?'<div style="font-size:.86rem;color:var(--secondary);margin-bottom:10px">'+esc(d.sub)+'</div>':'')
     +(cause?'<p style="font-size:.9rem;color:var(--text);line-height:1.6;margin-bottom:12px">'+esc(String(cause).slice(0,220))+(String(cause).length>220?'...':'')+'</p>':'')
     +(tasks.length
-      ? '<div style="border-top:1px solid var(--border);padding-top:10px">'
+      ? '<div style="border-top:1px solid var(--border);padding-top:12px">'
+        +'<div style="font-size:.74rem;text-transform:uppercase;letter-spacing:.1em;color:var(--sage);margin-bottom:8px">Today\'s steps</div>'
         +tasks.map(function(t){
           var label=(typeof t==='string')?t:(t.label||t.title||'');
           return '<div style="display:flex;gap:9px;align-items:flex-start;padding:6px 0">'
@@ -2623,7 +2640,11 @@ function dayOnePreviewHtml(d, pet){
         }).join('')
         +'</div>'
       : '')
-    +'<div style="font-size:.78rem;color:var(--secondary);margin-top:12px;line-height:1.5">This is day one of seven. The rest adapts each evening to what you report.</div>'
+    +'<div style="margin-top:14px;padding:11px 13px;background:rgba(107,143,113,.09);border-radius:11px;display:flex;gap:9px;align-items:center">'
+      +'<span style="color:var(--sage)">'+icon('sparkle','16px',1.7)+'</span>'
+      +'<span style="font-size:.8rem;color:var(--text);line-height:1.4">Days 2-7 unlock next, each one adapting to what you report about '+esc(pet)+' every evening.</span>'
+    +'</div>'
+    +'</div>'
     +'</div>';
 }
 // ═══════ TAP-CHALLENGE DISCOUNT GAME ═══════
@@ -2811,7 +2832,19 @@ function tgClose(){
 function tgAfterGame(){
   if(typeof welcomeNew==='function'){ welcomeNew(); }
 }
+function offerTab(t){
+  // Review and Start again are actions (open a sheet / confirm), Preview is the default view.
+  if(t==='review'){ openAnswers(true); return; }
+  if(t==='restart'){ confirmStartOver(); return; }
+  // preview: highlight the tab and make sure the day-one preview is showing
+  document.querySelectorAll('.offer-tab').forEach(function(b){ b.classList.toggle('on', b.dataset.otab===t); });
+  var host=document.getElementById('dayOnePreview');
+  if(host){ host.style.display=''; renderDayOnePreview(); }
+}
 function buildOffer(){
+  // Reset the region choice every time the offer is shown, so if the buyer backs out and
+  // comes to pay again, they are asked to confirm their region afresh (Slovenia or not).
+  userCountryChoice = null;
   const pet=state.answers.petName||'your pet';
   $('offerEyebrow').textContent='Unlock the full week';
   $('offerH').innerHTML='Choose <span class="accent">'+esc(pet)+"'s</span> plan.";
