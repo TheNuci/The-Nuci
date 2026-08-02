@@ -2146,7 +2146,8 @@ function assessBack(){ kbRelease();
 function cancelNewPet(){
   // remove the half-created blank pet and go back to the pet we came from
   state.__newPetFlow=false; state.__buyAnotherPet=false;
-  if(typeof state.__newPetIndex==='number' && Array.isArray(state.pets) && state.__newPetIndex<state.pets.length){
+  state.__addPetPending=null; state.__pendingBlankPet=false;   // drop any parked (unpaid) pet
+  if(typeof state.__newPetIndex==='number' && state.__newPetIndex>=0 && Array.isArray(state.pets) && state.__newPetIndex<state.pets.length){
     state.pets.splice(state.__newPetIndex,1);
   }
   var back = (typeof state.__prevActivePet==='number') ? state.__prevActivePet : 0;
@@ -2168,7 +2169,13 @@ function finishAssessment(){
   }
   // Buying an additional plan for a new pet: go to the offer (payment), skip registration.
   if(state.__buyAnotherPet && state.userEmail){
-    state.__buyAnotherPet=false; buildOffer(); showScreen('screen-offer'); persistState(); return;
+    state.__buyAnotherPet=false;
+    // Park this pet's answers so it is committed as an ADDITIONAL pet only after payment
+    // succeeds (handlePaidReturn). Until then nothing is added to the pets array, so backing
+    // out of payment leaves no ghost pet.
+    state.__addPetPending={ answers:JSON.parse(JSON.stringify(state.answers||{})), aiPlan:null, previewDay1:null };
+    state.__pendingBlankPet=false;
+    buildOffer(); showScreen('screen-offer'); persistState(); return;
   }
   // New pet paid from an existing credit: skip offer + registration, go straight to plan.
   if(state.__newPetFlow && state.userEmail){
@@ -4507,8 +4514,19 @@ function startAnotherPet(){
 function beginBlankPet(){
   syncActivePet();
   state.__prevActivePet=state.activePet;          // remember where to return if cancelled
-  state.__newPetIndex=state.pets.length;          // index of the blank pet we are about to add
-  state.pets.push(null); state.activePet=state.pets.length-1;
+  // Only commit a real slot in the pets array when the pet is FREE (a spare credit covers it).
+  // When payment is required, we must NOT add the pet yet - otherwise backing out of the
+  // payment leaves a ghost pet with no plan. In that case we work in a scratch state and the
+  // pet gets committed only in handlePaidReturn after a successful payment.
+  var needsPayment = !!state.__buyAnotherPet;
+  if(needsPayment){
+    state.__pendingBlankPet=true;                 // flag: we're building a pet that isn't committed
+    state.__newPetIndex=-1;
+  } else {
+    state.__pendingBlankPet=false;
+    state.__newPetIndex=state.pets.length;        // index of the blank pet we are about to add
+    state.pets.push(null); state.activePet=state.pets.length-1;
+  }
   state.answers={}; state.currentQ=0; state.currentDay=1; state.viewDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
   state.lastCheckinDate=null; state.lastCheckinDay=0; state.planComplete=false; state.planStartDate=null;
   state.planOverrides={}; state.aiPlan=null; state.aiBehaviorExplain=null; state.aiCauses=null; state.aiWhatNotToDo=null;
