@@ -180,7 +180,10 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .qsub{color:var(--secondary);margin-top:8px;text-align:left;line-height:1.45;flex-shrink:0}
 .qmid{width:100%;padding:26px 0;min-height:calc(100% - var(--fadeTop,150px) - 120px);display:flex;flex-direction:column;justify-content:center}
 .qbottom{position:fixed;left:0;right:0;bottom:0;z-index:29;padding:14px 26px max(26px,env(safe-area-inset-bottom));
-  display:flex;align-items:center;gap:11px}
+  display:flex;align-items:center;gap:11px;background:var(--bg)}
+/* soft fade above the bar so scrolling content dissolves into it instead of cutting off hard */
+.qbottom::before,.ci-bottom::before{content:'';position:absolute;left:0;right:0;bottom:100%;height:28px;
+  background:linear-gradient(to top,var(--bg),transparent);pointer-events:none}
 .qbottom .rback{flex-shrink:0}
 .qbottom.kb{bottom:0;transition:bottom .2s ease}
 /* options */
@@ -2213,8 +2216,23 @@ async function doRegister(){
   const btn=document.querySelector('#regCta .btn'); btn.disabled=true; btn.textContent='Creating account...';
   try{
     const {data,error}=await supa.auth.signUp({email,password:pass});
-    if(error && !/already/i.test(error.message)){ err.textContent=error.message; btn.disabled=false; btn.textContent='Create account'; return; }
+    var accountAlreadyExists = !!(error && /already/i.test(error.message));
+    if(error && !accountAlreadyExists){ err.textContent=error.message; btn.disabled=false; btn.textContent='Create account'; return; }
     state.userEmail=email; state.userName=name;
+
+    if(accountAlreadyExists){
+      // This email already has an account. Do NOT create a fresh profile or send a welcome
+      // email again. Instead, tell them to sign in - their existing pets/plans are there, and
+      // adding another pet happens from inside the app (Profile -> Start a plan for another pet).
+      err.style.color=''; 
+      err.textContent='You already have an account with this email. Please sign in - you can add another pet from your profile.';
+      btn.disabled=false; btn.textContent='Create account';
+      // flip the form to login for convenience
+      try{ setTimeout(function(){ showScreen('screen-login'); var le=document.getElementById('loginEmail'); if(le) le.value=email; }, 1400); }catch(e){}
+      return;
+    }
+
+    // New account only past this point.
     try{
       await supa.from('profiles').upsert({email, data:serializeState(), signup_at:new Date().toISOString(),
         pet_name_pending:state.answers.petName||null, updated_at:new Date().toISOString(),
@@ -2602,7 +2620,7 @@ function dayOnePreviewHtml(d, pet){
     +'</div>';
 }
 // ═══════ TAP-CHALLENGE DISCOUNT GAME ═══════
-var TG_GOAL=50, TG_SECONDS=3;
+var TG_GOAL=50, TG_SECONDS=4;
 var TG_MAX_ATTEMPTS=2;
 var tgState={count:0,running:false,endAt:0,raf:0,tick:0,attempt:0};
 function tgSeen(){ try{ return localStorage.getItem('nuci_tapgame')==='1'; }catch(e){ return true; } }
@@ -3121,9 +3139,12 @@ function toggleTask(day,idx,ev){
 function todayPetDropdown(){
   syncActivePet();
   var petCount=state.pets?state.pets.length:1;
-  var spare=(state.planCredits||0)-petCount;
-  // show the switcher whenever there is >1 pet OR spare plans to add
-  if(petCount<2 && spare<1) return '';
+  var credits=state.planCredits||0;
+  var spare=credits-petCount;
+  // Show the switcher whenever there is >1 pet, OR spare plans to add, OR the account simply
+  // paid for more than one plan (credits>1) - the last case guarantees the dropdown appears
+  // even if the pets array is briefly out of step after an add-pet payment.
+  if(petCount<2 && spare<1 && credits<2) return '';
   var cur=(state.pets[state.activePet]&&state.pets[state.activePet].answers)||state.answers||{};
   var name=cur.petName||'Pet';
   var items=state.pets.map(function(p,i){
@@ -4886,7 +4907,7 @@ async function adaptNextDay(nextDay){
     <div id="tgIntro">
       <div class="tg-eb">A little game</div>
       <h2>Fancy <span style="font-family:inherit;font-style:normal">50% off?</span></h2>
-      <div class="tg-sub">Tap the button <b>50 times in 3 seconds</b>. You get <b>2 tries</b>. Win and half price unlocks on every plan!</div>
+      <div class="tg-sub">Tap the button <b>50 times in 4 seconds</b>. You get <b>2 tries</b>. Win and half price unlocks on every plan!</div>
       <div class="tg-btns">
         <button class="tg-btn" onclick="tgStart()">Let's play</button>
         <button class="tg-btn ghost" onclick="tgSkip()">No thanks</button>
@@ -4895,7 +4916,7 @@ async function adaptNextDay(nextDay){
     <div id="tgPlay" style="display:none;width:100%;text-align:center">
       <div class="tg-eb" id="tgPlayEb">Tap!</div>
       <div class="tg-count" id="tgCount">0</div>
-      <div class="tg-timer" id="tgTimer">3.0s</div>
+      <div class="tg-timer" id="tgTimer">4.0s</div>
       <div class="tg-bar"><span id="tgBar"></span></div>
       <div style="margin-top:26px;display:flex;justify-content:center"><div class="tg-target" id="tgTarget" onclick="tgTap()"></div></div>
     </div>
