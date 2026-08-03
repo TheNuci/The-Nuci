@@ -211,6 +211,9 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .field input,.field textarea{border:none;outline:none;background:transparent;flex:1;font-size:16px;resize:none}
 .field-grow{align-items:flex-start}
 .field-grow textarea{flex:1;min-height:24px;line-height:1.5;overflow-y:auto;padding:0;font-family:inherit;color:var(--text);word-break:break-word;white-space:pre-wrap}
+/* single-line questions (name, breed): compact, vertically centred like a normal input */
+.field.field-oneline{align-items:center;padding:14px 18px}
+.field.field-oneline textarea{min-height:24px}
 .field-grow #qrModal{position:fixed;inset:0;z-index:3000;display:none;align-items:center;justify-content:center}
 #qrModal.open{display:flex}
 #qrModal .qrm-dim{position:absolute;inset:0;background:rgba(26,33,28,.5);backdrop-filter:blur(3px)}
@@ -385,6 +388,15 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .offer-tab{flex:1;border:none;background:transparent;color:var(--secondary);font-family:inherit;font-size:0.8rem;
   font-weight:500;padding:9px 6px;border-radius:10px;cursor:pointer;transition:all .22s cubic-bezier(.4,.9,.3,1)}
 .offer-tab.on{background:var(--bg);color:var(--forest);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+/* The preview tab pulses (like the check-in button) to invite a tap - but only while the
+   preview is closed. Once opened, the pulse stops. */
+.offer-tab.pulse{animation:offerTabPulse 1.8s ease-in-out infinite}
+@keyframes offerTabPulse{0%,100%{box-shadow:0 0 0 0 rgba(107,143,113,0)}50%{box-shadow:0 0 0 4px rgba(107,143,113,.22)}}
+/* Smooth 1s collapse/expand for the preview: the day-one card folds away and the plans below
+   glide up at the same pace. */
+.preview-wrap{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows 1s cubic-bezier(.4,.9,.28,1),opacity .8s ease,margin-bottom 1s cubic-bezier(.4,.9,.28,1);margin-bottom:0}
+.preview-wrap>.preview-inner{overflow:hidden;min-height:0}
+.preview-wrap.open{grid-template-rows:1fr;opacity:1}
 .offer-scroll{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
   padding:calc(env(safe-area-inset-top) + 150px) 26px 190px;
   -webkit-mask-image:linear-gradient(to bottom,transparent calc(var(--fadeTop,120px) - 6px),#000 calc(var(--fadeTop,120px) + 26px),#000 calc(100% - 165px),transparent calc(100% - 120px));
@@ -397,6 +409,17 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .qbody.q-top .qinline,.ci-body.q-top .qinline{position:static;margin-top:16px;z-index:28}
 /* text questions: field + buttons flow together just under the locked title; keyboard fills the rest */
 .qbody.q-top .qmid,.ci-body.q-top .qmid{margin:0;min-height:0;justify-content:flex-start}
+/* Smooth question transitions: content fades and slides gently instead of hard-swapping. */
+.qmid{animation:qFadeIn 1s cubic-bezier(.22,.9,.24,1)}
+@keyframes qFadeIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.qfixed .qtitle{animation:qTitleIn 1s cubic-bezier(.22,.9,.24,1)}
+@keyframes qTitleIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.qmid.q-out{animation:qFadeOut .2s ease forwards}
+@keyframes qFadeOut{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-10px)}}
+/* Staggered entrance: when a question has several options, each one eases in just after the
+   previous, so the list assembles itself instead of appearing all at once. */
+@keyframes qStagger{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.q-stagger{opacity:0;animation:qStagger 1s cubic-bezier(.22,.9,.24,1) forwards}
 .qbody.q-top,.ci-body.q-top{overflow:hidden;-webkit-mask-image:none;mask-image:none;justify-content:flex-start}
 .secure-line{text-align:center;font-size:0.8rem;color:var(--secondary);margin-top:12px;display:flex;align-items:center;justify-content:center;gap:7px}
 .promo-row{display:flex;gap:8px;margin-top:14px}
@@ -773,7 +796,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     </div>
   </div>
   <div class="offer-scroll" id="offerScroll">
-    <div id="dayOnePreview"></div>
+    <div id="previewWrap" class="preview-wrap open"><div class="preview-inner"><div id="dayOnePreview"></div></div></div>
     <div id="pkgList"></div>
   </div>
   <div class="offer-bottom">
@@ -867,6 +890,28 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 <div id="toast"></div>
 </script>
 <script>
+// ── Prevent zoom (iOS Safari ignores user-scalable=no, so we block the gestures directly) ──
+// Blocks pinch-zoom (gesturestart), and double-tap zoom (a second tap within 300ms).
+document.addEventListener('gesturestart', function(e){ e.preventDefault(); }, {passive:false});
+document.addEventListener('gesturechange', function(e){ e.preventDefault(); }, {passive:false});
+document.addEventListener('gestureend', function(e){ e.preventDefault(); }, {passive:false});
+(function(){
+  var lastTouch=0;
+  document.addEventListener('touchend', function(e){
+    var now=Date.now();
+    // Block double-tap ZOOM, but never interfere with taps on buttons, inputs, or the tap
+    // game - only prevent the default when the quick second tap is on plain, non-interactive
+    // content. This keeps fast tapping (e.g. the discount game) and all controls working.
+    if(now-lastTouch<=300){
+      var t=e.target;
+      var interactive = t && t.closest && t.closest('button,a,input,textarea,select,label,[onclick],.opt-row,.pk,.tg-target,.offer-tab');
+      if(!interactive){ e.preventDefault(); }
+    }
+    lastTouch=now;
+  }, {passive:false});
+})();
+</script>
+<script>
 // ── Boot error guard (standalone block so it still runs even if the main script below
 // fails to parse on a stricter browser like Safari) ──
 window.addEventListener('error', function(ev){
@@ -909,17 +954,19 @@ function hookGrow(id){
   el.addEventListener('input',function(){ autoGrow(el); });
   autoGrow(el);
 }
-function autoGrow(el){
+function autoGrow(el, minLines){
   if(!el) return;
   el.style.height='auto';
-  // one empty line is the floor; grow only when the content needs it
+  // The floor is minLines (default 2): the field reserves that many lines and only grows
+  // once the content needs more. Single-line questions (name, breed) pass 1.
+  var floorLines=minLines||2;
   var cs=getComputedStyle(el);
   var line=parseFloat(cs.lineHeight)||22;
   var pad=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0);
   var bord=(parseFloat(cs.borderTopWidth)||0)+(parseFloat(cs.borderBottomWidth)||0);
-  var oneLine=Math.ceil(line+pad+bord);
+  var floor=Math.ceil(line*floorLines+pad+bord);
   var needed=el.scrollHeight+bord;
-  el.style.height=Math.min(Math.max(oneLine, needed), Math.round(window.innerHeight*0.4))+'px';
+  el.style.height=Math.min(Math.max(floor, needed), Math.round(window.innerHeight*0.4))+'px';
 }
 
 // Hide bottom nav while the on-screen keyboard is up, so it doesn't jump above it.
@@ -1118,8 +1165,7 @@ const STRIPE_PAYMENT_LINK_3PACK=LINKS_INTL.triple;
 const STRIPE_PAYMENT_LINK_5PACK=LINKS_INTL.five;
 const PACKAGES=[
   {id:'single',credits:1,price:9.95, anchor:19.95, name:'1 plan', sub:'For one pet or one issue'},
-  {id:'triple',credits:3,price:19.95,anchor:59.95, name:'3 plans', sub:'For multiple pets or issues'},
-  {id:'five',  credits:5,price:29.95,anchor:99.95, name:'5 plans', sub:'Best value for multi-pet homes'}
+  {id:'triple',credits:3,price:19.95,anchor:59.95, name:'3 plans', sub:'For multiple pets or issues'}
 ];
 let selectedPackage=PACKAGES[0];
 let appliedPromo=null;
@@ -1757,6 +1803,16 @@ function optRowHtml(label,sub,icn){
   return (icn?'<span class="opt-ico nicon">'+icon(icn,'24px')+'</span>':'')
     +'<span>'+esc(label)+(sub?'<span class="opt-sub">'+esc(sub)+'</span>':'')+'</span>'+CHECK_SVG;
 }
+function staggerOptions(list){
+  // Give each option a slightly later entrance so they cascade in one after another.
+  try{
+    var rows=list.querySelectorAll('.opt-row');
+    rows.forEach(function(row,i){
+      row.classList.add('q-stagger');
+      row.style.animationDelay=(0.06 + i*0.055)+'s';
+    });
+  }catch(e){}
+}
 function renderQ(){
   const qs=getQuestions(), q=qs[state.currentQ], total=qs.length;
   $('qRing').innerHTML=ringSvg(state.currentQ+1,total);
@@ -1771,34 +1827,28 @@ function renderQ(){
   $('qFixed').innerHTML='<div class="qtitle">'+q.title+'</div>';
   body.innerHTML='<div class="qmid" id="qMid"></div>';
   const mid=$('qMid');
-  // reserve space under the fixed title
+  // Hide the content until the padding has been measured and applied, so the user never sees
+  // it jump.
+  mid.style.visibility='hidden';
+  var revealMid=function(){ if(mid){ mid.style.visibility=''; } };
+  // Reserve space under the fixed title. For BOTH text and non-text questions we pin the
+  // content a fixed, safe distance below the title bottom - far enough that the title's
+  // background fade (~28px) never overlaps the field/options. No fragile centering math.
   requestAnimationFrame(()=>{ const fh=$('qFixed').offsetHeight;
-    if(isText){
-      const qm=$('qMid'); if(qm) qm.style.paddingTop='0px';
-            const centerField=()=>{ const body=$('qBody');
-        const bt=body.getBoundingClientRect().top;                    // body top (viewport)
-        const tb=$('qFixed').getBoundingClientRect().bottom;          // title bottom (viewport)
-        const nextTop=body.querySelector('.qinline').getBoundingClientRect().top;
-        const field=body.querySelector('.field');
-        const fh=field.offsetHeight||52;
-        const off=field.getBoundingClientRect().top - (bt + (parseFloat(getComputedStyle(body).paddingTop)||0)); // field offset inside padding box
-        const gap=Math.max(16,(nextTop - tb - fh)/2);
-        const desiredFieldTop=tb+gap-6;                                  // viewport
-        const pad=desiredFieldTop - bt - off;
-        body.style.paddingTop=pad+'px'; body.style.setProperty('--fadeTop',pad+'px'); };
-      requestAnimationFrame(()=>{ centerField(); requestAnimationFrame(centerField); });
-    } else {
-      body.style.paddingTop='calc(env(safe-area-inset-top) + '+(92+fh+14)+'px)';
-      body.style.setProperty('--fadeTop','calc(env(safe-area-inset-top) + '+(92+fh+14)+'px)');
-    }
+    var pad = 92 + fh + 24;   // title offset + title height + clear gap below the fade
+    body.style.paddingTop='calc(env(safe-area-inset-top) + '+pad+'px)';
+    body.style.setProperty('--fadeTop','calc(env(safe-area-inset-top) + '+pad+'px)');
+    const qm=$('qMid'); if(qm) qm.style.paddingTop='0px';
+    revealMid();
     body.scrollTop=0; });
   if(q.type==='text'||q.type==='textarea'){
     const multi=q.type==='textarea';
-    mid.innerHTML='<div class="field field-grow"><textarea id="qInput" rows="1" placeholder="'+esc(q.placeholder||'')+'"></textarea>'+micBtnHTML('qInput')+'</div>'
+    mid.innerHTML='<div class="field field-grow'+(multi?'':' field-oneline')+'"><textarea id="qInput" rows="1" placeholder="'+esc(q.placeholder||'')+'"></textarea>'+micBtnHTML('qInput')+'</div>'
       +'<div class="qinline"><button class="rback" onclick="assessBack()" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button><button class="btn btn-primary" style="flex:1" type="button" onclick="assessNext()">Next</button></div>';
     const inp=$('qInput'); inp.value=state.answers[q.id]||'';
-    inp.addEventListener('input',e=>{ state.answers[q.id]=e.target.value; autoGrow(inp); });
-    autoGrow(inp);
+    var floorLines = multi ? 2 : 1;   // text questions (name, breed) start at 1 line; textareas at 2
+    inp.addEventListener('input',e=>{ state.answers[q.id]=e.target.value; autoGrow(inp, floorLines); });
+    autoGrow(inp, floorLines);
     if(!multi) inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); assessNext(); }});
     try{ inp.focus({preventScroll:true}); }catch(e){}
     requestAnimationFrame(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){} });
@@ -1843,7 +1893,7 @@ function renderQ(){
       b.onclick=()=>{ l.querySelectorAll('.opt-row').forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); state.answers[q.id]=opt; if(nextIsTextQ()){ kbPrime(); advanceSoon(90); } else advanceSoon(); };
       l.appendChild(b);
     });
-    mid.appendChild(l);
+    mid.appendChild(l); staggerOptions(l);
   }else if(q.type==='options'){
     const l=document.createElement('div'); l.className='opt-list';
     q.options.forEach(o=>{
@@ -1853,7 +1903,7 @@ function renderQ(){
       b.onclick=()=>{ l.querySelectorAll('.opt-row').forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); state.answers[q.id]=o.label; if(nextIsTextQ()){ kbPrime(); advanceSoon(90); } else advanceSoon(); };
       l.appendChild(b);
     });
-    mid.appendChild(l);
+    mid.appendChild(l); staggerOptions(l);
   }else if(q.type==='multi'){
     const saved=Array.isArray(state.answers[q.id])?state.answers[q.id]:(state.answers[q.id]=[]);
     const l=document.createElement('div'); l.className='opt-list';
@@ -1864,7 +1914,7 @@ function renderQ(){
       b.onclick=()=>{ const i=saved.indexOf(opt); if(i>-1){saved.splice(i,1);b.classList.remove('selected');}else{saved.push(opt);b.classList.add('selected');} state.answers[q.id]=saved; checkWarn(q); };
       l.appendChild(b);
     });
-    mid.appendChild(l);
+    mid.appendChild(l); staggerOptions(l);
     const w=document.createElement('div'); w.id='qWarn'; mid.appendChild(w); if(!(state.answers[q.id]||[]).some(x=>(q.warning||[]).includes(x))) state.__warnShown=false; checkWarn(q);
   }
   // Same rule as the check-in: if the options all fit on screen, LOCK it - no scrolling,
@@ -2564,7 +2614,6 @@ function selectPkg(i){
   const oldEl=document.querySelector('#pkgList .pk.sel');
   pkSwap(oldEl,false);
   pkSwap(cards[i],true);
-  setTimeout(()=>{ try{ cards[i].scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} },90);
 }
 // ===== Free preview of day 1, generated for real, before payment =====
 // Shows the actual quality of the plan instead of asking people to trust a description.
@@ -2580,7 +2629,7 @@ async function renderDayOnePreview(){
   var cached = null;
   if(state.previewDay1 && state.__previewSig===sig){ cached = state.previewDay1; }
   else if(state.aiPlan && state.aiPlan.days && state.aiPlan.days[0] && state.__planSig===sig){ cached = state.aiPlan.days[0]; }
-  if(cached){ host.innerHTML=dayOnePreviewHtml(cached, pet); return; }
+  if(cached){ host.innerHTML=dayOnePreviewHtml(cached, pet); syncPreviewState(); return; }
 
   host.innerHTML='<div class="card" style="margin-bottom:14px">'
     +'<div class="d-eb" style="color:var(--sage);margin-bottom:8px">Your first day</div>'
@@ -2603,9 +2652,25 @@ async function renderDayOnePreview(){
       if(plan.days && plan.days.length>1){ state.aiPlan=plan; state.__planSig=sig; }
       persistState();
       host.innerHTML=dayOnePreviewHtml(d1, pet);
-    } else { host.innerHTML=''; }
+      syncPreviewState();
+    } else { host.innerHTML=''; syncPreviewState(); }
   }catch(e){
     host.innerHTML='';   // quietly skip the preview rather than showing an error
+    syncPreviewState();
+  }
+}
+function syncPreviewState(){
+  // The preview starts CLOSED. Its tab pulses (like the check-in button) to invite a tap, but
+  // only while there is content to show and it's closed. Opening it stops the pulse.
+  var host=document.getElementById('dayOnePreview');
+  var pw=document.getElementById('previewWrap');
+  var pvt=document.querySelector('.offer-tab[data-otab="preview"]');
+  var has=host && host.innerHTML.trim().length>0;
+  if(pw) pw.classList.remove('open');                 // closed by default
+  if(pvt){
+    pvt.style.display=has?'':'none';
+    pvt.classList.remove('on');
+    pvt.classList.toggle('pulse', !!has);             // pulse while closed + has content
   }
 }
 function dayOnePreviewHtml(d, pet){
@@ -2833,18 +2898,63 @@ function tgAfterGame(){
   if(typeof welcomeNew==='function'){ welcomeNew(); }
 }
 function offerTab(t){
-  // Review and Start again are actions (open a sheet / confirm), Preview is the default view.
+  // Whether we're adding a pet while already signed in (vs. a brand-new user's first pet).
+  var addingPet = !!(state.__addPetPending || state.__pendingBlankPet || state.__buyAnotherPet ||
+                     (state.userEmail && Array.isArray(state.pets) && state.pets.length>=1 && state.purchased));
   if(t==='review'){ openAnswers(true); return; }
-  if(t==='restart'){ confirmStartOver(); return; }
-  // preview: highlight the tab and make sure the day-one preview is showing
-  document.querySelectorAll('.offer-tab').forEach(function(b){ b.classList.toggle('on', b.dataset.otab===t); });
-  var host=document.getElementById('dayOnePreview');
-  if(host){ host.style.display=''; renderDayOnePreview(); }
+  if(t==='restart'){
+    if(addingPet){
+      // Don't wipe the account back to the start screen - just abandon this new pet and go
+      // back into the app (their existing pets/plan are untouched).
+      cancelNewPet();
+      return;
+    }
+    confirmStartOver();
+    return;
+  }
+  // preview: toggle the day-one preview open/closed. It starts open; tapping folds it away
+  // (and the plans glide up) or brings it back, with a smooth 1s animation.
+  var wrap=document.getElementById('previewWrap');
+  var tab=document.querySelector('.offer-tab[data-otab="preview"]');
+  if(!wrap) return;
+  var isOpen=wrap.classList.contains('open');
+  if(isOpen){
+    wrap.classList.remove('open');
+    if(tab){ tab.classList.remove('on'); tab.classList.add('pulse'); }   // closed again -> invite taps
+  } else {
+    renderDayOnePreview();
+    wrap.classList.add('open');
+    if(tab){ tab.classList.add('on'); tab.classList.remove('pulse'); }   // opened -> stop pulsing
+  }
+}
+function testJumpToOffer(){
+  // TEST ONLY: fill in sample answers and jump straight to the offer/plan screen, bypassing
+  // sign-in and the questionnaire. Remove before launch.
+  state.answers={petName:'Rex',petType:'dog',breed:'Labrador',age:'3',sex:'Male',neutered:'Yes',
+    mainIssue:'Barks at strangers and pulls on the lead',household:['Just me'],
+    environment:['House with a garden'],duration:'A few weeks',frequency:'Several times a day'};
+  state.previewDay1={title:'Building trust',sub:'A calm first day together',
+    tasks:['Morning walk before breakfast','5 minutes of quiet time together','Note when the barking happens']};
+  state.aiBehaviorExplain='Rex likely barks from territorial instinct combined with pent-up energy that has no outlet during the day.';
+  try{ state.__previewSig=answersSignature(); }catch(e){}
+  state.currentQ=0;
+  try{ buildOffer(); }catch(e){}
+  showScreen('screen-offer');
 }
 function buildOffer(){
   // Reset the region choice every time the offer is shown, so if the buyer backs out and
   // comes to pay again, they are asked to confirm their region afresh (Slovenia or not).
   userCountryChoice = null;
+  // Third tab wording depends on context: a signed-in user adding a pet should be able to
+  // bail back into the app, not wipe everything to the start screen.
+  try{
+    var addingPet = !!(state.__addPetPending || state.__pendingBlankPet || state.__buyAnotherPet ||
+                       (state.userEmail && Array.isArray(state.pets) && state.pets.length>=1 && state.purchased));
+    var rt=document.querySelector('.offer-tab[data-otab="restart"]');
+    if(rt) rt.textContent = addingPet ? 'Back to app' : 'Start again';
+    // Render the preview; syncPreviewState (called inside) opens it only if it has content.
+    try{ renderDayOnePreview(); }catch(e){}
+  }catch(e){}
   const pet=state.answers.petName||'your pet';
   $('offerEyebrow').textContent='Unlock the full week';
   $('offerH').innerHTML='Choose <span class="accent">'+esc(pet)+"'s</span> plan.";
