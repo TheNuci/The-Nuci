@@ -388,6 +388,17 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .offer-tab{flex:1;border:none;background:transparent;color:var(--secondary);font-family:inherit;font-size:0.8rem;
   font-weight:500;padding:9px 6px;border-radius:10px;cursor:pointer;transition:all .22s cubic-bezier(.4,.9,.3,1)}
 .offer-tab.on{background:var(--bg);color:var(--forest);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+/* Progress ring that traces the preview tab's border while the AI plan is generating. It
+   fills as generation progresses; once complete it pulses to invite a tap. */
+.offer-tab{position:relative}
+.ptab-ring{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;opacity:0;transition:opacity .3s}
+.offer-tab.generating .ptab-ring{opacity:1}
+.ptab-ring-track{fill:none;stroke:rgba(107,143,113,.16);stroke-width:2.5}
+.ptab-ring-fill{fill:none;stroke:var(--sage);stroke-width:2.5;stroke-linecap:round;
+  stroke-dasharray:276;stroke-dashoffset:276;transition:stroke-dashoffset .4s linear}
+.ptab-label{position:relative;z-index:1}
+/* When done, the whole tab pulses (reuses the invite-pulse look). */
+.offer-tab.ring-done{animation:offerTabPulse 1.8s ease-in-out infinite}
 /* The preview tab pulses (like the check-in button) to invite a tap - but only while the
    preview is closed. Once opened, the pulse stops. */
 .offer-tab.pulse{animation:offerTabPulse 1.8s ease-in-out infinite}
@@ -791,7 +802,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <h1 class="offer-h" id="offerH" style="margin-bottom:0">A <span class="accent">7-day journey</span><br>to a calmer pet.</h1>
     <div class="offer-tabs" style="margin-top:14px;pointer-events:auto">
       <button type="button" class="offer-tab" data-otab="review" onclick="offerTab('review')">Review</button>
-      <button type="button" class="offer-tab on" data-otab="preview" onclick="offerTab('preview')">Preview ✨</button>
+      <button type="button" class="offer-tab on" data-otab="preview" onclick="offerTab('preview')"><svg class="ptab-ring" id="ptabRing" viewBox="0 0 100 44" preserveAspectRatio="none"><rect class="ptab-ring-track" x="1.5" y="1.5" width="97" height="41" rx="9"/><rect class="ptab-ring-fill" id="ptabRingFill" x="1.5" y="1.5" width="97" height="41" rx="9"/></svg><span class="ptab-label">Preview ✨</span></button>
       <button type="button" class="offer-tab" data-otab="restart" onclick="offerTab('restart')">Start again</button>
     </div>
   </div>
@@ -2624,6 +2635,39 @@ function selectPkg(i){
 // ===== Free preview of day 1, generated for real, before payment =====
 // Shows the actual quality of the plan instead of asking people to trust a description.
 // Generated once and reused after purchase, so the AI cost is a single call.
+// ===== Preview-tab progress ring (fills while the AI plan generates) =====
+var _ptabTimer=null, _ptabPct=0;
+function ptabRingStart(){
+  var tab=document.querySelector('.offer-tab[data-otab="preview"]');
+  var fill=document.getElementById('ptabRingFill');
+  if(!tab||!fill) return;
+  tab.classList.add('generating'); tab.classList.remove('ring-done','pulse');
+  tab.style.display='';               // make sure the tab is visible while generating
+  _ptabPct=0; ptabRingSet(0);
+  clearInterval(_ptabTimer);
+  // Creep toward ~92% on a gentle curve so it always looks alive; the real completion snaps
+  // it to 100% when the AI returns.
+  _ptabTimer=setInterval(function(){
+    var step=(92-_ptabPct)*0.08 + 0.6;
+    _ptabPct=Math.min(92,_ptabPct+step);
+    ptabRingSet(_ptabPct);
+  },140);
+}
+function ptabRingSet(pct){
+  var fill=document.getElementById('ptabRingFill');
+  if(!fill) return;
+  var len=276;                        // perimeter of the rounded rect (approx)
+  fill.style.strokeDashoffset = String(len*(1-pct/100));
+}
+function ptabRingDone(){
+  clearInterval(_ptabTimer);
+  var tab=document.querySelector('.offer-tab[data-otab="preview"]');
+  ptabRingSet(100);
+  if(tab){
+    // brief moment at full, then the ring fades and the tab starts pulsing to invite a tap.
+    setTimeout(function(){ tab.classList.remove('generating'); tab.classList.add('ring-done'); }, 480);
+  }
+}
 async function renderDayOnePreview(){
   var host=document.getElementById('dayOnePreview');
   if(!host) return;
@@ -2637,11 +2681,9 @@ async function renderDayOnePreview(){
   else if(state.aiPlan && state.aiPlan.days && state.aiPlan.days[0] && state.__planSig===sig){ cached = state.aiPlan.days[0]; }
   if(cached){ host.innerHTML=dayOnePreviewHtml(cached, pet); syncPreviewState(); return; }
 
-  host.innerHTML='<div class="card" style="margin-bottom:14px">'
-    +'<div class="d-eb" style="color:var(--sage);margin-bottom:8px">Your first day</div>'
-    +'<div style="display:flex;align-items:center;gap:10px;color:var(--secondary);font-size:.9rem">'
-    +'<span class="micbtn busy" style="width:26px;height:26px;pointer-events:none">'+icon('sparkle','14px',1.7)+'</span>'
-    +'Writing day one for '+esc(pet)+'...</div></div>';
+  // Generating: show NO plan text. Empty the preview and run the progress ring on the tab.
+  host.innerHTML='';
+  ptabRingStart();
 
   try{
     const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
@@ -2657,10 +2699,12 @@ async function renderDayOnePreview(){
       // keep the whole plan if the endpoint returned one - saves a second call later
       if(plan.days && plan.days.length>1){ state.aiPlan=plan; state.__planSig=sig; }
       persistState();
+      ptabRingDone();
       host.innerHTML=dayOnePreviewHtml(d1, pet);
       syncPreviewState();
-    } else { host.innerHTML=''; syncPreviewState(); }
+    } else { ptabRingDone(); host.innerHTML=''; syncPreviewState(); }
   }catch(e){
+    ptabRingDone();
     host.innerHTML='';   // quietly skip the preview rather than showing an error
     syncPreviewState();
   }
@@ -2674,9 +2718,12 @@ function syncPreviewState(){
   var has=host && host.innerHTML.trim().length>0;
   if(pw) pw.classList.remove('open');                 // closed by default
   if(pvt){
+    // While the ring is still generating, leave the tab visible and don't touch its classes.
+    if(pvt.classList.contains('generating')){ pvt.style.display=''; return; }
     pvt.style.display=has?'':'none';
     pvt.classList.remove('on');
-    pvt.classList.toggle('pulse', !!has);             // pulse while closed + has content
+    // Don't add the invite-pulse if the ring-done pulse is already running.
+    if(!pvt.classList.contains('ring-done')){ pvt.classList.toggle('pulse', !!has); }
   }
 }
 function dayOnePreviewHtml(d, pet){
