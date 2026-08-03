@@ -12,7 +12,7 @@
 //                     alternatives: 'gpt-4o-transcribe', 'whisper-1'
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const MODEL = process.env.TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe';
+const MODEL = process.env.TRANSCRIBE_MODEL || 'gpt-4o-transcribe';
 
 // Keep clips small - this is short-form voice input, not podcast transcription.
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
@@ -29,6 +29,11 @@ exports.handler = async (event) => {
     const payload = JSON.parse(event.body || '{}');
     const b64 = payload.audio || '';
     const mime = payload.mime || 'audio/webm';
+    // Optional ISO-639-1 language hint (e.g. 'sl', 'en') from the client. Passing it stops the
+    // model from confusing similar languages (Slovenian vs Croatian/Serbian, etc). If absent,
+    // the model auto-detects.
+    const langHint = (typeof payload.language === 'string' && /^[a-z]{2}$/i.test(payload.language))
+      ? payload.language.toLowerCase() : '';
     if (!b64) {
       return { statusCode: 400, body: JSON.stringify({ error: 'No audio provided' }) };
     }
@@ -48,7 +53,8 @@ exports.handler = async (event) => {
     const form = new FormData();
     form.append('file', new Blob([bytes], { type: mime }), `clip.${ext}`);
     form.append('model', MODEL);
-    // NOTE: we deliberately do NOT send a `language` field -> the model auto-detects it.
+    // Pass the language hint when the client sent one; otherwise let the model auto-detect.
+    if (langHint) form.append('language', langHint);
     form.append('response_format', 'json');
 
     const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {

@@ -546,7 +546,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   mask-image:linear-gradient(to bottom,transparent calc(var(--fadeTop,150px) - 40px),#000 calc(var(--fadeTop,150px) - 4px),#000 calc(100% - 26px),transparent 100%)}
 .ci-body::-webkit-scrollbar{display:none}
 .ci-eyebrow{font-family:'Fraunces',Georgia,serif;font-style:italic;color:var(--sage);font-size:0.95rem;margin-bottom:10px}
-.ci-bottom{position:fixed;left:0;right:0;bottom:0;z-index:1001;padding:14px 26px max(26px,env(safe-area-inset-bottom));transition:bottom .25s ease}
+.ci-bottom{position:fixed;left:0;right:0;bottom:0;z-index:1001;padding:14px 26px max(26px,env(safe-area-inset-bottom));transition:bottom .25s ease;background:var(--bg)}
 .count-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;width:100%}
 .count-cell{background:var(--card);border:1.5px solid var(--border);border-radius:16px;box-shadow:var(--shadow);
   padding:20px 0;text-align:center;font-size:1.2rem}
@@ -991,14 +991,20 @@ function autoGrow(el, minLines){
   var vv = window.visualViewport;
   if(vv){
     var baseH = vv.height;
+    var kbIsOpen = false;
     var onVV = function(){
-      // treat a >18% viewport shrink as "keyboard is open"
-      var shrunk = (window.innerHeight - vv.height) > window.innerHeight*0.18;
-      setKb(shrunk && isText(document.activeElement));
-      if(!shrunk) baseH = vv.height;
+      var shrinkPct = (window.innerHeight - vv.height) / window.innerHeight;
+      // Hysteresis: open at >18% shrink, but don't close again until it drops below 8%. Without
+      // this, tiny viewport jitters while typing flip the state on and off, which made the nav
+      // blur flicker on every keypress.
+      if(!kbIsOpen && shrinkPct > 0.18) kbIsOpen = true;
+      else if(kbIsOpen && shrinkPct < 0.08) kbIsOpen = false;
+      setKb(kbIsOpen && isText(document.activeElement));
+      if(shrinkPct < 0.08) baseH = vv.height;
     };
     vv.addEventListener('resize', onVV);
-    vv.addEventListener('scroll', onVV);
+    // NOTE: we intentionally do NOT listen to vv 'scroll' - it fires constantly while typing
+    // and caused the flicker. 'resize' alone reliably tracks the keyboard.
   }
 
   // Focus state is authoritative: no text field focused == keyboard closed
@@ -1063,7 +1069,8 @@ function toggleMic(btn){
         fetch('/.netlify/functions/transcribe',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({audio:b64, mime:(rec.mimeType||mime||'audio/webm')})
+          body:JSON.stringify({audio:b64, mime:(rec.mimeType||mime||'audio/webm'),
+            language:(navigator.language||'en').slice(0,2).toLowerCase()})
         })
         .then(function(r){ return r.json(); })
         .then(function(d){
@@ -2301,12 +2308,14 @@ async function doRegister(){
           pet_name_pending:state.answers.petName||null, updated_at:new Date().toISOString(),
           timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
       }catch(e){}
+      // Confirmation is OFF (signed in immediately) -> it's safe to send the welcome email now.
+      try{ await fetch('/.netlify/functions/welcome-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,name}),keepalive:true}); }catch(e){}
     }
-    try{ await fetch('/.netlify/functions/welcome-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,name}),keepalive:true}); }catch(e){}
     btn.disabled=false; btn.textContent='Create account';
     if(!signedInNow){
-      // Email confirmation is required - tell them to check their inbox, don't drop them into
-      // the paid flow yet (they must confirm first).
+      // Email confirmation is required. Do NOT send the welcome email yet - it goes out only
+      // after they click the confirmation link (handled on the ?resume=1 return). Show the
+      // "check your email" notice and stop here.
       showEmailConfirmNotice(email);
       return;
     }
@@ -2315,14 +2324,32 @@ async function doRegister(){
   }catch(e){ err.textContent='Something went wrong - please try again.'; btn.disabled=false; btn.textContent='Create account'; }
 }
 function showEmailConfirmNotice(email){
-  // A calm "check your email" screen shown after signup when confirmation is required.
+  // Shown after signup when email confirmation is required. Clear call to check the inbox,
+  // plus a resend option.
   try{
     openSheet(
-      '<div class="d-eb" style="color:var(--sage)">One last step</div>'
-      +'<h2 style="font-size:1.35rem;letter-spacing:-.02em;margin:6px 0 8px">Check your email</h2>'
-      +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.55;margin-bottom:6px">We sent a confirmation link to <b>'+esc(email)+'</b>. Tap it to confirm your account, then you\u2019ll come right back here to choose your plan.</p>'
+      '<div style="text-align:center">'
+      +'<div style="width:58px;height:58px;border-radius:50%;background:rgba(107,143,113,.13);display:flex;align-items:center;justify-content:center;margin:4px auto 16px;color:var(--sage)"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>'
+      +'<div class="d-eb" style="color:var(--sage)">One last step</div>'
+      +'<h2 style="font-size:1.4rem;letter-spacing:-.02em;margin:6px 0 10px">Confirm your email</h2>'
+      +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.55;margin-bottom:20px">We sent a confirmation link to <b>'+esc(email)+'</b>. Tap it to activate your account, then you\u2019ll come straight back here to choose your plan.</p>'
+      +'<button class="btn" id="resendConfirmBtn" style="width:100%;background:rgba(107,143,113,.12);color:var(--forest);border:none" onclick="resendConfirmEmail(\''+esc(email).replace(/'/g,"\\'")+'\')">Resend the email</button>'
+      +'<p style="font-size:.76rem;color:var(--secondary);margin-top:12px">Check your spam folder if it hasn\u2019t arrived in a minute.</p>'
+      +'</div>'
     );
   }catch(e){}
+}
+async function resendConfirmEmail(email){
+  var btn=document.getElementById('resendConfirmBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Sending...'; }
+  try{
+    // Supabase resend of the signup confirmation email.
+    await supa.auth.resend({ type:'signup', email:email });
+    if(btn){ btn.textContent='Sent - check your inbox'; }
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='Resend the email'; }
+    try{ toast('Could not resend - try again in a moment'); }catch(_){}
+  }
 }
 async function doLogin(){
   if(DEMO){ state.userEmail='demo@thenuci.com'; buildOffer(); showScreen('screen-offer'); return; }
@@ -2483,11 +2510,11 @@ function centerNotice(title, html){
   document.body.appendChild(d);
   d.addEventListener('click', function(e){ if(e.target===d) d.remove(); });
 }
-var T_TERMS="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Terms &amp; Conditions</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: July 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>1. Who we are.</b> The Nuci is operated by <b>Urban Rus s.p.</b>, a sole proprietor registered in Slovenia (the \u201cProvider\u201d, \u201cwe\u201d, \u201cus\u201d). Contact: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>2. The service.</b> The Nuci generates a personalised 7-day behaviour plan for your pet based on the information you provide, and lets you track daily check-ins. Plans are produced with the help of AI and general behavioural principles. The app also includes optional tools to help you find nearby veterinary clinics (using your device location, only when you choose) and to draft a message you can send or read to a vet in your chosen language.</p><p style=\"margin-bottom:12px\"><b>3. Not veterinary advice.</b> The Nuci provides educational behavioural guidance only. It is <b>not</b> veterinary advice, diagnosis or treatment, and is not a substitute for an in-person examination by a qualified veterinarian. The vet-finder and vet-message tools are conveniences to help you reach a professional; clinic listings come from a third-party map service and we do not endorse or vet them, and any drafted message is a starting point for you to review before sending. If your pet shows signs of illness, pain, aggression or distress, consult a vet. You use the plan and these tools at your own responsibility.</p><p style=\"margin-bottom:12px\"><b>4. Purchases.</b> Access to a plan is a one-time purchase (no subscription). One purchase provides one plan for one pet; multi-plan packages provide credits for additional pets. Prices are shown at checkout and include any applicable tax. Any promotional discount you unlock (for example through an in-app game) is applied automatically at checkout and has no cash value. Payments are processed by <b>Stripe</b>; we never receive or store your full card details.</p><p style=\"margin-bottom:12px\"><b>5. Digital content &amp; right of withdrawal.</b> Your plan is digital content supplied immediately after purchase. Under Article 43\u010d of the Slovenian Consumer Protection Act (ZVPot-1) and Article 16(m) of EU Directive 2011/83/EU, by completing your purchase you <b>expressly request immediate delivery</b> of the digital content and <b>acknowledge that you thereby lose your 14-day right of withdrawal</b>. Because the plan is generated and delivered instantly, <b>purchases are non-refundable</b>. If a plan fails to generate or has a genuine technical fault, our remedy is to generate a new plan for you at no extra cost, rather than a refund. This does not affect statutory rights that cannot be waived, such as correcting a genuine billing error.</p><p style=\"margin-bottom:12px\"><b>6. Your account.</b> You are responsible for the accuracy of the information you provide and for keeping your account secure. You must be at least 16 years old (or the age of digital consent in your country) to use The Nuci.</p><p style=\"margin-bottom:12px\"><b>7. Acceptable use.</b> You may use The Nuci only for your own pets and for lawful, personal purposes. You may not resell, copy or redistribute the generated plans.</p><p style=\"margin-bottom:12px\"><b>8. Liability.</b> To the extent permitted by law, the Provider is not liable for any indirect or consequential loss, or for outcomes arising from how behavioural guidance is applied. Nothing in these terms limits liability that cannot be limited under Slovenian or EU law.</p><p style=\"margin-bottom:12px\"><b>9. Changes.</b> We may update these terms; the current version is always available in the app. Continued use after changes means you accept them.</p><p style=\"margin-bottom:0\"><b>10. Governing law.</b> These terms are governed by the law of the Republic of Slovenia, with the courts of Slovenia having jurisdiction. For consumer disputes you may also use the EU ODR platform at ec.europa.eu/consumers/odr. Questions: hello@thenuci.com.</p></div>";
-var T_PRIV="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Privacy Policy</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: July 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>Controller.</b> The controller of your personal data is <b>Urban Rus s.p.</b> (Slovenia). Contact for any privacy request: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>What we collect.</b> Your account email; the pet and behaviour details you enter; your daily check-ins and notes; your plan and progress; email preferences and consent records; and basic technical data needed to run the service. If you use the microphone button, the short audio clip you record is sent for transcription and is <b>not stored by us</b> - only the resulting text is saved with your answer. If you use the \u201cFind a vet\u201d tool, your device location is used <b>once</b> to search for nearby clinics and is <b>not stored</b>; if you decline the location prompt, the tool simply links you to a map search instead. If you ask Nuci to draft a vet message, the relevant details from your answers are used to write it. We do <b>not</b> collect or store your full payment card details.</p><p style=\"margin-bottom:12px\"><b>Why, and legal basis.</b> We process this data to provide the service and your plan (performance of a contract, Art. 6(1)(b) GDPR); to send emails that are part of the service you bought, such as check-in reminders while a plan is active (contract, Art. 6(1)(b)), which you can switch off at any time; to send optional educational emails <b>only where you have separately ticked the box</b> (consent, Art. 6(1)(a)), which you may withdraw at any time in Profile \u2192 Email preferences; and to keep the service secure and comply with law (legitimate interest / legal obligation, Art. 6(1)(f)/(c)).</p><p style=\"margin-bottom:12px\"><b>Processors we use.</b> <b>Supabase</b> (database hosting), <b>Netlify</b> (site and server functions), <b>Stripe</b> (payments), <b>Resend</b> (emails), <b>Anthropic</b> (AI plan generation and vet-message drafting), <b>OpenAI</b> (speech-to-text, only when you use the microphone) and <b>Google</b> (Places, only when you use the \u201cFind a vet\u201d tool, to return nearby clinics for the coordinates sent). Each acts under a data-processing agreement or its own terms and only for the purpose described.</p><p style=\"margin-bottom:12px\"><b>International transfers.</b> Some processors may process data outside the EU/EEA (e.g. in the United States). Where they do, transfers are protected by the European Commission\u2019s <b>Standard Contractual Clauses (SCC)</b> and appropriate safeguards, so your data receives an equivalent level of protection.</p><p style=\"margin-bottom:12px\"><b>Retention.</b> We keep your data while your account is active. You can delete your profile at any time from Profile \u2192 Delete profile. This <b>permanently erases</b> your account and profile data from our database and removes your login, so you are no longer a registered user and receive no further emails. Invoicing and tax records are kept for the period Slovenian tax law requires (currently 10 years). Consent records are kept for as long as needed to prove the consent was validly given.</p><p style=\"margin-bottom:12px\"><b>Your rights.</b> Under the GDPR you have the right to access, rectify, erase, restrict or object to processing, and to data portability, and to withdraw consent at any time. To exercise these, email hello@thenuci.com. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski poobla\u0161\u010denec, ip-rs.si).</p><p style=\"margin-bottom:12px\"><b>Automated processing.</b> Your plan is generated with AI from the answers you provide. This is not a decision that produces legal or similarly significant effects on you within the meaning of Art. 22 GDPR, and a human can review any plan on request.</p><p style=\"margin-bottom:12px\"><b>We do not sell your data.</b> We never sell or rent personal data, and we do not use it for advertising profiling.</p><p style=\"margin-bottom:12px\"><b>Children.</b> The service is not directed at children under 16. If you believe a child has provided us data, contact us and we will delete it.</p><p style=\"margin-bottom:0\"><b>Contact.</b> For any question about your data, contact hello@thenuci.com.</p></div>";
-var T_IMPRESSUM=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Legal notice (Impressum)</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: July 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>Service provider.</b> This website and the The Nuci service are operated by:</p><p style="margin-bottom:12px"><b>Prodaja spletnih storitev, Urban Rus s.p.</b><br>Sole proprietor (samostojni podjetnik) registered in the Republic of Slovenia<br>Registered as a flat-rate sole proprietor (normiranec).</p><p style="margin-bottom:12px"><b>Contact.</b> Email: hello@thenuci.com<br>Website: thenuci.com</p><p style="margin-bottom:12px"><b>Registration.</b> Registered in the Slovenian Business Register (PRS) kept by AJPES.<br>Registration number (matična številka): 7538863000<br>Tax number (davčna številka): 27831469<br>Not liable for VAT under the flat-rate scheme (small business exemption).</p><p style="margin-bottom:12px"><b>Responsible for content.</b> Urban Rus, in the capacity of sole proprietor.</p><p style="margin-bottom:0"><b>Online dispute resolution.</b> The European Commission provides a platform for online dispute resolution for consumers at ec.europa.eu/consumers/odr. We can be reached for such matters at hello@thenuci.com.</p></div>`;
-var T_COOKIES=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Cookies &amp; local storage</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: July 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>The short version.</b> The Nuci does <b>not</b> use advertising or tracking cookies, and does not build advertising profiles. We use only what is technically necessary to run the service.</p><p style="margin-bottom:12px"><b>What we store on your device.</b> We use your browser\u2019s local storage (not third-party cookies) to keep you signed in and to remember your plan and progress between visits. This includes a saved copy of your current answers and plan, your sign-in session, and a note that you have seen the intro. This information stays on your device and is needed for the app to work.</p><p style="margin-bottom:12px"><b>Authentication.</b> Our authentication provider (Supabase) sets storage strictly necessary to keep your login session active. Without it you could not stay signed in.</p><p style="margin-bottom:12px"><b>Payments.</b> When you pay, Stripe may set its own strictly-necessary cookies on its checkout page to process the transaction securely and prevent fraud. These are governed by Stripe\u2019s own privacy policy.</p><p style="margin-bottom:12px"><b>No analytics or ad trackers.</b> We do not load Google Analytics, advertising pixels, or similar cross-site trackers. Because we only use strictly-necessary storage, no cookie-consent banner is required under the ePrivacy rules - but we tell you anyway, in the interest of transparency.</p><p style="margin-bottom:0"><b>Clearing it.</b> You can clear this storage at any time by signing out (Profile \u2192 Sign out), deleting your profile, or clearing site data in your browser settings.</p></div>`;
-var T_REFUND=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">No-refund policy</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: July 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>All sales are final.</b> The Nuci sells a personalised digital behaviour plan that is generated and delivered to you instantly. Because the plan is created for you and delivered in full at the moment of purchase, <b>all purchases are final and non-refundable.</b></p><p style="margin-bottom:12px"><b>If something goes wrong, we fix the plan - not refund it.</b> If your plan fails to generate, arrives incomplete, or has a genuine technical problem, we will <b>generate a new plan for you at no extra cost</b>. Our remedy for any issue with the plan is a replacement plan, not a return of money. In practice this means you always end up with a working plan.</p><p style="margin-bottom:12px"><b>You agree to this at checkout.</b> Before paying, you expressly request immediate delivery of your digital plan and acknowledge that you therefore <b>lose the 14-day right of withdrawal</b> that would otherwise apply to distance purchases (Article 43č of the Slovenian Consumer Protection Act ZVPot-1, implementing Article 16(m) of Directive 2011/83/EU). Changing your mind after purchase is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Please decide before you buy.</b> You can read exactly what the plan includes on this site before purchasing. If you are unsure whether The Nuci is right for you, contact us <b>before</b> paying and we will gladly answer.</p><p style="margin-bottom:12px"><b>Not veterinary advice.</b> The plan is educational behavioural guidance, not a cure or a guarantee of any outcome. A plan that did not produce the result you hoped for is not a faulty product; we can generate a fresh plan, but this is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Genuine billing errors.</b> The one thing a replacement plan cannot fix is a payment mistake - for example being charged twice for the same purchase. Consumer law does not let us waive that, so in a true billing error we will correct the charge. This does not apply to change-of-mind or dissatisfaction with the guidance.</p><p style="margin-bottom:0"><b>Contact.</b> Email <b>hello@thenuci.com</b> with your account email and Stripe receipt and we will sort it out - a new plan for any plan problem, or a corrected charge for a genuine billing error. Please reach out before opening a bank chargeback; we can usually resolve things faster.</p></div>`;
+var T_TERMS="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Terms &amp; Conditions</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: August 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>1. Who we are.</b> The Nuci is operated by <b>Urban Rus s.p.</b>, a sole proprietor registered in Slovenia (the \u201cProvider\u201d, \u201cwe\u201d, \u201cus\u201d). Contact: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>2. The service.</b> The Nuci generates a personalised 7-day behaviour plan for your pet based on the information you provide, and lets you track daily check-ins. Plans are produced with the help of AI and general behavioural principles. The app also includes optional tools to help you find nearby veterinary clinics (using your device location, only when you choose) and to draft a message you can send or read to a vet in your chosen language.</p><p style=\"margin-bottom:12px\"><b>3. Not veterinary advice.</b> The Nuci provides educational behavioural guidance only. It is <b>not</b> veterinary advice, diagnosis or treatment, and is not a substitute for an in-person examination by a qualified veterinarian. The vet-finder and vet-message tools are conveniences to help you reach a professional; clinic listings come from a third-party map service and we do not endorse or vet them, and any drafted message is a starting point for you to review before sending. If your pet shows signs of illness, pain, aggression or distress, consult a vet. You use the plan and these tools at your own responsibility.</p><p style=\"margin-bottom:12px\"><b>4. Purchases.</b> Access to a plan is a one-time purchase (no subscription). One purchase provides one plan for one pet; multi-plan packages provide credits for additional pets. Prices are shown at checkout and include any applicable tax. Any promotional discount you unlock (for example through an in-app game) is applied automatically at checkout and has no cash value. Payments are processed by <b>Stripe</b>; we never receive or store your full card details.</p><p style=\"margin-bottom:12px\"><b>5. Digital content &amp; right of withdrawal.</b> Your plan is digital content supplied immediately after purchase. Under Article 43\u010d of the Slovenian Consumer Protection Act (ZVPot-1) and Article 16(m) of EU Directive 2011/83/EU, by completing your purchase you <b>expressly request immediate delivery</b> of the digital content and <b>acknowledge that you thereby lose your 14-day right of withdrawal</b>. Because the plan is generated and delivered instantly, <b>purchases are non-refundable</b>. If a plan fails to generate or has a genuine technical fault, our remedy is to generate a new plan for you at no extra cost, rather than a refund. This does not affect statutory rights that cannot be waived, such as correcting a genuine billing error.</p><p style=\"margin-bottom:12px\"><b>6. Your account.</b> You are responsible for the accuracy of the information you provide and for keeping your account secure. When you create an account we send a confirmation link to your email address, and you confirm it before your account becomes active. You must be at least 16 years old (or the age of digital consent in your country) to use The Nuci.</p><p style=\"margin-bottom:12px\"><b>7. Acceptable use.</b> You may use The Nuci only for your own pets and for lawful, personal purposes. You may not resell, copy or redistribute the generated plans.</p><p style=\"margin-bottom:12px\"><b>8. Liability.</b> To the extent permitted by law, the Provider is not liable for any indirect or consequential loss, or for outcomes arising from how behavioural guidance is applied. Nothing in these terms limits liability that cannot be limited under Slovenian or EU law.</p><p style=\"margin-bottom:12px\"><b>9. Changes.</b> We may update these terms; the current version is always available in the app. Continued use after changes means you accept them.</p><p style=\"margin-bottom:0\"><b>10. Governing law.</b> These terms are governed by the law of the Republic of Slovenia, with the courts of Slovenia having jurisdiction. For consumer disputes you may also use the EU ODR platform at ec.europa.eu/consumers/odr. Questions: hello@thenuci.com.</p></div>";
+var T_PRIV="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Privacy Policy</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: August 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>Controller.</b> The controller of your personal data is <b>Urban Rus s.p.</b> (Slovenia). Contact for any privacy request: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>What we collect.</b> Your account email (which you confirm via a link we email you when you sign up); the pet and behaviour details you enter; your daily check-ins and notes; your plan and progress; email preferences and consent records; and basic technical data needed to run the service. If you use the microphone button, the short audio clip you record is sent for transcription and is <b>not stored by us</b> - only the resulting text is saved with your answer. If you use the \u201cFind a vet\u201d tool, your device location is used <b>once</b> to search for nearby clinics and is <b>not stored</b>; if you decline the location prompt, the tool simply links you to a map search instead. If you ask Nuci to draft a vet message, the relevant details from your answers are used to write it. We do <b>not</b> collect or store your full payment card details.</p><p style=\"margin-bottom:12px\"><b>Why, and legal basis.</b> We process this data to provide the service and your plan (performance of a contract, Art. 6(1)(b) GDPR); to send emails that are part of the service you bought, such as check-in reminders while a plan is active (contract, Art. 6(1)(b)), which you can switch off at any time; to send optional educational emails <b>only where you have separately ticked the box</b> (consent, Art. 6(1)(a)), which you may withdraw at any time in Profile \u2192 Email preferences; and to keep the service secure and comply with law (legitimate interest / legal obligation, Art. 6(1)(f)/(c)).</p><p style=\"margin-bottom:12px\"><b>Processors we use.</b> <b>Supabase</b> (database hosting), <b>Netlify</b> (site and server functions), <b>Stripe</b> (payments), <b>Resend</b> (emails), <b>Anthropic</b> (AI plan generation and vet-message drafting), <b>OpenAI</b> (speech-to-text, only when you use the microphone) and <b>Google</b> (Places, only when you use the \u201cFind a vet\u201d tool, to return nearby clinics for the coordinates sent). Each acts under a data-processing agreement or its own terms and only for the purpose described.</p><p style=\"margin-bottom:12px\"><b>International transfers.</b> Some processors may process data outside the EU/EEA (e.g. in the United States). Where they do, transfers are protected by the European Commission\u2019s <b>Standard Contractual Clauses (SCC)</b> and appropriate safeguards, so your data receives an equivalent level of protection.</p><p style=\"margin-bottom:12px\"><b>Retention.</b> We keep your data while your account is active. You can delete your profile at any time from Profile \u2192 Delete profile. This <b>permanently erases</b> your account and profile data from our database and removes your login, so you are no longer a registered user and receive no further emails. Invoicing and tax records are kept for the period Slovenian tax law requires (currently 10 years). Consent records are kept for as long as needed to prove the consent was validly given.</p><p style=\"margin-bottom:12px\"><b>Your rights.</b> Under the GDPR you have the right to access, rectify, erase, restrict or object to processing, and to data portability, and to withdraw consent at any time. To exercise these, email hello@thenuci.com. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski poobla\u0161\u010denec, ip-rs.si).</p><p style=\"margin-bottom:12px\"><b>Automated processing.</b> Your plan is generated with AI from the answers you provide. This is not a decision that produces legal or similarly significant effects on you within the meaning of Art. 22 GDPR, and a human can review any plan on request.</p><p style=\"margin-bottom:12px\"><b>We do not sell your data.</b> We never sell or rent personal data, and we do not use it for advertising profiling.</p><p style=\"margin-bottom:12px\"><b>Children.</b> The service is not directed at children under 16. If you believe a child has provided us data, contact us and we will delete it.</p><p style=\"margin-bottom:0\"><b>Contact.</b> For any question about your data, contact hello@thenuci.com.</p></div>";
+var T_IMPRESSUM=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Legal notice (Impressum)</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>Service provider.</b> This website and the The Nuci service are operated by:</p><p style="margin-bottom:12px"><b>Prodaja spletnih storitev, Urban Rus s.p.</b><br>Sole proprietor (samostojni podjetnik) registered in the Republic of Slovenia<br>Registered as a flat-rate sole proprietor (normiranec).</p><p style="margin-bottom:12px"><b>Contact.</b> Email: hello@thenuci.com<br>Website: thenuci.com</p><p style="margin-bottom:12px"><b>Registration.</b> Registered in the Slovenian Business Register (PRS) kept by AJPES.<br>Registration number (matična številka): 7538863000<br>Tax number (davčna številka): 27831469<br>Not liable for VAT under the flat-rate scheme (small business exemption).</p><p style="margin-bottom:12px"><b>Responsible for content.</b> Urban Rus, in the capacity of sole proprietor.</p><p style="margin-bottom:0"><b>Online dispute resolution.</b> The European Commission provides a platform for online dispute resolution for consumers at ec.europa.eu/consumers/odr. We can be reached for such matters at hello@thenuci.com.</p></div>`;
+var T_COOKIES=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Cookies &amp; local storage</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>The short version.</b> The Nuci does <b>not</b> use advertising or tracking cookies, and does not build advertising profiles. We use only what is technically necessary to run the service.</p><p style="margin-bottom:12px"><b>What we store on your device.</b> We use your browser\u2019s local storage (not third-party cookies) to keep you signed in and to remember your plan and progress between visits. This includes a saved copy of your current answers and plan, your sign-in session, and a note that you have seen the intro. This information stays on your device and is needed for the app to work.</p><p style="margin-bottom:12px"><b>Authentication.</b> Our authentication provider (Supabase) sets storage strictly necessary to keep your login session active. Without it you could not stay signed in.</p><p style="margin-bottom:12px"><b>Payments.</b> When you pay, Stripe may set its own strictly-necessary cookies on its checkout page to process the transaction securely and prevent fraud. These are governed by Stripe\u2019s own privacy policy.</p><p style="margin-bottom:12px"><b>No analytics or ad trackers.</b> We do not load Google Analytics, advertising pixels, or similar cross-site trackers. Because we only use strictly-necessary storage, no cookie-consent banner is required under the ePrivacy rules - but we tell you anyway, in the interest of transparency.</p><p style="margin-bottom:0"><b>Clearing it.</b> You can clear this storage at any time by signing out (Profile \u2192 Sign out), deleting your profile, or clearing site data in your browser settings.</p></div>`;
+var T_REFUND=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">No-refund policy</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>All sales are final.</b> The Nuci sells a personalised digital behaviour plan that is generated and delivered to you instantly. Because the plan is created for you and delivered in full at the moment of purchase, <b>all purchases are final and non-refundable.</b></p><p style="margin-bottom:12px"><b>If something goes wrong, we fix the plan - not refund it.</b> If your plan fails to generate, arrives incomplete, or has a genuine technical problem, we will <b>generate a new plan for you at no extra cost</b>. Our remedy for any issue with the plan is a replacement plan, not a return of money. In practice this means you always end up with a working plan.</p><p style="margin-bottom:12px"><b>You agree to this at checkout.</b> Before paying, you expressly request immediate delivery of your digital plan and acknowledge that you therefore <b>lose the 14-day right of withdrawal</b> that would otherwise apply to distance purchases (Article 43č of the Slovenian Consumer Protection Act ZVPot-1, implementing Article 16(m) of Directive 2011/83/EU). Changing your mind after purchase is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Please decide before you buy.</b> You can read exactly what the plan includes on this site before purchasing. If you are unsure whether The Nuci is right for you, contact us <b>before</b> paying and we will gladly answer.</p><p style="margin-bottom:12px"><b>Not veterinary advice.</b> The plan is educational behavioural guidance, not a cure or a guarantee of any outcome. A plan that did not produce the result you hoped for is not a faulty product; we can generate a fresh plan, but this is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Genuine billing errors.</b> The one thing a replacement plan cannot fix is a payment mistake - for example being charged twice for the same purchase. Consumer law does not let us waive that, so in a true billing error we will correct the charge. This does not apply to change-of-mind or dissatisfaction with the guidance.</p><p style="margin-bottom:0"><b>Contact.</b> Email <b>hello@thenuci.com</b> with your account email and Stripe receipt and we will sort it out - a new plan for any plan problem, or a corrected charge for a genuine billing error. Please reach out before opening a bank chargeback; we can usually resolve things faster.</p></div>`;
 function openLegal(kind){
   var map={terms:T_TERMS, privacy:T_PRIV, impressum:T_IMPRESSUM, cookies:T_COOKIES, refund:T_REFUND};
   openSheet(map[kind] || T_TERMS);
@@ -2510,14 +2537,15 @@ function dayData(n){
   return ov?{title:ov.title||base.title,sub:ov.sub||base.sub,desc:ov.desc||base.desc,tasks:(ov.tasks&&ov.tasks.length?ov.tasks:base.tasks)}:base;
 }
 function offerBack(){
-  // Backing out of the "add another pet" offer must NOT grant a plan. Clear the pending
-  // pet and return to the existing (already-paid) pet's app - nothing was charged, nothing
-  // is added.
+  // In the "add another pet" flow, the back button should step back into the questionnaire
+  // (to the last question), NOT jump straight to the app. Nothing is charged or added by
+  // simply navigating back. (Backing out from the FIRST question then returns to the app -
+  // handled in assessBack.)
   if(state.__buyAnotherPet || state.__addPetPending){
-    state.__buyAnotherPet=false; state.__addPetPending=null;
-    // restore the active pet's own data (the offer flow may have loaded the new answers)
-    try{ if(Array.isArray(state.pets) && state.pets[state.activePet]) loadPet(state.pets[state.activePet]); }catch(e){}
-    enterApp(); return;
+    showScreen('screen-assessment');
+    state.currentQ=Math.max(0,(getQuestions().length-1));
+    renderQ();
+    return;
   }
   if(state.purchased){ enterApp(); return; }
   // Back from the plan/pricing screen returns to the registration details, so a
@@ -2700,7 +2728,21 @@ async function renderDayOnePreview(){
       if(plan.days && plan.days.length>1){ state.aiPlan=plan; state.__planSig=sig; }
       persistState();
       ptabRingDone();
-      host.innerHTML=dayOnePreviewHtml(d1, pet);
+      // Close the wrapper BEFORE injecting content, so the filled preview never flashes open
+      // above the plans for a frame (the glitch). Do it WITHOUT the collapse animation the
+      // first time, so there's no motion - it should simply already be closed.
+      var pw0=document.getElementById('previewWrap');
+      if(pw0){
+        var hadTransition=pw0.style.transition;
+        pw0.style.transition='none';
+        pw0.classList.remove('open');
+        host.innerHTML=dayOnePreviewHtml(d1, pet);
+        // force a reflow, then restore the transition for future user toggles
+        void pw0.offsetHeight;
+        pw0.style.transition=hadTransition||'';
+      } else {
+        host.innerHTML=dayOnePreviewHtml(d1, pet);
+      }
       syncPreviewState();
     } else { ptabRingDone(); host.innerHTML=''; syncPreviewState(); }
   }catch(e){
@@ -3162,12 +3204,17 @@ function handlePaidReturn(demo){
   if(state.__addPetPending){
     var ap=state.__addPetPending; state.__addPetPending=null; state.__buyAnotherPet=false;
     if(!Array.isArray(state.pets)) state.pets=[];
-    try{ syncActivePet(); }catch(e){}
-    state.pets.push(null); state.activePet=state.pets.length-1;
+    // IMPORTANT: the previous pet was already snapshotted into the array when the add-pet flow
+    // began, so we must NOT syncActivePet() here (state.answers now holds the NEW pet, and a
+    // sync would snapshot it over the previous slot, wiping that pet). Instead: load the new
+    // pet's data into state, then append it as a brand-new slot.
     state.answers=ap.answers; state.aiPlan=ap.aiPlan||null; state.previewDay1=ap.previewDay1||null;
     state.currentDay=1; state.viewDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
     state.lastCheckinDate=null; state.planComplete=false; state.planStartDate=null;
-    state.__planSig=null; state.__previewSig=null;
+    state.__planSig=null; state.__previewSig=null; state.petPhoto=null;
+    state.dayNotes={}; state.dayInsights={}; state.tasksDone={}; state.planOverrides={};
+    state.pets.push(snapshotPet());
+    state.activePet=state.pets.length-1;
   }
   let p=null;
   try{ const raw=localStorage.getItem('pendingState'); if(raw) p=JSON.parse(raw); }catch(e){}
@@ -4318,7 +4365,7 @@ function renderProfileTab(){
     +'<div class="passport"><span class="pp-paw">'+petSvg(t,'150px')+'</span>'
     +'<div style="display:flex;gap:16px;align-items:center;margin-bottom:18px;position:relative">'
     +'<div style="width:74px;height:74px;border-radius:22px;overflow:hidden;background:rgba(244,241,233,0.16);display:flex;align-items:center;justify-content:center;color:#D8C9A3">'+avatar+'</div>'
-    +'<div><div class="accent" style="font-size:1.5rem">'+esc(pet)+'</div><div style="font-size:0.8rem;color:rgba(244,241,233,0.7)">'+esc(state.answers.breed||typeLabel)+'</div></div>'
+    +'<div><div class="accent" style="font-size:1.5rem;color:#F4F1E9">'+esc(pet)+'</div><div style="font-size:0.8rem;color:rgba(244,241,233,0.7)">'+esc(state.answers.breed||typeLabel)+'</div></div>'
     +'<label style="margin-left:auto;width:36px;height:36px;border-radius:50%;background:rgba(244,241,233,0.14);display:flex;align-items:center;justify-content:center;color:#F4F1E9;cursor:pointer">'+icon('camera','17px')+'<input type="file" accept="image/*" style="display:none" onchange="setPhoto(this)"></label></div>'
     +'<div style="display:flex;gap:12px;position:relative">'
     +'<div class="pp-chip"><div class="k">Species</div><div class="v">'+typeLabel+'</div></div>'
@@ -4520,23 +4567,22 @@ function renderCI(){
   body.innerHTML='<div class="qmid" id="ciMid"></div>';
   const mid=$('ciMid');
   const isTextCI=(s.type==='text'||s.type==='textarea');
+  // Hide content until positioned so it never jumps, then reveal with the fade.
+  if(mid) mid.style.visibility='hidden';
+  var revealCIMid=function(){ if(mid){ mid.style.visibility=''; } };
   requestAnimationFrame(()=>{ const fh=$('ciFixed').offsetHeight;
     if(isTextCI){
+      // Same rule as the questionnaire: pin the field a fixed, safe distance below the title
+      // so the title's background fade never overlaps it. No fragile centering math.
       const cm=$('ciMid'); if(cm) cm.style.paddingTop='0px';
-            const centerCI=()=>{ const body=$('ciBody');
-        const bt=body.getBoundingClientRect().top;
-        const tb=$('ciFixed').getBoundingClientRect().bottom;
-        const nextTop=body.querySelector('.qinline').getBoundingClientRect().top;
-        const field=body.querySelector('.field');
-        const fh=field.offsetHeight||52;
-        const off=field.getBoundingClientRect().top - (bt + (parseFloat(getComputedStyle(body).paddingTop)||0));
-        const gap=Math.max(16,(nextTop - tb - fh)/2);
-        const pad=(tb+gap-6) - bt - off;
-        body.style.paddingTop=pad+'px'; body.style.setProperty('--fadeTop',pad+'px'); };
-      requestAnimationFrame(()=>{ centerCI(); requestAnimationFrame(centerCI); });
+      var pad = 92 + fh + 24;
+      body.style.paddingTop='calc(env(safe-area-inset-top) + '+pad+'px)';
+      body.style.setProperty('--fadeTop','calc(env(safe-area-inset-top) + '+pad+'px)');
+      revealCIMid();
     } else {
       body.style.paddingTop='calc(env(safe-area-inset-top) + '+(104+fh)+'px)';
       body.style.setProperty('--fadeTop','calc(env(safe-area-inset-top) + '+(104+fh)+'px)');
+      revealCIMid();
     }
     body.scrollTop=0; });
   $('ciBottom').style.display=isTextCI?'none':'flex';
@@ -5023,10 +5069,11 @@ async function adaptNextDay(nextDay){
         }
         // Still nothing? fall back to the local stash saved at signup (covers the email-
         // confirmation case where we couldn't write to the DB before the user confirmed).
+        var pendingRaw=null;
         if(!(state.answers && state.answers.petName)){
           try{
-            var raw=localStorage.getItem('nuci_pending_signup');
-            if(raw){ var ps=JSON.parse(raw);
+            pendingRaw=localStorage.getItem('nuci_pending_signup');
+            if(pendingRaw){ var ps=JSON.parse(pendingRaw);
               if(ps && ps.answers && ps.answers.petName){
                 state.answers=ps.answers; state.aiPlan=ps.aiPlan||null;
                 state.previewDay1=ps.previewDay1||null; state.aiBehaviorExplain=ps.aiBehaviorExplain||null;
@@ -5035,6 +5082,23 @@ async function adaptNextDay(nextDay){
             }
           }catch(e){}
         }
+        // They've just confirmed their email and are signed in. Now (and only now) send the
+        // welcome email and write their profile to the database - once. A local flag prevents
+        // re-sending if they revisit the confirm link.
+        try{
+          var pend = pendingRaw || localStorage.getItem('nuci_pending_signup');
+          if(pend && !localStorage.getItem('nuci_welcomed')){
+            var pj=JSON.parse(pend);
+            try{
+              await supa.from('profiles').upsert({email:state.userEmail, data:serializeState(),
+                signup_at:new Date().toISOString(), pet_name_pending:(state.answers&&state.answers.petName)||null,
+                updated_at:new Date().toISOString(),
+                timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
+            }catch(e){}
+            try{ await fetch('/.netlify/functions/welcome-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.userEmail,name:(pj&&pj.name)||state.userName||''}),keepalive:true}); }catch(e){}
+            try{ localStorage.setItem('nuci_welcomed','1'); localStorage.removeItem('nuci_pending_signup'); }catch(e){}
+          }
+        }catch(e){}
         if(state.answers && state.answers.petName){
           if(state.purchased){ enterApp(); return; }
           buildOffer(); showScreen('screen-offer'); return;
