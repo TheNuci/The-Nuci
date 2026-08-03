@@ -2243,34 +2243,75 @@ async function doRegister(){
   if(!supa){ err.textContent='Connection error - please try again.'; return; }
   const btn=document.querySelector('#regCta .btn'); btn.disabled=true; btn.textContent='Creating account...';
   try{
-    const {data,error}=await supa.auth.signUp({email,password:pass});
-    var accountAlreadyExists = !!(error && /already/i.test(error.message));
-    if(error && !accountAlreadyExists){ err.textContent=error.message; btn.disabled=false; btn.textContent='Create account'; return; }
-    state.userEmail=email; state.userName=name;
-
-    if(accountAlreadyExists){
-      // This email already has an account. Do NOT create a fresh profile or send a welcome
-      // email again. Instead, tell them to sign in - their existing pets/plans are there, and
-      // adding another pet happens from inside the app (Profile -> Start a plan for another pet).
-      err.style.color=''; 
-      err.textContent='You already have an account with this email. Please sign in - you can add another pet from your profile.';
+    // Try to SIGN IN first. RLS only lets a user read their own row once authenticated, so an
+    // anonymous "does this email exist?" lookup wouldn't work. Instead: if sign-in succeeds,
+    // the account already exists - load its profile (pets, plans, purchased) and go straight in.
+    const {error:signInErr}=await supa.auth.signInWithPassword({email,password:pass});
+    if(!signInErr){
+      // Existing account, correct password -> load it and enter.
+      state.userEmail=email;
+      await loadStateForUser(email);
       btn.disabled=false; btn.textContent='Create account';
-      // flip the form to login for convenience
-      try{ setTimeout(function(){ showScreen('screen-login'); var le=document.getElementById('loginEmail'); if(le) le.value=email; }, 1400); }catch(e){}
+      enterApp();
       return;
     }
-
-    // New account only past this point.
+    // Sign-in failed. Either the email exists but the password is wrong, or there's no account
+    // yet. Try to create the account; if Supabase says it already exists, the password was wrong.
+    const {data,error}=await supa.auth.signUp({email,password:pass});
+    var accountAlreadyExists = !!(error && /already|registered|exists/i.test(error.message||''));
+    if(accountAlreadyExists){
+      // Email is taken and the password they typed doesn't match -> send them to log in.
+      err.style.color='';
+      err.textContent='You already have an account with this email. Please log in with your existing password.';
+      btn.disabled=false; btn.textContent='Create account';
+      try{ setTimeout(function(){ showScreen('screen-login'); var le=document.getElementById('logEmail'); if(le) le.value=email; }, 1400); }catch(e){}
+      return;
+    }
+    if(error){ err.textContent=error.message; btn.disabled=false; btn.textContent='Create account'; return; }
+    state.userEmail=email; state.userName=name;
+    // With "Confirm email" ON, signUp does NOT create a session yet, so we can't write to the
+    // database under RLS. Stash the questionnaire locally so that when the user clicks the
+    // confirm link and returns (?resume=1), we can rebuild their offer and let them pay.
     try{
-      await supa.from('profiles').upsert({email, data:serializeState(), signup_at:new Date().toISOString(),
-        pet_name_pending:state.answers.petName||null, updated_at:new Date().toISOString(),
-        timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
+      localStorage.setItem('nuci_pending_signup', JSON.stringify({
+        email:email, name:name,
+        answers:state.answers||{}, aiPlan:state.aiPlan||null, previewDay1:state.previewDay1||null,
+        aiBehaviorExplain:state.aiBehaviorExplain||null
+      }));
     }catch(e){}
+    // Try to authenticate (works only if email confirmation is OFF); if it succeeds we can also
+    // persist to the DB. If it fails (confirmation ON), the local stash above covers us.
+    var signedInNow=false;
+    try{ const {error:si}=await supa.auth.signInWithPassword({email,password:pass}); signedInNow=!si; }catch(e){}
+
+    if(signedInNow){
+      try{
+        await supa.from('profiles').upsert({email, data:serializeState(), signup_at:new Date().toISOString(),
+          pet_name_pending:state.answers.petName||null, updated_at:new Date().toISOString(),
+          timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
+      }catch(e){}
+    }
     try{ await fetch('/.netlify/functions/welcome-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,name}),keepalive:true}); }catch(e){}
     btn.disabled=false; btn.textContent='Create account';
+    if(!signedInNow){
+      // Email confirmation is required - tell them to check their inbox, don't drop them into
+      // the paid flow yet (they must confirm first).
+      showEmailConfirmNotice(email);
+      return;
+    }
     if(Object.keys(state.answers).length>1){ buildOffer(); showScreen('screen-offer'); }
     else { welcomeNew(); }
   }catch(e){ err.textContent='Something went wrong - please try again.'; btn.disabled=false; btn.textContent='Create account'; }
+}
+function showEmailConfirmNotice(email){
+  // A calm "check your email" screen shown after signup when confirmation is required.
+  try{
+    openSheet(
+      '<div class="d-eb" style="color:var(--sage)">One last step</div>'
+      +'<h2 style="font-size:1.35rem;letter-spacing:-.02em;margin:6px 0 8px">Check your email</h2>'
+      +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.55;margin-bottom:6px">We sent a confirmation link to <b>'+esc(email)+'</b>. Tap it to confirm your account, then you\u2019ll come right back here to choose your plan.</p>'
+    );
+  }catch(e){}
 }
 async function doLogin(){
   if(DEMO){ state.userEmail='demo@thenuci.com'; buildOffer(); showScreen('screen-offer'); return; }
@@ -4922,6 +4963,37 @@ async function adaptNextDay(nextDay){
       }
       // Explicitly clicked "Begin" -> straight into a fresh questionnaire.
       if(wantStart){ startFreshState(); startFlow(); return; }
+      // Arrived from the email-confirmation page ("Take me back to my plan"): they're now
+      // verified and signed in but haven't paid yet -> take them to the plan/offer screen so
+      // they can complete the purchase where they left off.
+      // Arrived from the email-confirmation page ("Take me back"): they're verified and signed
+      // in but haven't paid. Send them to the plan/offer screen to choose a package and pay.
+      // If their questionnaire answers aren't in memory (different tab, or a fresh load), pull
+      // the saved ones from their profile so we can build the offer.
+      if(wantResume){
+        if(!(state.answers && state.answers.petName)){
+          try{ await loadStateForUser(state.userEmail); }catch(e){}
+        }
+        // Still nothing? fall back to the local stash saved at signup (covers the email-
+        // confirmation case where we couldn't write to the DB before the user confirmed).
+        if(!(state.answers && state.answers.petName)){
+          try{
+            var raw=localStorage.getItem('nuci_pending_signup');
+            if(raw){ var ps=JSON.parse(raw);
+              if(ps && ps.answers && ps.answers.petName){
+                state.answers=ps.answers; state.aiPlan=ps.aiPlan||null;
+                state.previewDay1=ps.previewDay1||null; state.aiBehaviorExplain=ps.aiBehaviorExplain||null;
+                state.userName=state.userName||ps.name;
+              }
+            }
+          }catch(e){}
+        }
+        if(state.answers && state.answers.petName){
+          if(state.purchased){ enterApp(); return; }
+          buildOffer(); showScreen('screen-offer'); return;
+        }
+        startFreshState(); startFlow(); return;
+      }
       // Explicitly clicked "Log in" but this account has no plan -> send them to the login
       // screen so they can switch account, rather than silently showing the welcome page.
       if(wantLogin){ showScreen('screen-login'); return; }

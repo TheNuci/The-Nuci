@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>You're in · The Nuci</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,500&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#FBFBF8; --text:#1A211C; --secondary:#5C6660; --forest:#3E5A47; --sage:#6B8F71;
+    --border:#E5E3DC; --card:#fff; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);
+    min-height:100vh;min-height:100svh;display:flex;flex-direction:column;align-items:center;
+    padding:max(28px,7vh) 24px 24px;-webkit-font-smoothing:antialiased}
+  .brand{font-size:1.15rem;letter-spacing:-.03em;margin-bottom:0;color:var(--text)}
+  .brand span{color:var(--sage)}
+  .wrap{width:100%;max-width:380px;text-align:center;margin:auto 0}
+  .tick{width:60px;height:60px;border-radius:50%;background:rgba(107,143,113,.13);display:flex;
+    align-items:center;justify-content:center;margin:0 auto 26px}
+  .tick svg{width:28px;height:28px;stroke:var(--sage);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  h1{font-weight:400;font-size:2.32rem;letter-spacing:-.03em;line-height:1.05;margin-bottom:14px;color:var(--text)}
+  h1 .accent{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:400;color:var(--sage);font-size:2.61rem}
+  p{font-size:.95rem;color:var(--secondary);line-height:1.55;margin-bottom:30px}
+  button{width:100%;padding:15px;border:none;border-radius:15px;background:var(--forest);color:#fff;
+    font-family:inherit;font-size:1rem;font-weight:500;cursor:pointer;transition:opacity .15s;
+    box-shadow:0 8px 22px rgba(62,90,71,.2)}
+  button:active{opacity:.82}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+  <div class="brand"><span>The</span> Nuci.</div>
+  <div class="wrap">
+    <div class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg></div>
+    <h1>You're <span class="accent">in</span>.</h1>
+
+    <!-- Phone -->
+    <div id="phone" class="hidden">
+      <p>Your account is ready.</p>
+      <button onclick="goBack()">Take me back</button>
+    </div>
+
+    <!-- Desktop -->
+    <div id="desktop" class="hidden">
+      <p>Continue on your phone to finish.</p>
+    </div>
+  </div>
+
+<script>
+(function(){
+  var isPhone = /iPhone|Android.*Mobile|iPod/i.test(navigator.userAgent)
+    || (('ontouchstart' in window) && Math.min(screen.width, screen.height) < 820);
+  document.getElementById(isPhone ? 'phone' : 'desktop').classList.remove('hidden');
+  window.goBack = function(){
+    var hash = window.location.hash || '';
+    window.location.href = '/app?resume=1' + hash;
+  };
+})();
+</script>
+</body>
+</html>

@@ -26,6 +26,13 @@
   to = "/reset.html"
   status = 200
 
+# Email confirmation landing - clean /confirm path. Supabase redirects here after the user
+# clicks the confirm link in their email; the session tokens arrive in the URL hash.
+[[redirects]]
+  from = "/confirm"
+  to = "/confirm.html"
+  status = 200
+
 # ============ SCHEDULED EMAIL JOBS ============
 # Netlify runs these on a cron schedule (UTC). Each function decides internally
 # whether a given user is actually due an email, so frequent runs are safe.
