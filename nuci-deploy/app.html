@@ -1125,40 +1125,17 @@ if(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase){
 }
 const AI_ENDPOINT='/.netlify/functions/generate-plan';
 const AI_ADAPT_ENDPOINT='/.netlify/functions/regenerate-day';
-// ── Payment links: Slovenia vs the rest of the world ──
-// Slovenia gets its own Stripe links; everyone else gets the international set. Fill in
-// the Slovenian links below (TODO Urban). Until a SI link is set, we fall back to the
-// international one so nothing breaks.
+// ── Payment links (single global Stripe account for everyone) ──
 const LINKS_INTL={
-  single:'https://buy.stripe.com/14AcMYd2vet37Zn2PKdIA0d',   // INTL 9.95  (1 plan)
-  triple:'https://buy.stripe.com/9B65kw4vZ4St93rduodIA08',   // INTL 19.95 (3 plans)
-  five:'https://buy.stripe.com/dRmcMY8Mf2Kl4NbduodIA09'      // INTL 29.95 (5 plans)
-};
-const LINKS_SI={
-  single:'https://buy.stripe.com/test_6oUaEQ7HTcmH7dV7H9afS00',   // ⚠️ TEMP TEST LINK - revert to live before launch! Original: https://buy.stripe.com/6oUaEQ7HTcmH7dV7H9afS00  (SI 9.95, 1 plan)
-  triple:'https://buy.stripe.com/cNi8wIbY9aez2XF3qTafS01',   // SI 19.95 (3 plans)
-  five:'https://buy.stripe.com/00w9AMbY9biDbub6D5afS02'      // SI 29.95 (5 plans)
+  single:'https://buy.stripe.com/test_6oU5kw9Qj1Gh6VjgGAdIA00',   // ⚠️ TEST LINK - 9.95 (1 plan) - revert to live before launch! Live: https://buy.stripe.com/14AcMYd2vet37Zn2PKdIA0d
+  triple:'https://buy.stripe.com/9B65kw4vZ4St93rduodIA08',   // 19.95 (3 plans)
+  five:'https://buy.stripe.com/dRmcMY8Mf2Kl4NbduodIA09'      // 29.95 (5 plans) - unused
 };
 const DISCOUNT_LINKS_INTL={
-  single:'https://buy.stripe.com/28EdR2bYret30wV0HCdIA0a',   // INTL 50OFF 4.95  (1 plan)
-  triple:'https://buy.stripe.com/bJe6oA1jN2KlcfDeysdIA0b',   // INTL 50OFF 9.95  (3 plans)
-  five:'https://buy.stripe.com/28E3co5A3doZ3J7fCwdIA0c'      // INTL 50OFF 14.95 (5 plans)
+  single:'https://buy.stripe.com/28EdR2bYret30wV0HCdIA0a',   // 50OFF 4.95  (1 plan)
+  triple:'https://buy.stripe.com/bJe6oA1jN2KlcfDeysdIA0b',   // 50OFF 9.95  (3 plans)
+  five:'https://buy.stripe.com/28E3co5A3doZ3J7fCwdIA0c'      // 50OFF 14.95 (5 plans) - unused
 };
-const DISCOUNT_LINKS_SI={
-  single:'https://buy.stripe.com/5kQaEQ3rD5YjeGngdFafS03',   // SI 50OFF 4.95  (1 plan)
-  triple:'https://buy.stripe.com/fZubIU3rDcmHeGn7H9afS04',   // SI 50OFF 9.95  (3 plans)
-  five:'https://buy.stripe.com/8x200c2nzbiD41J8LdafS05'      // SI 50OFF 14.95 (5 plans)
-};
-// Detect Slovenia from timezone and/or browser language (no extra API, privacy-friendly).
-function isSlovenia(){
-  try{
-    var tz=(Intl.DateTimeFormat().resolvedOptions().timeZone||'').toLowerCase();
-    if(tz.indexOf('ljubljana')>-1) return true;
-    var langs=(navigator.languages||[navigator.language||'']).join(',').toLowerCase();
-    if(/\bsl\b|sl-si|sl_si/.test(langs)) return true;
-  }catch(e){}
-  return false;
-}
 // Back-compat aliases used elsewhere
 const STRIPE_PAYMENT_LINK=LINKS_INTL.single;
 const STRIPE_PAYMENT_LINK_3PACK=LINKS_INTL.triple;
@@ -1187,23 +1164,11 @@ function pkgPrice(p){
   if(snapped<0.95) snapped=0.95;
   return Math.round(snapped*100)/100;
 }
-// Country resolution: the user's explicit choice (Slovenia / not) wins; if they haven't
-// chosen, we fall back to geo-detection as a safety net.
-var userCountryChoice=null;   // 'si' | 'intl' | null
-function isSloveniaResolved(){
-  if(userCountryChoice==='si') return true;
-  if(userCountryChoice==='intl') return false;
-  return isSlovenia();
-}
+// All payments go through the international (global) Stripe account. No Slovenia split.
+var userCountryChoice=null;   // kept for back-compat; no longer used
 function pkgLink(p){
-  var si=isSloveniaResolved();
-  // Choose the right set: discounted vs normal, Slovenia vs international.
-  // Every level falls back to the international link if a Slovenian one isn't set.
-  if(discountActive()){
-    if(si && DISCOUNT_LINKS_SI[p.id]) return DISCOUNT_LINKS_SI[p.id];
-    if(DISCOUNT_LINKS_INTL[p.id]) return DISCOUNT_LINKS_INTL[p.id];
-  }
-  if(si && LINKS_SI[p.id]) return LINKS_SI[p.id];
+  // Discounted set if the tap-game discount is active, otherwise the normal set.
+  if(discountActive() && DISCOUNT_LINKS_INTL[p.id]) return DISCOUNT_LINKS_INTL[p.id];
   return LINKS_INTL[p.id];
 }
 function currentPrice(){ return selectedPackage?pkgPrice(selectedPackage):9.95; }
@@ -2942,9 +2907,6 @@ function testJumpToOffer(){
   showScreen('screen-offer');
 }
 function buildOffer(){
-  // Reset the region choice every time the offer is shown, so if the buyer backs out and
-  // comes to pay again, they are asked to confirm their region afresh (Slovenia or not).
-  userCountryChoice = null;
   // Third tab wording depends on context: a signed-in user adding a pet should be able to
   // bail back into the app, not wipe everything to the start screen.
   try{
@@ -3088,27 +3050,8 @@ function runGenerating(next){
 function completePayment(){
   const pkg=selectedPackage||PACKAGES[0];
   if(DEMO){ state.planCredits=(state.planCredits||0)+pkg.credits; state.packageId=pkg.id; state.pricePaid=currentPrice(); handlePaidReturn(true); return; }
-  // Before sending to Stripe, the buyer must confirm their region so we use the correct
-  // payment account/link. Geo-detection is only a fallback pre-selection.
-  if(!userCountryChoice){ showCountryChoice(pkg); return; }
+  // Single global Stripe account - no region step, straight to checkout.
   proceedToPayment(pkg);
-}
-// Region chooser - required step before checkout.
-function showCountryChoice(pkg){
-  var guess=isSlovenia();
-  openSheet(
-    '<div class="d-eb" style="color:var(--sage)">One quick thing</div>'
-    +'<h2 style="font-size:1.3rem;letter-spacing:-.02em;margin:6px 0 8px">Where are you buying from?</h2>'
-    +'<p style="font-size:.9rem;color:var(--secondary);line-height:1.55;margin-bottom:18px">This makes sure you are charged correctly in the right region.</p>'
-    +'<button class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="chooseCountry(\'si\')">I\u2019m in Slovenia</button>'
-    +'<button class="btn" style="width:100%;background:rgba(107,143,113,.12);color:var(--forest);border:none" onclick="chooseCountry(\'intl\')">I\u2019m somewhere else</button>'
-    +(guess?'<p style="font-size:.76rem;color:var(--secondary);text-align:center;margin-top:12px">We think you\u2019re in Slovenia - please confirm.</p>':'')
-  );
-}
-function chooseCountry(c){
-  userCountryChoice = (c==='si') ? 'si' : 'intl';
-  closeSheet();
-  proceedToPayment(selectedPackage||PACKAGES[0]);
 }
 function proceedToPayment(pkg){
   try{
