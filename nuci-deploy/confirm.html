@@ -55,8 +55,13 @@
     || (('ontouchstart' in window) && Math.min(screen.width, screen.height) < 820);
   document.getElementById(isPhone ? 'phone' : 'desktop').classList.remove('hidden');
   window.goBack = function(){
+    // Supabase puts the auth token either in the hash (#access_token=...) or in the query
+    // (?code=... on the PKCE flow). Forward BOTH, otherwise the app opens without a session
+    // and drops the user back at the start screen.
     var hash = window.location.hash || '';
-    window.location.href = '/app?resume=1' + hash;
+    var qs = window.location.search || '';
+    var extra = qs ? ('&' + qs.replace(/^\?/, '')) : '';
+    window.location.href = '/app?resume=1' + extra + hash;
   };
 })();
 </script>

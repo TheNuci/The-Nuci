@@ -955,7 +955,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const LIVE = true;
 // Build stamp - shown at the bottom of the Profile tab so you can confirm at a glance
 // which version the phone is actually running after a deploy.
-const APP_BUILD = 'build 2026-08-04 10:02';
+const APP_BUILD = 'build 2026-08-04 11:25';
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -5103,6 +5103,15 @@ async function adaptNextDay(nextDay){
     // Is there a live login session? (survives tab close via Supabase's own storage)
     let session=null;
     try{ if(supa){ const r=await supa.auth.getSession(); session=r&&r.data&&r.data.session; } }catch(e){}
+    // Coming back from the email-confirmation link: Supabase is still exchanging the token in
+    // the URL, so the very first getSession() can come back empty. Without this wait the user
+    // is treated as logged out and dumped on the start screen instead of their plan.
+    if(!session && wantResume && supa){
+      for(var _i=0;_i<12 && !session;_i++){
+        await new Promise(function(r){ setTimeout(r,250); });
+        try{ const r2=await supa.auth.getSession(); session=r2&&r2.data&&r2.data.session; }catch(e){}
+      }
+    }
 
     if(session&&session.user&&session.user.email){
       state.userEmail=session.user.email;
@@ -5181,6 +5190,27 @@ async function adaptNextDay(nextDay){
     // Explicit intent from the landing page takes priority over any restored progress.
     if(wantLogin){ showScreen('screen-login'); return; }
     if(wantStart){ startFreshState(); startFlow(); return; }
+
+    // Came back from the confirmation email but the session still isn't available. Don't dump
+    // them at the start screen - restore the questionnaire they already completed and show the
+    // plans so they can pay.
+    if(wantResume){
+      try{
+        var praw=localStorage.getItem('nuci_pending_signup');
+        if(praw){
+          var pobj=JSON.parse(praw);
+          if(pobj && pobj.answers && pobj.answers.petName){
+            state.answers=pobj.answers;
+            state.aiPlan=pobj.aiPlan||null;
+            state.previewDay1=pobj.previewDay1||null;
+            state.aiBehaviorExplain=pobj.aiBehaviorExplain||null;
+            state.userName=state.userName||pobj.name;
+            state.userEmail=state.userEmail||pobj.email;
+            buildOffer(); showScreen('screen-offer'); return;
+          }
+        }
+      }catch(e){}
+    }
 
     // No live session (tab was closed, or arriving cold).
     // Within the SAME tab, sessionStorage holds in-progress questionnaire answers so a
