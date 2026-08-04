@@ -1,0 +1,91 @@
+<!-- ============================================================
+     The Nuci · Supabase "Confirm signup" email template
+     Paste into: Supabase → Authentication → Email Templates → Confirm signup
+     Keep {{ .ConfirmationURL }} exactly as-is - that is the live link.
+     Table-based + inline styles so it renders in Gmail, Outlook and Apple Mail.
+     ============================================================ -->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<title>Confirm your email</title>
+</head>
+<body style="margin:0;padding:0;background:#F2F1EC;-webkit-font-smoothing:antialiased">
+
+<!-- preheader (hidden preview line in the inbox) -->
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">One tap and your account is ready.</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F2F1EC;padding:28px 0">
+<tr><td align="center">
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%">
+
+    <!-- brand -->
+    <tr><td align="center" style="padding:0 24px 22px">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;letter-spacing:-0.4px;color:#1A211C">
+        <span style="color:#6B8F71">The</span> Nuci.
+      </div>
+    </td></tr>
+
+    <!-- card -->
+    <tr><td style="background:#FBFBF8;border:1px solid #E6E3DA;border-radius:22px;padding:36px 30px">
+
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#6B8F71;margin-bottom:10px">
+        One last step
+      </div>
+
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:27px;line-height:1.2;letter-spacing:-0.6px;color:#1A211C;margin:0 0 14px">
+        Confirm your <span style="font-family:Georgia,'Times New Roman',serif;font-style:italic;color:#3E5A47">email</span>.
+      </div>
+
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#5C6660">
+        Tap the button below to activate your account. You'll come straight back to pick your plan.
+      </div>
+
+      <!-- button -->
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 0">
+        <tr><td style="background:#3E5A47;border-radius:14px">
+          <a href="{{ .ConfirmationURL }}"
+             style="display:inline-block;padding:15px 30px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#F4F1E9;text-decoration:none">
+            Confirm my email
+          </a>
+        </td></tr>
+      </table>
+
+      <!-- quote box -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0 0">
+        <tr><td style="background:#F2F1EC;border-radius:16px;padding:18px 20px">
+          <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:15px;line-height:1.5;color:#1A211C">
+            "Every behaviour has a cause."
+          </div>
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#5C6660;margin-top:6px">
+            We'll help you find it, one day at a time.
+          </div>
+        </td></tr>
+      </table>
+
+      <!-- fallback link -->
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#5C6660;margin-top:26px">
+        Button not working? Paste this into your browser:<br>
+        <a href="{{ .ConfirmationURL }}" style="color:#3E5A47;word-break:break-all">{{ .ConfirmationURL }}</a>
+      </div>
+
+    </td></tr>
+
+    <!-- footer -->
+    <tr><td align="center" style="padding:20px 24px 0">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.7;color:#5C6660">
+        If you didn't create an account, you can ignore this email.<br>
+        <a href="https://thenuci.com" style="color:#5C6660;text-decoration:underline">thenuci.com</a>
+      </div>
+    </td></tr>
+
+  </table>
+
+</td></tr>
+</table>
+
+</body>
+</html>

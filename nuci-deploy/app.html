@@ -955,7 +955,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const LIVE = true;
 // Build stamp - shown at the bottom of the Profile tab so you can confirm at a glance
 // which version the phone is actually running after a deploy.
-const APP_BUILD = 'build 2026-08-04 07:44';
+const APP_BUILD = 'build 2026-08-04 08:55';
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1151,7 +1151,7 @@ const AI_ADAPT_ENDPOINT='/.netlify/functions/regenerate-day';
 // ── Payment links (single global Stripe account for everyone) ──
 const LINKS_INTL={
   single:'https://buy.stripe.com/test_6oU5kw9Qj1Gh6VjgGAdIA00',   // ⚠️ TEST LINK - 9.95 (1 plan) - revert to live before launch! Live: https://buy.stripe.com/14AcMYd2vet37Zn2PKdIA0d
-  triple:'https://buy.stripe.com/9B65kw4vZ4St93rduodIA08',   // 19.95 (3 plans)
+  triple:'https://buy.stripe.com/test_cNiaEQ9Qjet32F30HCdIA02',   // ⚠️ TEST LINK - 19.95 (3 plans) - revert before launch! Live: https://buy.stripe.com/9B65kw4vZ4St93rduodIA08
   five:'https://buy.stripe.com/dRmcMY8Mf2Kl4NbduodIA09'      // 29.95 (5 plans) - unused
 };
 const DISCOUNT_LINKS_INTL={
@@ -3195,11 +3195,22 @@ function completePayment(){
 }
 function proceedToPayment(pkg){
   try{
+    // The Stripe redirect reloads the page, so ANYTHING not written here is lost. That
+    // includes the pets array and the "I'm adding another pet" context - without them the
+    // returning page overwrote the existing pet and never counted the new plan.
+    var addCtx = state.__addPetPending
+      || ((state.__buyAnotherPet || state.__pendingBlankPet)
+            ? { answers: JSON.parse(JSON.stringify(state.answers||{})),
+                aiPlan: state.aiPlan||null, previewDay1: state.previewDay1||null }
+            : null);
     localStorage.setItem('pendingState',JSON.stringify({
       answers:state.answers, planLength:state.planLength, currentDay:state.currentDay,
       petPhoto:state.petPhoto, userEmail:state.userEmail, userName:state.userName,
       pricePaid:currentPrice(), planCredits:pkg.credits, packageId:pkg.id,
-      planOverrides:state.planOverrides||null, aiPlan:state.aiPlan||null, __planSig:state.__planSig||null, paid:true
+      planOverrides:state.planOverrides||null, aiPlan:state.aiPlan||null, __planSig:state.__planSig||null, paid:true,
+      pets:state.pets||[], activePet:state.activePet||0,
+      priorCredits:state.planCredits||0,
+      addPetPending:addCtx
     }));
   }catch(e){}
   var payLink=pkgLink(pkg);
@@ -3209,6 +3220,24 @@ function proceedToPayment(pkg){
 }
 function handlePaidReturn(demo){
   window.__handlingPaidReturn=true;
+  // The Stripe redirect reloads the page, so the in-memory add-pet context is gone. Restore it
+  // from pendingState first - otherwise the new pet overwrites the existing one, the extra plan
+  // isn't counted, and the pet switcher never appears.
+  try{
+    var _ps=JSON.parse(localStorage.getItem('pendingState')||'null');
+    if(_ps){
+      if(Array.isArray(_ps.pets) && _ps.pets.length && (!Array.isArray(state.pets) || !state.pets.length)){
+        state.pets=_ps.pets;
+        state.activePet=(typeof _ps.activePet==='number')?_ps.activePet:0;
+      }
+      if(_ps.addPetPending && !state.__addPetPending){
+        state.__addPetPending=_ps.addPetPending;
+      }
+      if(typeof _ps.priorCredits==='number' && !state.planCredits){
+        state.planCredits=_ps.priorCredits;
+      }
+    }
+  }catch(e){}
   // If this payment was for an ADDITIONAL pet on an existing account, commit that pet now
   // (it was parked until payment succeeded, so backing out earlier granted nothing).
   if(state.__addPetPending){
