@@ -953,6 +953,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
+// Build stamp - shown at the bottom of the Profile tab so you can confirm at a glance
+// which version the phone is actually running after a deploy.
+const APP_BUILD = 'build 2026-08-04 07:24';
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -968,9 +971,11 @@ function hookGrow(id){
 function autoGrow(el, minLines){
   if(!el) return;
   el.style.height='auto';
-  // The floor is minLines (default 2): the field reserves that many lines and only grows
-  // once the content needs more. Single-line questions (name, breed) pass 1.
-  var floorLines=minLines||2;
+  // The floor is: an explicit minLines argument, else the floor stored on the element when it
+  // was rendered, else 2. Storing it on the element matters because callers that don't know
+  // the field type (e.g. the microphone inserting a transcript) must produce the SAME height
+  // as typing does - otherwise the box visibly changes size depending on how you entered text.
+  var floorLines = minLines || parseInt(el.getAttribute('data-floor-lines'),10) || 2;
   var cs=getComputedStyle(el);
   var line=parseFloat(cs.lineHeight)||22;
   var pad=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0);
@@ -1069,8 +1074,7 @@ function toggleMic(btn){
         fetch('/.netlify/functions/transcribe',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({audio:b64, mime:(rec.mimeType||mime||'audio/webm'),
-            language:(navigator.language||'en').slice(0,2).toLowerCase()})
+          body:JSON.stringify({audio:b64, mime:(rec.mimeType||mime||'audio/webm')})
         })
         .then(function(r){ return r.json(); })
         .then(function(d){
@@ -1830,6 +1834,7 @@ function renderQ(){
       +'<div class="qinline"><button class="rback" onclick="assessBack()" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button><button class="btn btn-primary" style="flex:1" type="button" onclick="assessNext()">Next</button></div>';
     const inp=$('qInput'); inp.value=state.answers[q.id]||'';
     var floorLines = multi ? 2 : 1;   // text questions (name, breed) start at 1 line; textareas at 2
+    inp.setAttribute('data-floor-lines', String(floorLines));
     inp.addEventListener('input',e=>{ state.answers[q.id]=e.target.value; autoGrow(inp, floorLines); });
     autoGrow(inp, floorLines);
     if(!multi) inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); assessNext(); }});
@@ -4392,7 +4397,8 @@ function renderProfileTab(){
     +'</div>'
     +'<button class="btn btn-ghost" style="margin-top:10px" onclick="signOut()">Sign out</button>'
     +'<button class="btn btn-ghost" style="color:var(--danger);padding:6px" onclick="confirmDelete()">Delete profile</button>'
-    +'<p style="text-align:center;font-size:0.72rem;color:var(--secondary);margin-top:10px">'+esc(state.userEmail||'')+'</p>';
+    +'<p style="text-align:center;font-size:0.72rem;color:var(--secondary);margin-top:10px">'+esc(state.userEmail||'')+'</p>'
+    +'<p style="text-align:center;font-size:0.66rem;color:var(--secondary);opacity:.55;margin-top:4px">'+APP_BUILD+'</p>';
   $('tab-profile').innerHTML=h;
 }
 function setPhoto(inp){
@@ -4624,8 +4630,10 @@ function renderCI(){
     mid.innerHTML='<div class="field field-grow"><textarea id="ciInput" rows="1" placeholder="'+esc(s.placeholder||'')+'"></textarea>'+micBtnHTML('ciInput')+'</div>'
       +'<div class="qinline"><button class="rback" onclick="ciBack()" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button><button class="btn btn-primary" style="flex:1" type="button" onclick="ciNext()">'+((ciStep>=flow.length-1)?'Finish check-in':'Next')+'</button></div>';
     const inp=$('ciInput'); inp.value=ciData[s.id]||'';
-    inp.addEventListener('input',e=>{ ciData[s.id]=e.target.value; autoGrow(inp); });
-    autoGrow(inp);
+    var ciFloor = multi ? 2 : 1;
+    inp.setAttribute('data-floor-lines', String(ciFloor));
+    inp.addEventListener('input',e=>{ ciData[s.id]=e.target.value; autoGrow(inp, ciFloor); });
+    autoGrow(inp, ciFloor);
     if(!multi) inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); ciNext(); }});
     // proxy is already focused (keyboard up) from the tap; move focus to the real field ASAP
     try{ inp.focus({preventScroll:true}); }catch(e){}

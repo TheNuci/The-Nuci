@@ -50,18 +50,28 @@ exports.handler = async (event) => {
     else if (mime.includes('wav')) ext = 'wav';
     else if (mime.includes('ogg')) ext = 'ogg';
 
-    const form = new FormData();
-    form.append('file', new Blob([bytes], { type: mime }), `clip.${ext}`);
-    form.append('model', MODEL);
-    // Pass the language hint when the client sent one; otherwise let the model auto-detect.
-    if (langHint) form.append('language', langHint);
-    form.append('response_format', 'json');
+    const callOpenAI = async (modelName) => {
+      const form = new FormData();
+      form.append('file', new Blob([bytes], { type: mime }), `clip.${ext}`);
+      form.append('model', modelName);
+      // Pass the language hint only when the client explicitly sent one; otherwise let the
+      // model auto-detect. (Never guess from the phone's locale - an English phone would then
+      // force English on Slovenian speech.)
+      if (langHint) form.append('language', langHint);
+      form.append('response_format', 'json');
+      return fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+        body: form
+      });
+    };
 
-    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` },
-      body: form
-    });
+    let res = await callOpenAI(MODEL);
+    // If the preferred model isn't available on this account, fall back to whisper-1 so the
+    // microphone keeps working instead of failing outright.
+    if (!res.ok && MODEL !== 'whisper-1') {
+      res = await callOpenAI('whisper-1');
+    }
 
     if (!res.ok) {
       const detail = await res.text();
