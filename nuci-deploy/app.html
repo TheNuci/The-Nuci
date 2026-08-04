@@ -955,7 +955,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const LIVE = true;
 // Build stamp - shown at the bottom of the Profile tab so you can confirm at a glance
 // which version the phone is actually running after a deploy.
-const APP_BUILD = 'build 2026-08-04 07:24';
+const APP_BUILD = 'build 2026-08-04 07:44';
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1074,7 +1074,8 @@ function toggleMic(btn){
         fetch('/.netlify/functions/transcribe',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({audio:b64, mime:(rec.mimeType||mime||'audio/webm')})
+          body:JSON.stringify({audio:b64, mime:(rec.mimeType||mime||'audio/webm'),
+            hint:(navigator.language||'').slice(0,2).toLowerCase()})
         })
         .then(function(r){ return r.json(); })
         .then(function(d){
@@ -2280,7 +2281,10 @@ async function doRegister(){
     }
     // Sign-in failed. Either the email exists but the password is wrong, or there's no account
     // yet. Try to create the account; if Supabase says it already exists, the password was wrong.
-    const {data,error}=await supa.auth.signUp({email,password:pass});
+    // emailRedirectTo tells Supabase where the confirmation link should land. Without it the
+    // link falls back to the Site URL (the landing page) instead of our /confirm screen.
+    const {data,error}=await supa.auth.signUp({email,password:pass,
+      options:{ emailRedirectTo: location.origin+'/confirm' }});
     var accountAlreadyExists = !!(error && /already|registered|exists/i.test(error.message||''));
     if(accountAlreadyExists){
       // Email is taken and the password they typed doesn't match -> send them to log in.
@@ -2349,7 +2353,8 @@ async function resendConfirmEmail(email){
   if(btn){ btn.disabled=true; btn.textContent='Sending...'; }
   try{
     // Supabase resend of the signup confirmation email.
-    await supa.auth.resend({ type:'signup', email:email });
+    await supa.auth.resend({ type:'signup', email:email,
+      options:{ emailRedirectTo: location.origin+'/confirm' } });
     if(btn){ btn.textContent='Sent - check your inbox'; }
   }catch(e){
     if(btn){ btn.disabled=false; btn.textContent='Resend the email'; }

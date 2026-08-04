@@ -34,6 +34,10 @@ exports.handler = async (event) => {
     // the model auto-detects.
     const langHint = (typeof payload.language === 'string' && /^[a-z]{2}$/i.test(payload.language))
       ? payload.language.toLowerCase() : '';
+    // A softer hint (the caller's device locale). It is NOT forced on the first attempt - it is
+    // only used to re-run the transcription if auto-detect returns the wrong script.
+    const retryHint = (typeof payload.hint === 'string' && /^[a-z]{2}$/i.test(payload.hint))
+      ? payload.hint.toLowerCase() : '';
     if (!b64) {
       return { statusCode: 400, body: JSON.stringify({ error: 'No audio provided' }) };
     }
@@ -50,14 +54,11 @@ exports.handler = async (event) => {
     else if (mime.includes('wav')) ext = 'wav';
     else if (mime.includes('ogg')) ext = 'ogg';
 
-    const callOpenAI = async (modelName) => {
+    const callOpenAI = async (modelName, forceLang) => {
       const form = new FormData();
       form.append('file', new Blob([bytes], { type: mime }), `clip.${ext}`);
       form.append('model', modelName);
-      // Pass the language hint only when the client explicitly sent one; otherwise let the
-      // model auto-detect. (Never guess from the phone's locale - an English phone would then
-      // force English on Slovenian speech.)
-      if (langHint) form.append('language', langHint);
+      if (forceLang) form.append('language', forceLang);
       form.append('response_format', 'json');
       return fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
@@ -66,11 +67,11 @@ exports.handler = async (event) => {
       });
     };
 
-    let res = await callOpenAI(MODEL);
+    let res = await callOpenAI(MODEL, langHint);
     // If the preferred model isn't available on this account, fall back to whisper-1 so the
     // microphone keeps working instead of failing outright.
     if (!res.ok && MODEL !== 'whisper-1') {
-      res = await callOpenAI('whisper-1');
+      res = await callOpenAI('whisper-1', langHint);
     }
 
     if (!res.ok) {
@@ -81,11 +82,26 @@ exports.handler = async (event) => {
       };
     }
 
-    const data = await res.json();
+    let data = await res.json();
+    let text = (data.text || '').trim();
+
+    // Auto-detect sometimes mistakes Slovenian for Serbian on short clips, which comes back in
+    // Cyrillic. If we got Cyrillic (or Greek) and the caller told us their locale, redo the
+    // transcription with that language forced - this reliably brings back Latin script.
+    const wrongScript = /[\u0400-\u04FF\u0370-\u03FF]/.test(text);
+    if (wrongScript && retryHint && retryHint !== langHint) {
+      const res2 = await callOpenAI(MODEL, retryHint);
+      if (res2.ok) {
+        const d2 = await res2.json();
+        const t2 = (d2.text || '').trim();
+        if (t2) text = t2;
+      }
+    }
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: (data.text || '').trim() })
+      body: JSON.stringify({ text: text })
     };
   } catch (e) {
     return {
