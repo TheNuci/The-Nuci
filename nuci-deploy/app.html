@@ -955,7 +955,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const LIVE = true;
 // Build stamp - shown at the bottom of the Profile tab so you can confirm at a glance
 // which version the phone is actually running after a deploy.
-const APP_BUILD = 'build 2026-08-04 08:55';
+const APP_BUILD = 'build 2026-08-04 10:02';
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1983,7 +1983,7 @@ function renderVetTab(){
     +'<div class="vet-sec">'
       +'<div class="vs-eyebrow">Nuci helps you explain</div>'
       +'<h3>Prepare what to say</h3>'
-      +'<div class="vs-desc">Nuci can write a clear message about '+esc(pet)+'\u2019s behaviour \u2014 ready to email or read out on the phone, in your language.</div>'
+      +'<div class="vs-desc">Nuci can write a clear message about '+esc(pet)+'\u2019s behaviour. Ready to email or read out on the phone, in your language.</div>'
       +'<div id="vetHelp"></div>'
     +'</div>'
     +'<div class="vet-disclaimer">The Nuci offers behavioural guidance, not veterinary or medical advice. Always consult a qualified vet for health concerns.</div>';
@@ -3210,6 +3210,7 @@ function proceedToPayment(pkg){
       planOverrides:state.planOverrides||null, aiPlan:state.aiPlan||null, __planSig:state.__planSig||null, paid:true,
       pets:state.pets||[], activePet:state.activePet||0,
       priorCredits:state.planCredits||0,
+      transactions:state.transactions||[],
       addPetPending:addCtx
     }));
   }catch(e){}
@@ -3235,6 +3236,12 @@ function handlePaidReturn(demo){
       }
       if(typeof _ps.priorCredits==='number' && !state.planCredits){
         state.planCredits=_ps.priorCredits;
+      }
+      // Keep the billing history: if the profile didn't load (offline, expired session), fall
+      // back to the copy saved before checkout so earlier purchases aren't lost.
+      if(Array.isArray(_ps.transactions) && _ps.transactions.length
+         && (!Array.isArray(state.transactions) || state.transactions.length < _ps.transactions.length)){
+        state.transactions=_ps.transactions;
       }
     }
   }catch(e){}
@@ -3272,7 +3279,9 @@ function handlePaidReturn(demo){
   if(!state.planStartDate) state.planStartDate=planStartFromPurchase();
   state.currentDay=computedDay();
   if(!Array.isArray(state.transactions)) state.transactions=[];
-  state.transactions.push({date:new Date().toISOString(),packageId:state.packageId||'single',price:state.pricePaid!=null?state.pricePaid:9.95,credits:state.planCredits||1});
+  state.transactions.push({date:new Date().toISOString(),packageId:state.packageId||'single',
+    price:state.pricePaid!=null?state.pricePaid:9.95,
+    credits:(p&&p.planCredits)||1});   // credits bought in THIS purchase, not the running total
   try{ if(supa&&state.userEmail) supa.from('profiles').update({purchased:true}).eq('email',state.userEmail.toLowerCase()); }catch(e){}
   try{ history.replaceState({},'',location.pathname); }catch(e){}
   runGenerating(()=>{ enterApp(); toast(demo?'Plan unlocked':'Payment successful - your plan is ready'); persistStateNow(); window.__handlingPaidReturn=false; });
@@ -5073,8 +5082,22 @@ async function adaptNextDay(nextDay){
   try{ var _ref=params.get('ref'); if(_ref){ localStorage.setItem('nuci_ref', _ref.slice(0,40)); } }catch(e){}
   const route=async()=>{
     if(isPaid){
+      // Clean the URL straight away: if the page is refreshed while we're loading the profile
+      // below, the payment must not be processed a second time (that caused double plan
+      // generation).
+      try{ history.replaceState({},'',location.pathname); }catch(e){}
       // restore who we are if possible
       try{ const raw=localStorage.getItem('pendingState'); if(raw){ const p=JSON.parse(raw); if(p&&p.userEmail) state.userEmail=p.userEmail; } }catch(e){}
+      // Load the saved profile FIRST. Stripe sends the user back on a fresh page load, so
+      // without this the app thinks there are no pets, no previous purchases and no credits -
+      // and then writes that empty picture over the database, wiping earlier pets and the
+      // billing history.
+      try{
+        if(supa && state.userEmail){
+          const s=await supa.auth.getSession();
+          if(s && s.data && s.data.session) await loadStateForUser(state.userEmail);
+        }
+      }catch(e){}
       handlePaidReturn(false); return;
     }
     // Is there a live login session? (survives tab close via Supabase's own storage)
