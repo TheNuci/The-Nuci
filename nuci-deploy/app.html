@@ -953,9 +953,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-// Build stamp - shown at the bottom of the Profile tab so you can confirm at a glance
-// which version the phone is actually running after a deploy.
-const APP_BUILD = 'build 2026-08-04 11:25';
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1286,12 +1283,26 @@ async function persistStateNow(){
 async function loadStateForUser(email){
   if(!supa||!email) return false;
   try{
-    const {data,error}=await supa.from('profiles').select('data,email_reminders,purchased,marketing_consent').eq('email',email.toLowerCase()).maybeSingle();
+    const {data,error}=await supa.from('profiles')
+      .select('data,email_reminders,purchased,marketing_consent,plan_credits,transactions')
+      .eq('email',email.toLowerCase()).maybeSingle();
     if(error||!data) return false;
     if(data.email_reminders!=null) state.emailReminders=data.email_reminders!==false;
     if(data.marketing_consent!=null) state.marketingConsent=data.marketing_consent===true;
     if(data.data) restoreState(data.data);
     state.purchased=(data.purchased===true);
+    // The Stripe webhook writes plan_credits / transactions server-side, so they are the
+    // trustworthy record of what was actually paid for. Take them whenever they're ahead of
+    // what this device knows - that's how a buyer whose browser closed mid-payment still gets
+    // their plan. We never go DOWN from the local value, so an unconfigured webhook can't
+    // strip credits from someone who legitimately has them.
+    if(typeof data.plan_credits==='number' && data.plan_credits>(state.planCredits||0)){
+      state.planCredits=data.plan_credits;
+      state.purchased=state.purchased||data.plan_credits>0;
+    }
+    if(Array.isArray(data.transactions) && data.transactions.length>((state.transactions||[]).length)){
+      state.transactions=data.transactions;
+    }
     return !!data.data;
   }catch(e){ return false; }
 }
@@ -3267,11 +3278,16 @@ function handlePaidReturn(demo){
   try{ localStorage.removeItem('pendingState'); }catch(e){}
   if(p){
     var addCredits=p.planCredits||1;
-    var priorCredits=state.planCredits||0;
+    // Base the new total on what we had BEFORE checkout (saved in pendingState), not on the
+    // current value - because the Stripe webhook may already have added this purchase to the
+    // account by the time we get here. Taking the higher of "before + bought" and whatever the
+    // server says means the credit is granted exactly once, whichever side counted it.
+    var baseCredits=(typeof p.priorCredits==='number') ? p.priorCredits : (state.planCredits||0);
+    var newCredits=Math.max(baseCredits+addCredits, state.planCredits||0);
     Object.assign(state,{answers:p.answers||state.answers||{}, planLength:p.planLength||7, currentDay:p.currentDay||1,
       petPhoto:p.petPhoto||state.petPhoto, userEmail:p.userEmail||state.userEmail, userName:p.userName||state.userName,
       pricePaid:p.pricePaid!=null?p.pricePaid:9.95, promoUsed:p.promoUsed||null,
-      planCredits:priorCredits+addCredits, packageId:p.packageId||'single', paid:true,
+      planCredits:newCredits, packageId:p.packageId||'single', paid:true,
       planOverrides:p.planOverrides||state.planOverrides||{}, aiPlan:p.aiPlan||state.aiPlan||null,
       __planSig:p.__planSig||null});
   }
@@ -4440,8 +4456,7 @@ function renderProfileTab(){
     +'</div>'
     +'<button class="btn btn-ghost" style="margin-top:10px" onclick="signOut()">Sign out</button>'
     +'<button class="btn btn-ghost" style="color:var(--danger);padding:6px" onclick="confirmDelete()">Delete profile</button>'
-    +'<p style="text-align:center;font-size:0.72rem;color:var(--secondary);margin-top:10px">'+esc(state.userEmail||'')+'</p>'
-    +'<p style="text-align:center;font-size:0.66rem;color:var(--secondary);opacity:.55;margin-top:4px">'+APP_BUILD+'</p>';
+    +'<p style="text-align:center;font-size:0.72rem;color:var(--secondary);margin-top:10px">'+esc(state.userEmail||'')+'</p>';
   $('tab-profile').innerHTML=h;
 }
 function setPhoto(inp){

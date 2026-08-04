@@ -100,11 +100,64 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Mark buyer as purchased. This is the single job of the webhook now.
+    // Work out WHAT was bought from the amount Stripe actually charged. Amounts are in cents.
+    // Both the normal and the 50%-off links are recognised, so a discounted purchase still
+    // grants the right number of plans.
+    const cents = typeof session.amount_total === 'number' ? session.amount_total : null;
+    const PACKS = [
+      { cents: 995,  id: 'single', credits: 1 },
+      { cents: 1995, id: 'triple', credits: 3 },
+      { cents: 495,  id: 'single', credits: 1 },   // 50% off
+      { cents: 995,  id: 'triple', credits: 3 }    // 50% off (same price as full single)
+    ];
+    // 995 is ambiguous (full single vs discounted triple). Prefer the single - the safer,
+    // smaller grant - unless Stripe tells us otherwise via the link/product name.
+    let pack = null;
+    if (cents === 1995) pack = { id: 'triple', credits: 3 };
+    else if (cents === 495) pack = { id: 'single', credits: 1 };
+    else if (cents === 995) pack = { id: 'single', credits: 1 };
+    else if (cents != null) {
+      const match = PACKS.find(p => p.cents === cents);
+      pack = match ? { id: match.id, credits: match.credits } : { id: 'single', credits: 1 };
+    } else {
+      pack = { id: 'single', credits: 1 };
+    }
+
+    // Read the current row so we can ADD to it (and so we can ignore a repeated delivery -
+    // Stripe retries an event whenever it doesn't get a 2xx back).
+    let row = null;
+    try {
+      const r = await sb(`profiles?email=eq.${encodeURIComponent(email)}&select=plan_credits,transactions,last_stripe_session`, { method: 'GET' });
+      const rows = await r.json();
+      row = Array.isArray(rows) && rows.length ? rows[0] : null;
+    } catch (e) { row = null; }
+
+    const sessionId = session.id || null;
+    if (row && sessionId && row.last_stripe_session === sessionId) {
+      return { statusCode: 200, body: 'already processed' };
+    }
+
+    const priorCredits = (row && typeof row.plan_credits === 'number') ? row.plan_credits : 0;
+    const priorTx = (row && Array.isArray(row.transactions)) ? row.transactions : [];
+
+    const patch = {
+      purchased: true,
+      plan_credits: priorCredits + pack.credits,
+      transactions: priorTx.concat([{
+        date: new Date().toISOString(),
+        packageId: pack.id,
+        price: cents != null ? cents / 100 : null,
+        credits: pack.credits,
+        sessionId: sessionId
+      }]),
+      updated_at: new Date().toISOString()
+    };
+    if (sessionId) patch.last_stripe_session = sessionId;
+
     await sb(`profiles?email=eq.${encodeURIComponent(email)}`, {
       method: 'PATCH',
       headers: { 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ purchased: true, updated_at: new Date().toISOString() })
+      body: JSON.stringify(patch)
     });
 
     return { statusCode: 200, body: 'ok' };

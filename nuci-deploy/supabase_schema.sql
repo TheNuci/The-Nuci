@@ -78,3 +78,18 @@ alter table public.profiles add column if not exists tip_index int default 0;
 
 -- Third abandoned-cart nudge (5 days after signup)
 alter table public.profiles add column if not exists cart_nudge3_sent boolean default false;
+
+-- ============ PAYMENTS: SERVER-SIDE CREDIT LEDGER ============
+-- Until now the browser counted plan credits and wrote them itself. That meant a buyer whose
+-- browser closed right after paying could end up with no credit at all, and there was no
+-- server-side record of what anyone actually bought.
+--
+-- These two columns are written ONLY by the Stripe webhook (service role), so they are the
+-- trustworthy record of what was paid for:
+--   plan_credits  - total plans the account has ever been granted
+--   transactions  - append-only purchase history [{date, packageId, price, credits, sessionId}]
+alter table public.profiles add column if not exists plan_credits int default 0;
+alter table public.profiles add column if not exists transactions jsonb default '[]'::jsonb;
+
+-- Guards against Stripe delivering the same event twice (it retries on any non-2xx).
+alter table public.profiles add column if not exists last_stripe_session text;
