@@ -4213,7 +4213,7 @@ function patternsCardHtml(){
     +'</div>';
 }
 function renderProgressTab(){
-  if(!hasActivePlan() && !(state.archive&&state.archive.length)){ $('tab-progress').innerHTML=emptyTabHtml('progress'); return; }
+  if(!hasActivePlan()){ $('tab-progress').innerHTML=emptyTabHtml('progress'); return; }
   var pet=state.answers.petName||'your pet';
   var cis=(state.checkins||[]).filter(function(c){return c;});
   var occ=cis.filter(function(c){return c.occurred==='Yes';});
@@ -4370,6 +4370,8 @@ function exportCurrentPDF(){ makePlanPDF({
   petName:state.answers.petName, petType:state.answers.petType, issue:state.answers.mainIssue,
   planLength:state.planLength, improvement:planImprovement(), checkins:state.checkins,
   answers:state.answers, aiBehaviorExplain:state.aiBehaviorExplain, dayNotes:state.dayNotes,
+  aiPlan:state.aiPlan, planOverrides:state.planOverrides, aiCauses:state.aiCauses,
+  aiWhatNotToDo:state.aiWhatNotToDo, currentDay:state.currentDay,
   completedDate:new Date().toISOString()
 }); }
 function makePlanPDF(p){
@@ -4411,6 +4413,26 @@ function makePlanPDF(p){
         bodyLines.forEach(function(ln){ doc.text(ln, M+pad, iy); iy+=lh; });
         y+=boxH+14;
       }
+      // Section heading that starts a fresh page so each big block reads cleanly.
+      function section(title, newPage){
+        if(newPage){ doc.addPage(); doc.setFillColor.apply(doc,BONE); doc.rect(0,0,W,H,'F'); y=64; }
+        else if(y>H-140){ doc.addPage(); doc.setFillColor.apply(doc,BONE); doc.rect(0,0,W,H,'F'); y=64; }
+        doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor.apply(doc,FOREST);
+        doc.text(title, M, y); y+=6;
+        doc.setDrawColor.apply(doc,SAGE); doc.setLineWidth(1.5); doc.line(M,y,M+40,y); y+=22;
+      }
+      // A titled key/value line used by the assessment block.
+      function kvLine(k,v){
+        var vLines=doc.splitTextToSize(String(v), W-2*M-140);
+        var boxH=Math.max(24, 8+vLines.length*14);
+        if(y+boxH>H-64){ doc.addPage(); doc.setFillColor.apply(doc,BONE); doc.rect(0,0,W,H,'F'); y=56; }
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor.apply(doc,SAGE);
+        doc.text(String(k).toUpperCase(), M, y+4);
+        doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
+        var vy=y+4; vLines.forEach(function(ln){ doc.text(ln, M+140, vy); vy+=14; });
+        doc.setDrawColor.apply(doc,BORDER); doc.setLineWidth(0.5); doc.line(M,y+boxH-8,W-M,y+boxH-8);
+        y+=boxH;
+      }
       if(p.improvement!=null){
         var t=(p.improvement<0)?('Incidents down '+Math.abs(p.improvement)+'% over the week'):'Seven days, completed';
         doc.setFillColor.apply(doc,FOREST); rr(M,y,W-2*M,50,14,'F');
@@ -4419,13 +4441,69 @@ function makePlanPDF(p){
       }
       if(p.issue){ card('Main issue', doc.splitTextToSize(p.issue, W-2*M-36)); }
       if(p.aiBehaviorExplain){ card('Why this was happening', doc.splitTextToSize(p.aiBehaviorExplain, W-2*M-36)); }
+
+      // ---- FULL ASSESSMENT (everything the owner told us) ----
+      var A=p.answers||{};
+      var assessPairs=[
+        ['Name',A.petName],['Species',p.petType?(p.petType.charAt(0).toUpperCase()+p.petType.slice(1)):null],
+        ['Breed / type',A.breed],['Age',A.age],['Sex',A.sex],['Neutered',A.neutered],
+        ['Main issue',A.mainIssue],['When it happens',A.frequency||A.duration||A.when],
+        ['How often',A.freq||A.howOften],['Severity',A.severity],
+        ['Household',Array.isArray(A.household)?A.household.join(', '):A.household],
+        ['Environment',Array.isArray(A.environment)?A.environment.join(', '):A.environment],
+        ['Triggers',Array.isArray(A.warningSigns)?A.warningSigns.join(', '):(A.triggers||A.warningSigns)],
+        ['Already tried',Array.isArray(A.tried)?A.tried.join(', '):A.tried],
+        ['Extra context',A.extraContext]
+      ].filter(function(kv){ return kv[1]!=null && kv[1]!==''; });
+      if(assessPairs.length){
+        section('Assessment', true);
+        assessPairs.forEach(function(kv){ kvLine(kv[0],kv[1]); });
+      }
+
+      // ---- FULL PLAN, DAY BY DAY ----
+      var planDays=(p.aiPlan&&Array.isArray(p.aiPlan.days))?p.aiPlan.days.filter(function(d){return d;}):[];
+      if(planDays.length){
+        section('The plan, day by day', true);
+        planDays.forEach(function(d){
+          var ov=(p.planOverrides&&p.planOverrides[d.day])||d;
+          var title='Day '+(d.day||'')+(ov.title?('  \u00b7  '+ov.title):'');
+          var body=[];
+          if(ov.sub) body=body.concat(doc.splitTextToSize(ov.sub, W-2*M-36));
+          if(ov.desc) body=body.concat(doc.splitTextToSize(ov.desc, W-2*M-36));
+          var tasks=ov.tasks||d.tasks||[];
+          if(tasks.length){ body.push(''); tasks.forEach(function(t){ body=body.concat(doc.splitTextToSize('\u2022  '+(typeof t==='string'?t:(t.text||'')), W-2*M-42)); }); }
+          card(title, body.length?body:['(no detail)']);
+        });
+      }
+
+      // ---- CHECK-IN, EACH DAY IN DETAIL ----
       var cis=(p.checkins||[]);
       if(cis.length){
-        var lines=cis.map(function(c,i){
-          return 'Day '+(c.day||i+1)+':   '+(c.occurred==='Yes'
-            ? ('occurred'+(c.severity?(' \u00b7 severity '+c.severity):'')+(c.freq?(' \u00b7 x'+c.freq):''))
-            : 'no incident'); });
-        card('Check-in log', lines);
+        section('Daily check-ins', true);
+        // one card per plan day up to how far they've gone, so missed days show too
+        var lastDay=p.currentDay||p.planLength||cis.length;
+        cis.forEach(function(c,i){ var dn=c.day||(i+1); if(dn>lastDay) lastDay=dn; });
+        var byDay={}; cis.forEach(function(c,i){ byDay[c.day||(i+1)]=c; });
+        for(var dnum=1; dnum<=lastDay; dnum++){
+          var c=byDay[dnum];
+          var body=[];
+          if(!c){ body=['Check-in missed']; }
+          else {
+            body.push(c.occurred==='Yes'
+              ? ('Behaviour occurred'+(c.freq?('  \u00b7  '+c.freq+' time'+(String(c.freq)==='1'?'':'s')):'')+(c.severity?('  \u00b7  severity '+c.severity+'/5'):''))
+              : 'No incident');
+            if(c.location) body=body.concat(doc.splitTextToSize('Where: '+(Array.isArray(c.location)?c.location.join(', '):c.location), W-2*M-36));
+            if(c.time) body=body.concat(doc.splitTextToSize('When: '+(Array.isArray(c.time)?c.time.join(', '):c.time), W-2*M-36));
+            if(c.trigger) body=body.concat(doc.splitTextToSize('Right before: '+c.trigger, W-2*M-36));
+            if(c.energy) body=body.concat(doc.splitTextToSize('Energy: '+(Array.isArray(c.energy)?c.energy.join(', '):c.energy), W-2*M-36));
+            if(c.changes) body=body.concat(doc.splitTextToSize('Changes: '+(Array.isArray(c.changes)?c.changes.join(', '):c.changes), W-2*M-36));
+            if(c.notes) body=body.concat(doc.splitTextToSize('Notes: '+c.notes, W-2*M-36));
+          }
+          // include any free-text day notes the owner wrote on the plan
+          var dn=(p.dayNotes&&p.dayNotes[dnum]);
+          if(dn){ var arr=Array.isArray(dn)?dn:[dn]; arr.forEach(function(n){ if(n) body=body.concat(doc.splitTextToSize('Note: '+(typeof n==='string'?n:(n.text||'')), W-2*M-36)); }); }
+          card('Day '+dnum, body);
+        }
       }
       var pages=doc.getNumberOfPages();
       for(var pg=1; pg<=pages; pg++){
@@ -4603,7 +4681,6 @@ function openPetCard(i){
     +'<div style="font-size:0.8rem;color:var(--secondary)">'+esc(a.breed||tyL)+'</div></div></div>'
     +'<div class="d-eb" style="color:var(--sage);margin-bottom:4px">Profile</div>'
     +rows
-    +'<button class="btn btn-primary" style="margin-top:16px" onclick="closeSheet();exportPetPDF('+i+')">Download this plan (PDF)</button>'
   );
 }
 function choosePlanToDownload(){
