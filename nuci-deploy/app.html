@@ -1203,13 +1203,14 @@ const state={
   marketingConsent:false, marketingConsentAt:null,
   aiBehaviorExplain:null, aiAssessment:null, aiSeekProfessional:false, aiProfessionalNote:null,
   aiCauses:null, aiWhatNotToDo:null, dayInsights:{}, dayNotes:{}, taskOverrides:{}, tasksDone:{},
-  userEmail:null, userName:null, purchased:false, paid:false, planCredits:0, transactions:[],
+  userEmail:null, userName:null, userPhoto:null, units:'metric', timeFmt:'24h', purchased:false, paid:false, planCredits:0, transactions:[],
   petPhoto:null, emailReminders:true, checkinHour:20, assessments:[],
   pets:[], archive:[], activePet:0
 };
 function serializeState(){
   return {
     userEmail:state.userEmail||null, userName:state.userName||null,
+    userPhoto:state.userPhoto||null, units:state.units||'metric', timeFmt:state.timeFmt||'24h',
     purchased:state.purchased||false, planCredits:state.planCredits||0,
     answers:state.answers, currentDay:state.currentDay, planLength:state.planLength,
     checkins:state.checkins, lastCheckinDay:state.lastCheckinDay, planComplete:state.planComplete,
@@ -1976,6 +1977,7 @@ function openWarnModal(){
 // ═══════ VET TAB (premium in-app page) ═══════
 function renderVetTab(){
   var el=document.getElementById('tab-vet'); if(!el) return;
+  if(!hasActivePlan()){ el.innerHTML=emptyTabHtml('vet'); return; }
   var pet=state.answers.petName||'your pet';
   el.innerHTML=
     '<div class="vet-hero">'
@@ -3748,8 +3750,50 @@ function petBuddy(){
   if(sub){ var old=sub.textContent; sub.textContent=(mood.key==='unsettled')?'*a quiet look*':'*purrs*';
     setTimeout(function(){ sub.textContent=old; },1100); }
 }
+function hasActivePlan(){
+  // An active plan = the user has purchased, has answers with a pet, an AI plan, and it isn't
+  // archived/complete. This is what every tab checks to decide between content and the empty
+  // "start a plan" state.
+  return !!(state.purchased && state.answers && state.answers.petName
+            && state.aiPlan && state.aiPlan.days && state.aiPlan.days.length
+            && !state.planComplete);
+}
+function emptyTabHtml(kind){
+  // Shown on Today / Plan / Progress / Vet when there is no active plan. One short line of
+  // copy per tab, then a single "Start a plan" button.
+  var lines={
+    today:   ['Nothing on today.', 'When you start a plan, your daily steps for '+ '\u2019s' + ' behaviour show up right here.'],
+    plan:    ['No plan yet.', 'Your day-by-day behaviour plan will live here once you start one.'],
+    progress:['Nothing to measure yet.', 'Start a plan and your check-ins, streak and trend will build up here.'],
+    vet:     ['No plan to share yet.', 'Once you have a plan, Nuci can write a clear vet message about your pet here.']
+  };
+  var l=lines[kind]||lines.today;
+  // 'today' line references the pet only if we have a name; keep it generic otherwise.
+  var sub=l[1];
+  if(kind==='today'){
+    var pet=(state.answers&&state.answers.petName)?esc(state.answers.petName):'your pet';
+    sub='When you start a plan, your daily steps for '+pet+'\u2019s behaviour show up right here.';
+  }
+  return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
+    +'min-height:60vh;text-align:center;padding:0 26px">'
+    +'<div style="width:88px;height:88px;border-radius:50%;background:rgba(107,143,113,0.10);display:flex;align-items:center;justify-content:center;color:var(--sage);margin-bottom:22px">'+icon('paw','40px',1.5)+'</div>'
+    +'<h1 style="font-size:1.7rem;letter-spacing:-0.03em;margin-bottom:10px">'+l[0]+'</h1>'
+    +'<p style="font-size:0.95rem;color:var(--secondary);line-height:1.55;max-width:30ch;margin-bottom:26px">'+sub+'</p>'
+    +'<button class="btn btn-primary" style="max-width:260px" onclick="startPlanFromEmpty()">Start a plan</button>'
+    +'</div>';
+}
+function startPlanFromEmpty(){
+  // If they still have a spare paid credit, go straight into a fresh questionnaire for a new
+  // pet. Otherwise send them to buy a plan.
+  if((state.planCredits||0) > (state.pets?state.pets.length:0)){
+    startAnotherPet(); return;
+  }
+  if(state.purchased){ startAnotherPet(); return; }
+  startFreshState(); startFlow();
+}
 function renderToday(){
   if(state.maintenance){ renderMaintenanceToday(); return; }
+  if(!hasActivePlan()){ $('tab-today').innerHTML=emptyTabHtml('today'); return; }
   // Advance the plan by the calendar (user's local date), independent of check-ins.
   syncPlanDay();
   // If days were skipped without a check-in, gently let them know (once).
@@ -3821,8 +3865,25 @@ function renderToday(){
     h+='<div style="text-align:center;margin-top:18px">'
       +'<button onclick="openNotWorking()" style="background:none;border:none;color:var(--secondary);font-family:inherit;font-size:.84rem;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:8px">This isn\u2019t working for '+esc(pet)+'</button></div>';
   }
+  // TEST ONLY - jump to the last day so the plan-end flow can be previewed. Remove before launch.
+  if(!state.planComplete){
+    h+='<div style="text-align:center;margin-top:14px">'
+      +'<button onclick="testJumpToPlanEnd()" style="background:rgba(0,0,0,.05);border:1px dashed var(--border);border-radius:10px;color:var(--secondary);font-family:inherit;font-size:.72rem;cursor:pointer;padding:9px 14px">\ud83d\udd27 Test: jump to plan end</button></div>';
+  }
   $('tab-today').innerHTML=h;
   hookGrow('todayNote');
+}
+function testJumpToPlanEnd(){
+  // Move the plan's start date back so today is the final day, then open the final check-in.
+  var L=state.planLength||7;
+  var d=new Date(); d.setDate(d.getDate()-(L-1));
+  state.planStartDate=d.toISOString();
+  state.currentDay=L;
+  try{ syncPlanDay(); }catch(e){}
+  state.currentDay=L;
+  persistStateNow();
+  ciData={}; ciStep=0;
+  if(document.getElementById('ciOverlay')){ renderCI(); document.getElementById('ciOverlay').classList.add('open'); }
 }
 // notes are stored per day as an array of {text,ts}. Migrate old string form transparently.
 function getDayNotes(day){
@@ -3928,6 +3989,7 @@ function toggleTaskPlan(day,idx){
   if(host){ var rows=host.querySelectorAll('.a-task'); if(rows[idx]) rows[idx].classList.toggle('done', done.indexOf(idx)>-1); }
 }
 function renderPlanTab(){
+  if(!hasActivePlan()){ $('tab-plan').innerHTML=emptyTabHtml('plan'); return; }
   if(!state.viewDay||state.viewDay>(state.currentDay||1)) state.viewDay=state.currentDay||1;
   var cur=state.currentDay||1, L=state.planLength||7, pet=state.answers.petName||'your pet';
   var vd=state.viewDay||cur;
@@ -4151,6 +4213,7 @@ function patternsCardHtml(){
     +'</div>';
 }
 function renderProgressTab(){
+  if(!hasActivePlan() && !(state.archive&&state.archive.length)){ $('tab-progress').innerHTML=emptyTabHtml('progress'); return; }
   var pet=state.answers.petName||'your pet';
   var cis=(state.checkins||[]).filter(function(c){return c;});
   var occ=cis.filter(function(c){return c.occurred==='Yes';});
@@ -4169,7 +4232,18 @@ function renderProgressTab(){
     +'<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:16px"><span class="accent" style="font-size:4.6rem;color:var(--forest);letter-spacing:-.03em;line-height:.85;font-style:normal">'+(impr==null?'\u2013':(impr>0?'+':'')+impr+'%')+'</span><span style="font-size:.85rem;color:var(--secondary);max-width:12ch;line-height:1.3">incidents vs day one</span></div>';
 
   // INTERACTIVE CHART (scrollable + tappable). Points = each check-in's incident count.
-  var pts=cis.map(function(c,i){ return {day:c.day||(i+1), val:(c.occurred==='Yes'?(parseInt(c.freq)||1):0), sev:(parseFloat(c.severity)||0), occ:c.occurred }; });
+  // Build one point PER DAY from day 1 up to the current day, not just per check-in. A day
+  // with no check-in becomes a "missed" point so the graph shows the gap instead of skipping
+  // over it. Missed points are drawn in red.
+  var ciByDay={}; cis.forEach(function(c,i){ var dnum=c.day||(i+1); ciByDay[dnum]=c; });
+  var lastDay=(state.currentDay||1);
+  cis.forEach(function(c,i){ var dnum=c.day||(i+1); if(dnum>lastDay) lastDay=dnum; });
+  var pts=[];
+  for(var pd=1; pd<=lastDay; pd++){
+    var c=ciByDay[pd];
+    if(c){ pts.push({day:pd, val:(c.occurred==='Yes'?(parseInt(c.freq)||1):0), sev:(parseFloat(c.severity)||0), occ:c.occurred, missed:false}); }
+    else { pts.push({day:pd, val:0, sev:0, occ:null, missed:true}); }
+  }
   if(pts.length<2){
     h+='<div class="a-card"><div class="d-eb" style="color:var(--sage);margin-bottom:6px">Incident trend</div><div style="color:var(--secondary);font-size:.9rem;padding:20px 0;text-align:center">Two check-ins needed to chart a trend. Keep checking in daily.</div></div>';
   } else {
@@ -4226,7 +4300,9 @@ function drawInteractiveChart(pts){
   function Y(v){ return (H-padY) - (v/maxV)*(H-padY*2); }
   var line='M '+pts.map(function(p,i){return X(i).toFixed(0)+' '+Y(p.val).toFixed(0);}).join(' L ');
   var area=line+' L '+X(n-1).toFixed(0)+' '+H+' L '+X(0).toFixed(0)+' '+H+' Z';
-  var dots=pts.map(function(p,i){ return '<circle class="cdot" data-i="'+i+'" cx="'+X(i)+'" cy="'+Y(p.val)+'" r="5.5" fill="#fff" stroke="var(--forest)" stroke-width="2.5" style="cursor:pointer"/>'; }).join('');
+  var dots=pts.map(function(p,i){
+    var col=p.missed?'var(--danger)':'var(--forest)';
+    return '<circle class="cdot" data-i="'+i+'" cx="'+X(i)+'" cy="'+Y(p.val)+'" r="5.5" fill="'+(p.missed?'var(--danger)':'#fff')+'" stroke="'+col+'" stroke-width="2.5" style="cursor:pointer"/>'; }).join('');
   var svg='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="display:block">'
     +'<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(107,143,113,.32)"/><stop offset="1" stop-color="rgba(107,143,113,0)"/></linearGradient></defs>'
     +'<path d="'+area+'" fill="url(#ag)"/>'
@@ -4237,9 +4313,9 @@ function drawInteractiveChart(pts){
   var svgEl=host.querySelector('svg'); var cursor=host.querySelector('#cursorLine');
   function show(i){
     var p=pts[i];
-    [].forEach.call(host.querySelectorAll('.cdot'),function(d){ var on=(+d.getAttribute('data-i')===i); d.setAttribute('r',on?'7':'5.5'); d.setAttribute('fill',on?'var(--forest)':'#fff'); });
+    [].forEach.call(host.querySelectorAll('.cdot'),function(d){ var di=+d.getAttribute('data-i'); var on=(di===i); var miss=pts[di]&&pts[di].missed; d.setAttribute('r',on?'7':'5.5'); d.setAttribute('fill', miss?'var(--danger)':(on?'var(--forest)':'#fff')); });
     if(cursor){ cursor.setAttribute('x1',X(i)); cursor.setAttribute('x2',X(i)); cursor.style.opacity='1'; }
-    if(read){ read.innerHTML='Day '+p.day+': <b style="color:var(--forest)">'+(p.occ==='Yes'?(p.val+' incident'+(p.val===1?'':'s')+(p.sev?(' \u00b7 severity '+p.sev):'')):'no incident')+'</b>'; }
+    if(read){ read.innerHTML = p.missed ? ('Day '+p.day+': <b style="color:var(--danger)">check-in missed</b>') : ('Day '+p.day+': <b style="color:var(--forest)">'+(p.occ==='Yes'?(p.val+' incident'+(p.val===1?'':'s')+(p.sev?(' \u00b7 severity '+p.sev):'')):'no incident')+'</b>'); }
     haptic(4);
   }
   function pick(clientX){
@@ -4420,6 +4496,218 @@ function badgesHtml(){
 }
 
 function renderProfileTab(){
+  var uname=state.userName||(state.userEmail?state.userEmail.split('@')[0]:'You');
+  var chev='<span style="color:#bbb">'+icon('chevR','15px')+'</span>';
+  var prow=function(label,click,extra,last){return '<div style="display:flex;align-items:center;justify-content:space-between;padding:15px 2px;'+(last?'':'border-bottom:1px solid var(--border);')+'cursor:pointer" onclick="'+click+'"><span style="font-size:0.93rem">'+label+(extra||'')+'</span>'+chev+'</div>';};
+  var uav=state.userPhoto
+    ? '<img src="'+state.userPhoto+'" style="width:100%;height:100%;object-fit:cover">'
+    : '<span style="font-size:2.1rem;color:var(--sage);font-weight:500">'+esc((uname[0]||'U').toUpperCase())+'</span>';
+
+  // ---- User header (person, not pet) ----
+  var h='<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 0 4px">'
+    +'<div style="position:relative;width:96px;height:96px;margin-bottom:14px">'
+    +'<div style="width:96px;height:96px;border-radius:50%;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center">'+uav+'</div>'
+    +'<label style="position:absolute;right:-2px;bottom:-2px;width:32px;height:32px;border-radius:50%;background:var(--forest);display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;border:2px solid var(--bg)">'+icon('camera','15px')+'<input type="file" accept="image/*" style="display:none" onchange="setUserPhoto(this)"></label>'
+    +'</div>'
+    +'<h1 style="font-size:1.7rem;letter-spacing:-0.03em;margin-bottom:2px">'+esc(uname)+'</h1>'
+    +'<div style="font-size:0.82rem;color:var(--secondary)">'+esc(state.userEmail||'')+'</div>'
+    +'</div>';
+
+  h+=badgesHtml();
+
+  // ---- Your pets (tap a pet -> popup with its characteristics) ----
+  var pets=Array.isArray(state.pets)?state.pets:[];
+  // make sure the currently active (unsaved) pet is represented
+  if(state.answers&&state.answers.petName){ try{ syncActivePet(); pets=state.pets; }catch(e){} }
+  var petRows='';
+  if(pets.length){
+    petRows=pets.map(function(p,i){
+      var a=(p&&p.answers)||{}; var nm=a.petName||('Pet '+(i+1)); var ty=a.petType||'other';
+      var av=(p&&p.petPhoto)?('<img src="'+p.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(ty,'22px');
+      return '<div onclick="openPetCard('+i+')" style="display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
+        +'<div style="width:42px;height:42px;border-radius:13px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
+        +'<div style="flex:1"><div style="font-size:0.95rem">'+esc(nm)+'</div><div style="font-size:0.74rem;color:var(--secondary)">'+esc(a.breed||(ty.charAt(0).toUpperCase()+ty.slice(1)))+'</div></div>'
+        +chev+'</div>';
+    }).join('');
+  } else {
+    petRows='<div style="padding:16px 2px;color:var(--secondary);font-size:0.9rem;text-align:center">No pets yet.</div>';
+  }
+  var spare=(state.planCredits||0)-pets.length;
+  var addPetRow = spare>0
+    ? '<div onclick="startAnotherPet()" style="display:flex;align-items:center;gap:12px;padding:13px 2px;cursor:pointer">'
+      +'<div style="width:42px;height:42px;border-radius:13px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--forest);font-size:1.4rem">+</div>'
+      +'<div style="flex:1"><div style="font-size:0.95rem;color:var(--forest)">Add a pet</div><div style="font-size:0.74rem;color:var(--secondary)">'+spare+' plan'+(spare===1?'':'s')+' available</div></div></div>'
+    : '<div onclick="startAnotherPet()" style="display:flex;align-items:center;gap:12px;padding:13px 2px;cursor:pointer">'
+      +'<div style="width:42px;height:42px;border-radius:13px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--forest);font-size:1.4rem">+</div>'
+      +'<div style="flex:1"><div style="font-size:0.95rem;color:var(--forest)">Start a plan for another pet</div></div></div>';
+  h+='<div class="card" style="margin-top:8px;padding:4px 18px"><div class="d-eb" style="margin:12px 0 2px">Your pets</div>'+petRows+addPetRow+'</div>';
+
+  // ---- Actions ----
+  h+='<div class="card" style="margin-top:12px;padding:4px 18px">'
+    +prow('Download a plan (PDF)','choosePlanToDownload()')
+    +prow('Billing','openBilling()',(spareCredits()>0?' <span style="font-size:0.66rem;background:rgba(107,143,113,0.14);color:var(--forest);padding:2px 8px;border-radius:99px;margin-left:6px">'+spareCredits()+' credits</span>':''))
+    +((state.archive||[]).length?prow('Archive','openArchive()','<span style="float:right;color:var(--secondary);font-size:0.8rem;margin-right:10px">'+state.archive.length+'</span>',true):prow('Archive','openArchive()','',true))
+    +'</div>';
+
+  // ---- Settings ----
+  h+='<div class="card" style="margin-top:12px;padding:4px 18px">'
+    +prow('Settings','openSettings()','',true)
+    +'</div>';
+
+  h+='<p style="text-align:center;font-size:0.72rem;color:var(--secondary);margin-top:16px">The Nuci</p>';
+
+  $('tab-profile').innerHTML=h;
+}
+function setUserPhoto(inp){
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const maxEdge=600; const scale=Math.min(1,maxEdge/Math.max(img.width,img.height));
+      const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      state.userPhoto=c.toDataURL('image/jpeg',0.85);
+      persistStateNow(); renderProfileTab();
+    };
+    img.src=rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+function openPetCard(i){
+  var p=(state.pets||[])[i]; if(!p) return;
+  var a=p.answers||{};
+  var ty=a.petType||'other'; var tyL=ty.charAt(0).toUpperCase()+ty.slice(1);
+  var av=p.petPhoto?('<img src="'+p.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(ty,'40px');
+  // Build the assessment-answer rows the same way the Assessment answers sheet does.
+  var rows='';
+  var pairs=[
+    ['Name',a.petName],['Species',tyL],['Breed / type',a.breed],['Age',a.age],['Sex',a.sex],
+    ['Neutered',a.neutered],['Main issue',a.mainIssue],['When it happens',a.frequency||a.duration],
+    ['Household',Array.isArray(a.household)?a.household.join(', '):a.household],
+    ['Environment',Array.isArray(a.environment)?a.environment.join(', '):a.environment],
+    ['Triggers',Array.isArray(a.warningSigns)?a.warningSigns.join(', '):a.warningSigns],
+    ['Already tried',Array.isArray(a.tried)?a.tried.join(', '):a.tried]
+  ];
+  pairs.forEach(function(kv){
+    if(kv[1]==null||kv[1]==='') return;
+    rows+='<div style="padding:11px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="font-size:0.72rem;color:var(--sage);margin-bottom:3px">'+kv[0]+'</div>'
+      +'<div style="font-size:0.92rem;color:var(--text);line-height:1.45">'+esc(String(kv[1]))+'</div></div>';
+  });
+  openSheet(
+    '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'
+    +'<div style="width:56px;height:56px;border-radius:16px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
+    +'<div><div style="font-size:1.25rem;letter-spacing:-0.02em">'+esc(a.petName||'Pet')+'</div>'
+    +'<div style="font-size:0.8rem;color:var(--secondary)">'+esc(a.breed||tyL)+'</div></div></div>'
+    +'<div class="d-eb" style="color:var(--sage);margin-bottom:4px">Profile</div>'
+    +rows
+    +'<button class="btn btn-primary" style="margin-top:16px" onclick="closeSheet();exportPetPDF('+i+')">Download this plan (PDF)</button>'
+  );
+}
+function choosePlanToDownload(){
+  var pets=Array.isArray(state.pets)?state.pets:[];
+  if(state.answers&&state.answers.petName){ try{ syncActivePet(); pets=state.pets; }catch(e){} }
+  if(!pets.length){ toast('No plan to download yet'); return; }
+  if(pets.length===1){ exportPetPDF(0); return; }
+  var rows=pets.map(function(p,i){
+    var a=(p&&p.answers)||{}; var ty=a.petType||'other';
+    var av=p&&p.petPhoto?('<img src="'+p.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(ty,'20px');
+    return '<div onclick="closeSheet();exportPetPDF('+i+')" style="display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
+      +'<div style="width:38px;height:38px;border-radius:12px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
+      +'<div style="flex:1;font-size:0.95rem">'+esc(a.petName||('Pet '+(i+1)))+'</div>'
+      +'<span style="color:#bbb">'+icon('chevR','15px')+'</span></div>';
+  }).join('');
+  openSheet('<div class="d-eb" style="color:var(--sage)">Download a plan</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 14px">Which pet?</h2>'+rows);
+}
+function exportPetPDF(i){
+  // Load that pet into state (via a snapshot swap) just long enough to build its PDF, then
+  // restore the active pet. Reuses the existing PDF builder.
+  var pets=state.pets||[];
+  if(!pets[i]){ exportCurrentPDF(); return; }
+  var wasActive=state.activePet;
+  try{ syncActivePet(); }catch(e){}
+  var restore=snapshotPet();
+  loadPet(pets[i]);
+  try{ exportCurrentPDF(); }catch(e){ toast('Could not create PDF'); }
+  // restore
+  loadPet(restore); state.activePet=wasActive;
+}
+function openSettings(){
+  var units=state.units||'metric';
+  var tf=state.timeFmt||'24h';
+  var seg=function(val,cur,onclick,label){
+    var on=(val===cur);
+    return '<button onclick="'+onclick+'" style="flex:1;padding:10px;border:none;border-radius:10px;font-family:inherit;font-size:0.85rem;cursor:pointer;'
+      +(on?'background:var(--forest);color:#fff':'background:rgba(107,143,113,0.10);color:var(--forest)')+'">'+label+'</button>';
+  };
+  openSheet(
+    '<div class="d-eb" style="color:var(--sage)">Settings</div>'
+    +'<h2 style="font-size:1.4rem;letter-spacing:-0.02em;margin:6px 0 18px">Preferences</h2>'
+    +'<div style="font-size:0.8rem;color:var(--secondary);margin-bottom:8px">Units</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:18px">'+seg('metric',units,"setUnits('metric')",'Metric (kg, cm)')+seg('imperial',units,"setUnits('imperial')",'Imperial (lb, in)')+'</div>'
+    +'<div style="font-size:0.8rem;color:var(--secondary);margin-bottom:8px">Time format</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:22px">'+seg('24h',tf,"setTimeFmt('24h')",'24-hour')+seg('12h',tf,"setTimeFmt('12h')",'12-hour')+'</div>'
+    +'<div class="card" style="padding:4px 16px;margin-bottom:14px">'
+    +'<div onclick="closeSheet();openEditProfile()" style="display:flex;justify-content:space-between;padding:14px 2px;border-bottom:1px solid var(--border);cursor:pointer"><span style="font-size:0.92rem">Edit profile</span><span style="color:#bbb">'+icon('chevR','15px')+'</span></div>'
+    +'<div onclick="closeSheet();openLegalMenu()" style="display:flex;justify-content:space-between;padding:14px 2px;cursor:pointer"><span style="font-size:0.92rem">Legal</span><span style="color:#bbb">'+icon('chevR','15px')+'</span></div>'
+    +'</div>'
+    +'<button class="btn btn-ghost" onclick="closeSheet();signOut()">Sign out</button>'
+    +'<button class="btn btn-ghost" style="color:var(--danger);padding:8px" onclick="closeSheet();confirmDelete()">Delete profile</button>'
+  );
+}
+function setUnits(u){ state.units=u; persistStateNow(); openSettings(); }
+function setTimeFmt(t){ state.timeFmt=t; persistStateNow(); openSettings(); }
+function openLegalMenu(){
+  openSheet('<div class="d-eb" style="color:var(--sage)">Legal</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 14px">Documents</h2>'
+    +'<div class="card" style="padding:4px 16px">'
+    +'<div onclick="openLegal(\'privacy\')" style="display:flex;justify-content:space-between;padding:14px 2px;border-bottom:1px solid var(--border);cursor:pointer"><span>Privacy Policy</span><span style="color:#bbb">'+icon('chevR','15px')+'</span></div>'
+    +'<div onclick="openLegal(\'terms\')" style="display:flex;justify-content:space-between;padding:14px 2px;border-bottom:1px solid var(--border);cursor:pointer"><span>Terms &amp; Conditions</span><span style="color:#bbb">'+icon('chevR','15px')+'</span></div>'
+    +'<div onclick="openLegal(\'refund\')" style="display:flex;justify-content:space-between;padding:14px 2px;border-bottom:1px solid var(--border);cursor:pointer"><span>Refund policy</span><span style="color:#bbb">'+icon('chevR','15px')+'</span></div>'
+    +'<div onclick="openLegal(\'cookies\')" style="display:flex;justify-content:space-between;padding:14px 2px;border-bottom:1px solid var(--border);cursor:pointer"><span>Cookies</span><span style="color:#bbb">'+icon('chevR','15px')+'</span></div>'
+    +'<div onclick="openLegal(\'impressum\')" style="display:flex;justify-content:space-between;padding:14px 2px;cursor:pointer"><span>Legal notice</span><span style="color:#bbb">'+icon('chevR','15px')+'</span></div>'
+    +'</div>');
+}
+function openEditProfile(){
+  openSheet('<div class="d-eb" style="color:var(--sage)">Edit profile</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 16px">Your details</h2>'
+    +'<label style="font-size:0.8rem;color:var(--secondary)">Name</label>'
+    +'<div class="field" style="margin:6px 0 14px"><input id="epName" value="'+esc(state.userName||'')+'"></div>'
+    +'<label style="font-size:0.8rem;color:var(--secondary)">Email</label>'
+    +'<div class="field" style="margin:6px 0 4px"><input id="epEmail" value="'+esc(state.userEmail||'')+'" '+((supa)?'':'disabled')+'></div>'
+    +'<div style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Changing your email needs re-confirmation.</div>'
+    +'<button class="btn btn-primary" onclick="saveEditProfile()">Save changes</button>'
+    +'<button class="btn btn-ghost" onclick="closeSheet();openChangePassword()">Change password</button>'
+  );
+}
+async function saveEditProfile(){
+  var nm=(document.getElementById('epName')||{}).value||'';
+  var em=(document.getElementById('epEmail')||{}).value||'';
+  state.userName=nm.trim()||state.userName;
+  var emailChanged = em && em.trim().toLowerCase()!==String(state.userEmail||'').toLowerCase();
+  try{
+    if(emailChanged && supa){ await supa.auth.updateUser({email:em.trim()}); toast('Check your inbox to confirm the new email'); }
+    else { toast('Saved'); }
+  }catch(e){ toast('Could not update email'); }
+  persistStateNow(); closeSheet(); renderProfileTab();
+}
+function openChangePassword(){
+  openSheet('<div class="d-eb" style="color:var(--sage)">Change password</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 16px">New password</h2>'
+    +'<div class="field" style="margin-bottom:12px"><input id="cpPass" type="password" placeholder="New password (min 8 chars)"></div>'
+    +'<button class="btn btn-primary" onclick="saveNewPassword()">Update password</button>');
+}
+async function saveNewPassword(){
+  var pw=(document.getElementById('cpPass')||{}).value||'';
+  if(pw.length<8){ toast('At least 8 characters'); return; }
+  try{ if(supa){ await supa.auth.updateUser({password:pw}); toast('Password updated'); } }
+  catch(e){ toast('Could not update password'); return; }
+  closeSheet();
+}
+function renderProfileTab_OLD(){
   var pet=state.answers.petName||'Your pet', t=state.answers.petType||'other';
   var typeLabel=t.charAt(0).toUpperCase()+t.slice(1);
   var chev='<span style="color:#bbb">'+icon('chevR','15px')+'</span>';
@@ -4443,20 +4731,8 @@ function renderProfileTab(){
     +prow('Billing','openBilling()',(spareCredits()>0?' <span style="font-size:0.66rem;background:rgba(107,143,113,0.14);color:var(--forest);padding:2px 8px;border-radius:99px;margin-left:6px">'+spareCredits()+' credits</span>':''),true)
     +'</div>'
     +petSwitcherHtml()
-    +'<div class="card" style="margin-top:12px;padding:4px 18px">'
-    +prow('Start a plan for another pet',"startAnotherPet()",'',!((state.archive||[]).length))
-    +(( (state.archive||[]).length)?prow('Past plans','openArchive()','<span style="float:right;color:var(--secondary);font-size:0.8rem;margin-right:10px">'+state.archive.length+'</span>',true):'')
-    +'</div>'
-    +'<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:center;font-size:0.76rem;color:var(--secondary);line-height:2">'
-    +'<span class="auth-link" onclick="openLegal(&#39;privacy&#39;)">Privacy</span> · '
-    +'<span class="auth-link" onclick="openLegal(&#39;terms&#39;)">Terms</span> · '
-    +'<span class="auth-link" onclick="openLegal(&#39;refund&#39;)">No refunds</span> · '
-    +'<span class="auth-link" onclick="openLegal(&#39;cookies&#39;)">Cookies</span> · '
-    +'<span class="auth-link" onclick="openLegal(&#39;impressum&#39;)">Legal notice</span>'
-    +'</div>'
     +'<button class="btn btn-ghost" style="margin-top:10px" onclick="signOut()">Sign out</button>'
-    +'<button class="btn btn-ghost" style="color:var(--danger);padding:6px" onclick="confirmDelete()">Delete profile</button>'
-    +'<p style="text-align:center;font-size:0.72rem;color:var(--secondary);margin-top:10px">'+esc(state.userEmail||'')+'</p>';
+    +'<button class="btn btn-ghost" style="color:var(--danger);padding:6px" onclick="confirmDelete()">Delete profile</button>';
   $('tab-profile').innerHTML=h;
 }
 function setPhoto(inp){
@@ -4761,8 +5037,8 @@ async function finishCheckin(){
     showTab('today');
     persistStateNow(); try{ checkNewBadges(); }catch(e){};
   }else{
-    state.planComplete=true;
-    try{ archiveCurrentPlan(); }catch(e){}
+    // Final check-in done. Don't archive or mark complete yet - the plan-end screen asks the
+    // user whether it worked, and THAT choice archives (worked) or extends (not yet).
     persistStateNow();
     showTab('today');
     setTimeout(openPlanEnd,300);
@@ -5000,6 +5276,87 @@ function saveMaintenance(val){
   }
 }
 function openPlanEnd(){
+  // The plan's final check-in is done. Instead of immediately celebrating, ask honestly
+  // whether it worked - the answer decides whether we archive the plan or extend it.
+  launchConfetti(); haptic(20);
+  var pet=state.answers.petName||'your pet';
+  var el=document.getElementById('planEndScreen');
+  el.innerHTML='<div class="pe-inner">'
+    +'<div class="d-eb" style="color:var(--sage)">Seven days complete</div>'
+    +'<h1 style="font-size:2.2rem;letter-spacing:-0.04em;line-height:1.12;margin:8px 0 16px">Thank you for<br><span class="accent">trusting the plan.</span></h1>'
+    +'<div style="width:110px;height:110px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage);margin:6px auto 20px">'+icon('party','52px',1.5)+'</div>'
+    +'<p style="font-size:1.02rem;color:var(--text);line-height:1.55;max-width:30ch;margin:0 auto 22px">You showed up for '+esc(pet)+' every day. Honestly, how does it feel now?</p>'
+    +'<button class="btn btn-primary" style="margin:0 0 10px" onclick="planEndWorked()">It\u2019s better, we\u2019re good</button>'
+    +'<button class="btn btn-ghost" onclick="planEndNotYet()">Not quite there yet</button>'
+    +'</div>';
+  el.classList.add('open');
+}
+function planEndWorked(){
+  // They're happy -> archive the plan and tell them where to find it.
+  try{ archiveCurrentPlan(); }catch(e){}
+  state.planComplete=true;
+  persistStateNow();
+  var pet=state.answers.petName||'your pet';
+  var el=document.getElementById('planEndScreen');
+  el.innerHTML='<div class="pe-inner">'
+    +'<div class="d-eb" style="color:var(--sage)">Wonderful</div>'
+    +'<h1 style="font-size:2.1rem;letter-spacing:-0.04em;line-height:1.14;margin:8px 0 16px">'+esc(pet)+'\u2019s plan is<br><span class="accent">safely saved.</span></h1>'
+    +'<div style="width:110px;height:110px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage);margin:6px auto 20px">'+icon('check','52px',1.7)+'</div>'
+    +'<p style="font-size:0.98rem;color:var(--text);line-height:1.55;max-width:32ch;margin:0 auto 10px">We\u2019ve moved this plan to your archive.</p>'
+    +'<p style="font-size:0.88rem;color:var(--secondary);line-height:1.5;max-width:32ch;margin:0 auto 22px">Find it any time under <b style="color:var(--text);font-weight:500">Profile \u2192 Archive</b>. Every check-in, note and result is kept there.</p>'
+    +'<button class="btn btn-primary" style="margin:0 0 8px" onclick="closePlanEnd();showTab(\'profile\')">Go to my archive</button>'
+    +'<button class="btn btn-ghost" onclick="closePlanEnd();openShareResult()">Share the result</button>'
+    +'<button class="btn btn-ghost" style="color:var(--secondary);padding:6px" onclick="closePlanEnd()">Close</button>'
+    +'</div>';
+}
+function planEndNotYet(){
+  // They want to keep going -> generate 3 more days with the AI and continue the same plan.
+  var pet=state.answers.petName||'your pet';
+  var el=document.getElementById('planEndScreen');
+  el.innerHTML='<div class="pe-inner">'
+    +'<div class="d-eb" style="color:var(--sage)">That\u2019s completely normal</div>'
+    +'<h1 style="font-size:2rem;letter-spacing:-0.04em;line-height:1.14;margin:8px 0 16px">Let\u2019s give '+esc(pet)+'<br><span class="accent">three more days.</span></h1>'
+    +'<p style="font-size:0.96rem;color:var(--text);line-height:1.55;max-width:32ch;margin:0 auto 22px">Some patterns take a little longer to shift. I\u2019ll build three extra days that pick up exactly where we left off, shaped by everything you\u2019ve logged.</p>'
+    +'<button class="btn btn-primary" style="margin:0 0 8px" onclick="extendPlanThreeDays()">Build my 3 extra days</button>'
+    +'<button class="btn btn-ghost" onclick="planEndWorked()">Actually, we\u2019re good, archive it</button>'
+    +'</div>';
+}
+async function extendPlanThreeDays(){
+  var el=document.getElementById('planEndScreen');
+  var oldLen=state.planLength||7;
+  var newLen=oldLen+3;
+  // Show a small generating state inside the plan-end screen.
+  el.innerHTML='<div class="pe-inner" style="text-align:center">'
+    +'<div style="width:70px;height:70px;margin:10px auto 18px" class="micbtn busy">'+icon('sparkle','30px',1.6)+'</div>'
+    +'<h2 style="font-size:1.4rem;letter-spacing:-0.03em;margin-bottom:8px">Building days '+(oldLen+1)+'\u2013'+newLen+'\u2026</h2>'
+    +'<p style="font-size:0.9rem;color:var(--secondary)">Shaping them around what you\u2019ve told us.</p></div>';
+  try{
+    const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({answers:state.answers, lang:'en', extend:true, fromDay:oldLen+1, days:3,
+        priorCheckins:(state.checkins||[]).slice(-7)})});
+    if(!res.ok) throw new Error('ai '+res.status);
+    const plan=await res.json();
+    var newDays = (plan && plan.days) ? plan.days : null;
+    if(newDays && newDays.length){
+      // Append the new days onto the existing plan and overrides.
+      state.aiPlan=state.aiPlan||{days:[]};
+      if(!Array.isArray(state.aiPlan.days)) state.aiPlan.days=[];
+      newDays.slice(0,3).forEach(function(d,i){
+        var dayNum=oldLen+1+i;
+        state.aiPlan.days[dayNum-1]={day:dayNum,title:d.title,sub:d.sub,desc:d.desc,tasks:d.tasks};
+        if(!state.planOverrides) state.planOverrides={};
+        state.planOverrides[dayNum]={title:d.title,sub:d.sub,desc:d.desc,tasks:d.tasks};
+      });
+    }
+  }catch(e){ /* if AI fails we still extend; the day template fills in */ }
+  state.planLength=newLen;
+  state.planComplete=false;
+  persistStateNow();
+  closePlanEnd();
+  showTab('today');
+  toast('Plan extended \u00b7 3 more days added');
+}
+function openPlanEnd_OLD(){
   launchConfetti(); haptic(20);
   var pet=state.answers.petName||'Your pet';
   var impr=planImprovement();
@@ -5018,11 +5375,6 @@ function openPlanEnd(){
     +'<div style="width:120px;height:120px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage);margin:6px auto 18px">'+icon('party','56px',1.5)+'</div>'
     +'<p style="font-size:1rem;color:var(--text);line-height:1.55;max-width:30ch;margin:0 auto 8px">'+improvedLine+'</p>'
     +'<p style="font-size:0.88rem;color:var(--secondary);line-height:1.5;max-width:32ch;margin:0 auto 20px">Your check-ins, streak and full history stay saved under Progress.</p>'
-    +'<div style="background:rgba(107,143,113,0.10);border:1px solid var(--border);border-radius:18px;padding:18px 16px;margin:0 auto 16px;max-width:34ch;text-align:left">'
-      +'<div class="d-eb" style="color:var(--sage);margin-bottom:6px">Keep it going - free</div>'
-      +'<div style="font-size:0.88rem;color:var(--text);line-height:1.5;margin-bottom:12px">New habits fade without upkeep. Weekly check-ins keep '+esc(pet)+'\u2019s progress in view and flag it early if things slip back.</div>'
-      +'<button class="btn btn-primary" style="margin:0" onclick="startMaintenance()">Start weekly upkeep</button>'
-    +'</div>'
     +upsell
     +'<button class="btn btn-ghost" style="margin-top:10px" onclick="closePlanEnd();openShareResult()">Share the result</button>'
     +'<button class="btn btn-ghost" style="margin-top:4px" onclick="closePlanEnd();showTab(\'progress\')">See my progress</button>'
