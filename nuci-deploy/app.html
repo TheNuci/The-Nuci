@@ -2207,11 +2207,11 @@ function assessNext(){
   state.currentQ++; renderQ();
 }
 function assessBack(){ kbRelease();
-  if(state.currentQ<=0){
-    // backing out of the very first question
-    if(state.__newPetFlow || state.__buyAnotherPet){ cancelNewPet(); return; }
-    showScreen('screen-hello'); return;
-  }
+  // When adding a pet FROM the profile (whether it uses a spare credit or needs payment), the
+  // back button should return straight to the app the owner came from, not walk back through
+  // every question one by one.
+  if(state.__newPetFlow || state.__buyAnotherPet){ cancelNewPet(); return; }
+  if(state.currentQ<=0){ showScreen('screen-hello'); return; }
   state.currentQ--; renderQ();
 }
 function cancelNewPet(){
@@ -4652,7 +4652,7 @@ function renderProfileTab(){
     +prow('Settings','openSettings()','',true)
     +'</div>';
 
-  h+='<p style="text-align:center;font-size:0.72rem;color:var(--secondary);margin-top:16px">The Nuci</p>';
+  h+='<p style="text-align:center;font-size:1.25rem;letter-spacing:-0.03em;color:var(--secondary);margin-top:22px;margin-bottom:6px"><span style="color:var(--sage)">The</span> Nuci<span style="color:var(--sage)">.</span></p>';
 
   $('tab-profile').innerHTML=h;
 }
