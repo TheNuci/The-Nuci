@@ -2207,10 +2207,13 @@ function assessNext(){
   state.currentQ++; renderQ();
 }
 function assessBack(){ kbRelease();
-  // When adding a pet FROM the profile (whether it uses a spare credit or needs payment), the
-  // back button should return straight to the app the owner came from, not walk back through
-  // every question one by one.
-  if(state.__newPetFlow || state.__buyAnotherPet){ cancelNewPet(); return; }
+  // Back always steps to the previous question, exactly as before. The only special case is
+  // the FIRST question the owner actually sees: for a new pet that's question 0; for a pet that
+  // already had a plan, several questions are prefilled and skipped, so the first shown one may
+  // be e.g. question 10. At that entry question, back returns to the app they came from instead
+  // of stepping into the skipped/prefilled questions.
+  var entry=(typeof state.__entryQ==='number')?state.__entryQ:0;
+  if((state.__newPetFlow || state.__buyAnotherPet) && state.currentQ<=entry){ cancelNewPet(); return; }
   if(state.currentQ<=0){ showScreen('screen-hello'); return; }
   state.currentQ--; renderQ();
 }
@@ -4652,7 +4655,7 @@ function renderProfileTab(){
     +prow('Settings','openSettings()','',true)
     +'</div>';
 
-  h+='<p style="text-align:center;font-size:1.25rem;letter-spacing:-0.03em;color:var(--secondary);margin-top:22px;margin-bottom:6px"><span style="color:var(--sage)">The</span> Nuci<span style="color:var(--sage)">.</span></p>';
+  h+='<p style="text-align:center;font-size:1.25rem;letter-spacing:-0.03em;margin-top:22px;margin-bottom:6px"><span style="color:var(--sage)">The</span> <span style="color:var(--forest)">Nuci</span><span style="color:var(--sage)">.</span></p>';
 
   $('tab-profile').innerHTML=h;
 }
@@ -5224,9 +5227,11 @@ function proceedNewPet(prefillFrom){
     var firstUnanswered=0;
     for(var i=0;i<qs.length;i++){ if(state.answers[qs[i].id]==null || state.answers[qs[i].id]===''){ firstUnanswered=i; break; } }
     state.currentQ=firstUnanswered;
+    state.__entryQ=firstUnanswered;   // back from here returns to the app (the prefilled ones are skipped)
   } else {
     state.__prefilledPet=false;
     state.currentQ=0;
+    state.__entryQ=0;
   }
   renderQ();
 }
