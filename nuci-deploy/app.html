@@ -1417,6 +1417,19 @@ function syncPlanDay(){
     if(missed>0){ state.__pendingMissed=(state.__pendingMissed||0)+missed; }
     persistStateNow();
   }
+  // If the calendar has run past the final day and the plan was never formally closed (the
+  // owner never opened the last check-in / plan-end screen), close it now. Otherwise the plan
+  // sits "stuck on day 7" forever - counted as active, blocking the empty state and showing an
+  // old finished plan as if current when another pet is added.
+  var L=state.planLength||7;
+  if(!state.planComplete && (state.currentDay||1)>=L){
+    var elapsed = state.planStartDate ? daysBetween(state.planStartDate, todayKey()) : 0;
+    if(elapsed >= L){   // a full L days have passed since the start date
+      try{ archiveCurrentPlan(); }catch(e){}
+      state.planComplete=true;
+      persistStateNow();
+    }
+  }
 }
 // A gentle, non-shaming nudge when the user skipped day(s) without checking in.
 function showMissedNudge(n){
@@ -3754,9 +3767,16 @@ function hasActivePlan(){
   // An active plan = the user has purchased, has answers with a pet, an AI plan, and it isn't
   // archived/complete. This is what every tab checks to decide between content and the empty
   // "start a plan" state.
-  return !!(state.purchased && state.answers && state.answers.petName
-            && state.aiPlan && state.aiPlan.days && state.aiPlan.days.length
-            && !state.planComplete);
+  if(!(state.purchased && state.answers && state.answers.petName
+       && state.aiPlan && state.aiPlan.days && state.aiPlan.days.length
+       && !state.planComplete)) return false;
+  // Also treat a plan whose calendar has fully run out as NOT active - covers older plans that
+  // expired by date but were never formally closed (so they don't show as if still on day 7).
+  var L=state.planLength||7;
+  if(state.planStartDate){
+    try{ if(daysBetween(state.planStartDate, todayKey()) >= L) return false; }catch(e){}
+  }
+  return true;
 }
 function emptyTabHtml(kind){
   // Shown on Today / Plan / Progress / Vet when there is no active plan. One short line of
@@ -4618,7 +4638,7 @@ function renderProfileTab(){
     : '<div onclick="startAnotherPet()" style="display:flex;align-items:center;gap:12px;padding:13px 2px;cursor:pointer">'
       +'<div style="width:42px;height:42px;border-radius:13px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--forest);font-size:1.4rem">+</div>'
       +'<div style="flex:1"><div style="font-size:0.95rem;color:var(--forest)">Start a plan for another pet</div></div></div>';
-  h+='<div class="card" style="margin-top:8px;padding:4px 18px"><div class="d-eb" style="margin:12px 0 2px">Your pets</div>'+petRows+addPetRow+'</div>';
+  h+='<div class="card" style="margin-top:8px;padding:4px 18px"><div class="d-eb" style="margin:12px 0 2px">My pets</div>'+petRows+addPetRow+'</div>';
 
   // ---- Actions ----
   h+='<div class="card" style="margin-top:12px;padding:4px 18px">'
@@ -4754,21 +4774,15 @@ function openEditProfile(){
     +'<label style="font-size:0.8rem;color:var(--secondary)">Name</label>'
     +'<div class="field" style="margin:6px 0 14px"><input id="epName" value="'+esc(state.userName||'')+'"></div>'
     +'<label style="font-size:0.8rem;color:var(--secondary)">Email</label>'
-    +'<div class="field" style="margin:6px 0 4px"><input id="epEmail" value="'+esc(state.userEmail||'')+'" '+((supa)?'':'disabled')+'></div>'
-    +'<div style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Changing your email needs re-confirmation.</div>'
+    +'<div style="font-size:0.95rem;color:var(--text);padding:12px 2px;margin:4px 0 14px;border-bottom:1px solid var(--border)">'+esc(state.userEmail||'')+'</div>'
     +'<button class="btn btn-primary" onclick="saveEditProfile()">Save changes</button>'
     +'<button class="btn btn-ghost" onclick="closeSheet();openChangePassword()">Change password</button>'
   );
 }
 async function saveEditProfile(){
   var nm=(document.getElementById('epName')||{}).value||'';
-  var em=(document.getElementById('epEmail')||{}).value||'';
   state.userName=nm.trim()||state.userName;
-  var emailChanged = em && em.trim().toLowerCase()!==String(state.userEmail||'').toLowerCase();
-  try{
-    if(emailChanged && supa){ await supa.auth.updateUser({email:em.trim()}); toast('Check your inbox to confirm the new email'); }
-    else { toast('Saved'); }
-  }catch(e){ toast('Could not update email'); }
+  toast('Saved');
   persistStateNow(); closeSheet(); renderProfileTab();
 }
 function openChangePassword(){
@@ -5140,6 +5154,83 @@ function switchToPet(i){ if(i===state.activePet) return; syncActivePet(); state.
 function petsUsed(){ return Array.isArray(state.pets)?state.pets.length:1; }
 function spareCredits(){ return (state.planCredits||0) - petsUsed(); }
 function startAnotherPet(){
+  // From INSIDE the profile: if the owner already has saved pets, first ask whether this plan
+  // is for one of them or a brand-new pet. Choosing an existing pet prefills the details that
+  // don't change (name, species, breed, age, sex, neutered) so they only answer what's new.
+  var saved=savedPetsList();
+  if(saved.length){ chooseExistingPet(saved); return; }
+  proceedNewPet();
+}
+// The pets the owner has saved (dedup by name), each with the answers we can prefill from.
+function savedPetsList(){
+  try{ syncActivePet(); }catch(e){}
+  var out=[]; var seen={};
+  (state.pets||[]).forEach(function(p,i){
+    var a=(p&&p.answers)||{}; if(!a.petName) return;
+    var key=(a.petName+'|'+(a.petType||'')).toLowerCase();
+    if(seen[key]) return; seen[key]=1;
+    out.push({index:i, answers:a});
+  });
+  // include archived pets too, so a completed pet can start a fresh plan
+  (state.archive||[]).forEach(function(ar){
+    var a=ar.answers||{}; if(!a.petName) return;
+    var key=(a.petName+'|'+(a.petType||'')).toLowerCase();
+    if(seen[key]) return; seen[key]=1;
+    out.push({archived:true, answers:a});
+  });
+  return out;
+}
+function chooseExistingPet(saved){
+  var rows=saved.map(function(s,idx){
+    var a=s.answers; var ty=a.petType||'other';
+    var av=petSvg(ty,'22px');
+    return '<div onclick="planForExistingPet('+idx+')" style="display:flex;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
+      +'<div style="width:42px;height:42px;border-radius:13px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
+      +'<div style="flex:1"><div style="font-size:0.95rem">'+esc(a.petName)+'</div><div style="font-size:0.74rem;color:var(--secondary)">'+esc(a.breed||(ty.charAt(0).toUpperCase()+ty.slice(1)))+'</div></div>'
+      +'<span style="color:#bbb">'+icon('chevR','15px')+'</span></div>';
+  }).join('');
+  // stash the list so planForExistingPet can read it by index
+  window.__petChoices=saved;
+  openSheet('<div class="d-eb" style="color:var(--sage)">New plan</div>'
+    +'<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin:6px 0 4px">Who is this plan for?</h2>'
+    +'<p style="font-size:0.86rem;color:var(--secondary);margin-bottom:14px">Pick a pet you already have, or start with a new one.</p>'
+    +rows
+    +'<div onclick="planForNewPet()" style="display:flex;align-items:center;gap:12px;padding:14px 2px;cursor:pointer">'
+    +'<div style="width:42px;height:42px;border-radius:13px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--forest);font-size:1.4rem">+</div>'
+    +'<div style="flex:1;font-size:0.95rem;color:var(--forest)">A new pet</div></div>');
+}
+function planForNewPet(){ closeSheet(); proceedNewPet(); }
+function planForExistingPet(idx){
+  var choice=(window.__petChoices||[])[idx]; closeSheet();
+  if(!choice){ proceedNewPet(); return; }
+  proceedNewPet(choice.answers);
+}
+// Start the new-pet flow. If prefillFrom is given, copy the stable details and jump the
+// questionnaire to the first question that actually needs a fresh answer.
+function proceedNewPet(prefillFrom){
+  syncActivePet();
+  var needsPayment = spareCredits() < 1;
+  state.__newPetFlow = !needsPayment;
+  state.__buyAnotherPet = needsPayment;
+  beginBlankPet();
+  showScreen('screen-assessment');
+  if(prefillFrom){
+    // Carry over only the fields that don't change between plans for the same pet.
+    var keep=['petName','petType','species','breed','age','sex','neutered','environment','household'];
+    keep.forEach(function(k){ if(prefillFrom[k]!=null && prefillFrom[k]!=='') state.answers[k]=prefillFrom[k]; });
+    state.__prefilledPet=true;
+    // Jump to the first question whose answer we did NOT carry over (the first variable one).
+    var qs=getQuestions();
+    var firstUnanswered=0;
+    for(var i=0;i<qs.length;i++){ if(state.answers[qs[i].id]==null || state.answers[qs[i].id]===''){ firstUnanswered=i; break; } }
+    state.currentQ=firstUnanswered;
+  } else {
+    state.__prefilledPet=false;
+    state.currentQ=0;
+  }
+  renderQ();
+}
+function startAnotherPet_OLD(){
   syncActivePet();
   if(spareCredits() < 1){
     // no spare plan -> need to buy: go to a fresh assessment then the offer (payment) at the end
