@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-14 09:59";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-14 10:26";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -4496,6 +4496,83 @@ function makePlanPDF(p){
       if(p.issue){ card('Main issue', doc.splitTextToSize(p.issue, W-2*M-36)); }
       if(p.aiBehaviorExplain){ card('Why this was happening', doc.splitTextToSize(p.aiBehaviorExplain, W-2*M-36)); }
 
+      // ---- STATISTICS (numbers + trend chart) ----
+      (function(){
+        var cis=(p.checkins||[]);
+        var withData=cis.filter(function(c){ return c.occurred==='Yes'||c.occurred==='No'; });
+        if(!withData.length) return;
+        // compute the same figures the Progress tab shows
+        var totalIncidents=0, calmDays=0, sevSum=0, sevCount=0;
+        withData.forEach(function(c){
+          if(c.occurred==='Yes'){ totalIncidents += (parseInt(c.freq)||1); if(c.severity){ sevSum+=parseFloat(c.severity)||0; sevCount++; } }
+          else if(c.occurred==='No'){ calmDays++; }
+        });
+        var avgSev = sevCount? (Math.round((sevSum/sevCount)*10)/10) : null;
+        // best streak of consecutive check-ins by day
+        var daysSeen=withData.map(function(c,i){ return c.day||(i+1); }).sort(function(a,b){return a-b;});
+        var bestStreak=daysSeen.length?1:0, cur=1;
+        for(var i=1;i<daysSeen.length;i++){ if(daysSeen[i]===daysSeen[i-1]+1){ cur++; if(cur>bestStreak)bestStreak=cur; } else cur=1; }
+        var impr = p.improvement;
+
+        section('The numbers', true);
+        // 2x2 stat grid
+        var stats=[
+          ['Total incidents', String(totalIncidents)],
+          [(impr!=null? 'Change vs day one':'Check-ins done'), (impr!=null? ((impr<0?'-':(impr>0?'+':''))+Math.abs(impr)+'%') : String(withData.length))],
+          ['Calm days', String(calmDays)],
+          ['Avg severity', (avgSev!=null? (avgSev+' / 5') : '\u2013')]
+        ];
+        var gw=(W-2*M-14)/2, gh=64, gx=M, gy=y;
+        stats.forEach(function(st,idx){
+          var col=idx%2, rowi=Math.floor(idx/2);
+          var x=M+col*(gw+14), yy=y+rowi*(gh+14);
+          doc.setFillColor.apply(doc,CARD); doc.setDrawColor.apply(doc,BORDER); doc.setLineWidth(1);
+          rr(x,yy,gw,gh,14,'FD');
+          doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.setTextColor.apply(doc,FOREST);
+          doc.text(st[1], x+16, yy+34);
+          doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor.apply(doc,SAGE);
+          doc.text(st[0].toUpperCase(), x+16, yy+50);
+        });
+        y += 2*gh + 14 + 24;
+
+        // trend chart: incidents per day (line), missed days marked
+        var lastDay=p.currentDay||p.planLength||daysSeen[daysSeen.length-1]||7;
+        var byDay={}; cis.forEach(function(c,i){ byDay[c.day||(i+1)]=c; });
+        var pts=[];
+        for(var d=1; d<=lastDay; d++){
+          var c=byDay[d];
+          if(c){ pts.push({day:d, val:(c.occurred==='Yes'?(parseInt(c.freq)||1):0), missed:false}); }
+          else { pts.push({day:d, val:0, missed:true}); }
+        }
+        if(pts.length>=2){
+          if(y>H-200){ doc.addPage(); doc.setFillColor.apply(doc,BONE); doc.rect(0,0,W,H,'F'); y=64; }
+          doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
+          doc.text('Incident trend', M, y); y+=14;
+          var chX=M, chY=y, chW=W-2*M, chH=150, padL=8, padB=20;
+          doc.setFillColor.apply(doc,CARD); doc.setDrawColor.apply(doc,BORDER); doc.setLineWidth(1);
+          rr(chX,chY,chW,chH,14,'FD');
+          var maxV=1; pts.forEach(function(pt){ if(pt.val>maxV)maxV=pt.val; });
+          var innerW=chW-2*20, innerH=chH-2*18;
+          var X=function(i){ return chX+20+(pts.length===1?innerW/2:(innerW*i/(pts.length-1))); };
+          var Y=function(v){ return chY+18+innerH-(innerH*v/maxV); };
+          // line
+          doc.setDrawColor.apply(doc,FOREST); doc.setLineWidth(2);
+          for(var i2=1;i2<pts.length;i2++){ doc.line(X(i2-1),Y(pts[i2-1].val),X(i2),Y(pts[i2].val)); }
+          // dots
+          pts.forEach(function(pt,i3){
+            if(pt.missed){ doc.setFillColor(199,122,122); doc.circle(X(i3),Y(pt.val),3.2,'F'); }
+            else { doc.setFillColor.apply(doc,FOREST); doc.circle(X(i3),Y(pt.val),3.2,'F'); }
+          });
+          // day labels (first, middle, last)
+          doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor.apply(doc,SAGE);
+          doc.text('Day 1', chX+20, chY+chH-6);
+          doc.text('Day '+lastDay, chX+chW-52, chY+chH-6);
+          y += chH + 10;
+          doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor.apply(doc,SLATE);
+          doc.text('Green = incidents logged that day. Red = check-in missed.', M, y); y+=18;
+        }
+      })();
+
       // ---- FULL ASSESSMENT (everything the owner told us) ----
       var A=p.answers||{};
       var assessPairs=[
@@ -4742,17 +4819,60 @@ function choosePlanToDownload(){
   var pets=Array.isArray(state.pets)?state.pets:[];
   if(state.answers&&state.answers.petName){ try{ syncActivePet(); pets=state.pets; }catch(e){} }
   if(!pets.length){ toast('No plan to download yet'); return; }
-  if(pets.length===1){ exportPetPDF(0); return; }
+  if(pets.length===1){ choosePlanForPet(0); return; }
   var rows=pets.map(function(p,i){
     var a=(p&&p.answers)||{}; var ty=a.petType||'other';
     var av=p&&p.petPhoto?('<img src="'+p.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(ty,'20px');
-    return '<div onclick="closeSheet();exportPetPDF('+i+')" style="display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
+    return '<div onclick="closeSheet();choosePlanForPet('+i+')" style="display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
       +'<div style="width:38px;height:38px;border-radius:12px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
       +'<div style="flex:1;font-size:0.95rem">'+esc(a.petName||('Pet '+(i+1)))+'</div>'
       +'<span style="color:#bbb">'+icon('chevR','15px')+'</span></div>';
   }).join('');
   openSheet('<div class="d-eb" style="color:var(--sage)">Download a plan</div>'
     +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 14px">Which pet?</h2>'+rows);
+}
+// All plans belonging to one pet: the current one (in pets[]) plus any archived attempts for
+// the same pet identity. Each entry can build its own PDF.
+function plansForPet(petIndex){
+  var p=(state.pets||[])[petIndex]; if(!p) return [];
+  var a=p.answers||{}; var key=(a.petName+'|'+(a.petType||'')).toLowerCase();
+  var list=[];
+  // current plan (from pets[])
+  list.push({ kind:'current', petIndex:petIndex, answers:a, issue:a.mainIssue||'Current plan',
+    completedDate:null, source:p });
+  // archived plans for the same pet
+  (state.archive||[]).forEach(function(ar,ai){
+    if(((ar.petName||'')+'|'+(ar.petType||'')).toLowerCase()===key){
+      list.push({ kind:'archive', archiveIndex:ai, answers:ar.answers||{petName:ar.petName,petType:ar.petType},
+        issue:ar.issue||'Behaviour plan', completedDate:ar.completedDate||null, source:ar });
+    }
+  });
+  return list;
+}
+function choosePlanForPet(petIndex){
+  var plans=plansForPet(petIndex);
+  if(plans.length<=1){ exportPetPDF(petIndex); return; }
+  var pet=((state.pets||[])[petIndex]||{}).answers||{};
+  var rows=plans.map(function(pl,idx){
+    var when = pl.completedDate ? ('Completed '+new Date(pl.completedDate).toLocaleDateString()) : 'In progress';
+    var label = pl.issue || (pl.kind==='current'?'Current plan':'Behaviour plan');
+    return '<div onclick="closeSheet();exportPlanForPet('+petIndex+','+idx+')" style="display:flex;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
+      +'<div style="width:38px;height:38px;border-radius:12px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+icon('doc','18px')+'</div>'
+      +'<div style="flex:1"><div style="font-size:0.95rem">'+esc(label)+'</div><div style="font-size:0.74rem;color:var(--secondary)">'+when+(pl.kind==='current'?' \u00b7 current':'')+'</div></div>'
+      +'<span style="color:#bbb">'+icon('chevR','15px')+'</span></div>';
+  }).join('');
+  openSheet('<div class="d-eb" style="color:var(--sage)">'+esc(pet.petName||'Pet')+'</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 4px">Which plan?</h2>'
+    +'<p style="font-size:0.84rem;color:var(--secondary);margin-bottom:14px">'+esc(pet.petName||'This pet')+' has more than one plan. Pick which one to download.</p>'
+    +rows);
+}
+function exportPlanForPet(petIndex, planIdx){
+  var plans=plansForPet(petIndex);
+  var pl=plans[planIdx];
+  if(!pl){ exportPetPDF(petIndex); return; }
+  if(pl.kind==='current'){ exportPetPDF(petIndex); return; }
+  // archived plan -> build the PDF straight from the archived record
+  exportArchivedPDF(pl.source);
 }
 function exportPetPDF(i){
   // Load that pet into state (via a snapshot swap) just long enough to build its PDF, then
@@ -4766,6 +4886,19 @@ function exportPetPDF(i){
   try{ exportCurrentPDF(); }catch(e){ toast('Could not create PDF'); }
   // restore
   loadPet(restore); state.activePet=wasActive;
+}
+// Build the full PDF from an archived plan record (a completed, past plan for a pet).
+function exportArchivedPDF(ar){
+  if(!ar){ toast('Could not create PDF'); return; }
+  makePlanPDF({
+    petName:ar.petName||(ar.answers&&ar.answers.petName), petType:ar.petType||(ar.answers&&ar.answers.petType),
+    issue:ar.issue||(ar.answers&&ar.answers.mainIssue),
+    planLength:ar.planLength||7, improvement:ar.improvement, checkins:ar.checkins||[],
+    answers:ar.answers||{}, aiBehaviorExplain:ar.aiBehaviorExplain||null, dayNotes:ar.dayNotes||{},
+    aiPlan:ar.aiPlan||null, planOverrides:ar.planOverrides||null, aiCauses:ar.aiCauses||null,
+    aiWhatNotToDo:ar.aiWhatNotToDo||null, currentDay:(ar.planLength||7),
+    completedDate:ar.completedDate||new Date().toISOString()
+  });
 }
 function openSettings(){
   var units=state.units||'metric';
@@ -5294,6 +5427,26 @@ function petHasActivePlan(name, type){
     return true;
   });
 }
+// Is a given pets[] entry a currently-running plan?
+function petEntryIsActive(p){
+  if(!p || !(p.aiPlan && p.aiPlan.days && p.aiPlan.days.length) || p.planComplete) return false;
+  var L=p.planLength||7;
+  if(p.planStartDate){ try{ if(daysBetween(p.planStartDate, todayKey())>=L) return false; }catch(e){} }
+  return true;
+}
+// After the active pet's plan finishes, move the active pointer to another pet that still has a
+// running plan (if any), so the app keeps showing a live plan rather than the finished one.
+function switchActiveToAnotherRunningPet(){
+  try{ syncActivePet(); }catch(e){}
+  if(!Array.isArray(state.pets)) return;
+  // if the current active pet is still running, nothing to do
+  if(state.pets[state.activePet] && petEntryIsActive(state.pets[state.activePet])) return;
+  for(var i=0;i<state.pets.length;i++){
+    if(i===state.activePet) continue;
+    if(petEntryIsActive(state.pets[i])){ state.activePet=i; loadPet(state.pets[i]); persistStateNow(); return; }
+  }
+  // none running - leave as is (empty state will show)
+}
 // Start the new-pet flow. If prefillFrom is given, copy the stable details and jump the
 // questionnaire to the first question that actually needs a fresh answer.
 function proceedNewPet(prefillFrom, targetName, targetType, petPhoto){
@@ -5561,8 +5714,13 @@ function planEndWorked(){
   // They're happy -> archive the plan and tell them where to find it.
   try{ archiveCurrentPlan(); }catch(e){}
   state.planComplete=true;
+  try{ syncActivePet(); }catch(e){}   // store the now-complete plan into pets[]
   persistStateNow();
   var pet=state.answers.petName||'your pet';
+  // If ANOTHER pet still has a running plan, quietly switch the active pet to it so Today,
+  // Progress etc. keep showing a live plan instead of the just-finished one (which otherwise
+  // makes everything look empty even though another pet is still going).
+  switchActiveToAnotherRunningPet();
   var el=document.getElementById('planEndScreen');
   el.innerHTML='<div class="pe-inner">'
     +'<div class="d-eb" style="color:var(--sage)">Wonderful</div>'
@@ -5575,10 +5733,42 @@ function planEndWorked(){
     +'<button class="btn btn-ghost" style="color:var(--secondary);padding:6px" onclick="closePlanEnd()">Close</button>'
     +'</div>';
 }
-function planEndNotYet(){
-  // They want to keep going -> generate 3 more days with the AI and continue the same plan.
+async function planEndNotYet(){
   var pet=state.answers.petName||'your pet';
   var el=document.getElementById('planEndScreen');
+  // If we already extended once, we don't extend again. Instead show a warm, honest message -
+  // written by the AI around this specific pet and behaviour - acknowledging it hasn't resolved
+  // and pointing them toward professional help.
+  if((state.__extendCount||0)>=1){
+    el.innerHTML='<div class="pe-inner" style="text-align:center">'
+      +'<div style="width:64px;height:64px;margin:10px auto 18px" class="micbtn busy">'+icon('sparkle','28px',1.6)+'</div>'
+      +'<h2 style="font-size:1.3rem;letter-spacing:-0.03em;margin-bottom:8px">One moment\u2026</h2></div>';
+    var msg=null;
+    try{
+      const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({answers:state.answers, lang:'en', sorryMessage:true,
+          issue:state.answers.mainIssue||'', priorCheckins:(state.checkins||[]).slice(-10)})});
+      if(res.ok){ var data=await res.json(); msg=data.message||data.text||(data.days?null:null); }
+    }catch(e){}
+    if(!msg){
+      // fallback if the AI endpoint doesn't return a message
+      msg='We\u2019re genuinely sorry the plan didn\u2019t bring the change you and '+esc(pet)+' were hoping for. Some behaviours have roots that need a professional set of eyes \u2014 a vet or a qualified behaviourist can assess '+esc(pet)+' in person and build on everything you\u2019ve already tracked here.';
+    }
+    // archive the plan now - this attempt is over
+    try{ archiveCurrentPlan(); }catch(e){}
+    state.planComplete=true; try{ syncActivePet(); }catch(e){}
+    switchActiveToAnotherRunningPet();
+    persistStateNow();
+    el.innerHTML='<div class="pe-inner">'
+      +'<div class="d-eb" style="color:var(--sage)">Thank you for trying</div>'
+      +'<h1 style="font-size:1.9rem;letter-spacing:-0.04em;line-height:1.16;margin:8px 0 16px">This one needs<br><span class="accent">more than an app.</span></h1>'
+      +'<p style="font-size:0.98rem;color:var(--text);line-height:1.6;max-width:34ch;margin:0 auto 22px">'+esc(msg)+'</p>'
+      +'<button class="btn btn-primary" style="margin:0 0 8px" onclick="closePlanEnd();showTab(\'vet\')">Find a vet or behaviourist</button>'
+      +'<button class="btn btn-ghost" onclick="closePlanEnd();showTab(\'profile\')">Go to my archive</button>'
+      +'</div>';
+    return;
+  }
+  // first time -> offer the 3-day extension
   el.innerHTML='<div class="pe-inner">'
     +'<div class="d-eb" style="color:var(--sage)">That\u2019s completely normal</div>'
     +'<h1 style="font-size:2rem;letter-spacing:-0.04em;line-height:1.14;margin:8px 0 16px">Let\u2019s give '+esc(pet)+'<br><span class="accent">three more days.</span></h1>'
@@ -5617,6 +5807,7 @@ async function extendPlanThreeDays(){
   }catch(e){ /* if AI fails we still extend; the day template fills in */ }
   state.planLength=newLen;
   state.planComplete=false;
+  state.__extendCount=(state.__extendCount||0)+1;   // remember we've already given the extra days
   persistStateNow();
   closePlanEnd();
   showTab('today');

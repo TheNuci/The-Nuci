@@ -72,9 +72,32 @@ exports.handler = async (event) => {
   // Cap request body size so a huge payload can't be used to run up token costs.
   if ((event.body || '').length > 12000) return { statusCode: 413, headers: CORS, body: JSON.stringify({ error: 'too_large' }) };
 
-  let answers = {}, lang = 'en', previewOnly = false;
-  try { const b = JSON.parse(event.body || '{}'); answers = b.answers || {}; lang = b.lang || 'en'; previewOnly = !!b.previewOnly; }
+  let answers = {}, lang = 'en', previewOnly = false, sorryMessage = false, extend = false, fromDay = 0, days = 0, priorCheckins = null, issue = '';
+  try { const b = JSON.parse(event.body || '{}'); answers = b.answers || {}; lang = b.lang || 'en'; previewOnly = !!b.previewOnly; sorryMessage = !!b.sorryMessage; extend = !!b.extend; fromDay = b.fromDay || 0; days = b.days || 0; priorCheckins = b.priorCheckins || null; issue = b.issue || ''; }
   catch (e) { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Bad JSON' }) }; }
+
+  // A short, warm "we're sorry it didn't resolve" note, written around this pet and behaviour,
+  // pointing gently toward a vet/behaviourist. Used after the plan was extended once and the
+  // behaviour still hasn't shifted.
+  if (sorryMessage && ANTHROPIC_API_KEY) {
+    try {
+      const petNm = answers.petName || 'your pet';
+      const sys = `You are a warm, honest companion-animal behaviourist writing to a pet owner whose ${answers.petType || 'pet'} "${petNm}" has been through a full behaviour plan plus a 3-day extension, and the issue ("${issue || answers.mainIssue || 'the behaviour'}") still hasn't resolved.
+Write ONE short paragraph (55-80 words), second person, addressed to the owner. Acknowledge their effort and ${petNm} by name, express genuine care that it hasn't worked yet, and explain simply that some behaviours have medical or deeper roots that need an in-person professional (a vet or qualified behaviourist) who can build on what they've already tracked. Do NOT be clinical or cold, do NOT use bullet points, do NOT use an em dash. Return ONLY the paragraph text, no quotes, no preamble.`;
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: MODEL, max_tokens: 400, system: sys, messages: [{ role: 'user', content: 'Owner + checkin context (JSON): ' + JSON.stringify({ answers: answers, priorCheckins: priorCheckins }).slice(0, 4000) }] })
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const txt = (j.content || []).map(c => c.text || '').join('').trim();
+        if (txt) return { statusCode: 200, headers: CORS, body: JSON.stringify({ message: txt }) };
+      }
+    } catch (e) { /* fall through to a generic message */ }
+    const petNm = answers.petName || 'your pet';
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ message: 'We\u2019re genuinely sorry the plan didn\u2019t bring the change you and ' + petNm + ' were hoping for. Some behaviours have deeper or medical roots that need a professional who can assess ' + petNm + ' in person and build on everything you\u2019ve tracked here.' }) };
+  }
 
   if (!ANTHROPIC_API_KEY) {
     // graceful fallback so the app still works without a key - flagged so we can tell.
