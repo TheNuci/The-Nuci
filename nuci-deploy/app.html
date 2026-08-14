@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-14 14:38";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-14 15:47";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1251,6 +1251,12 @@ function restoreState(d){
   if(!Array.isArray(state.pets)) state.pets=[];
   if(!Array.isArray(state.archive)) state.archive=[];
   if(typeof state.activePet!=='number') state.activePet=0;
+  // Backfill the plans-used counter for accounts created before it existed: the true number of
+  // plans made is (pets that have a plan) + (archived plans). plansGenerated must never be lower
+  // than that, otherwise "plans available" would over-count. Take the larger of the two.
+  var actualPlans=(state.pets||[]).filter(function(p){ return p&&p.aiPlan&&p.aiPlan.days&&p.aiPlan.days.length; }).length
+                 + (state.archive||[]).length;
+  if(typeof state.plansGenerated!=='number' || state.plansGenerated<actualPlans){ state.plansGenerated=actualPlans; }
   // Make the top-level fields (answers/aiPlan/checkins/...) match the active pet's stored entry.
   // serializeState always syncs the active pet into pets[] before saving, so pets[activePet] is
   // the authoritative copy - loading it here guarantees the two never drift apart on restore.
@@ -3165,7 +3171,27 @@ async function generatePlanAI(){
       state.planOverrides={};
       plan.days.forEach((d,i)=>{ state.planOverrides[i+1]={title:d.title,sub:d.sub,desc:d.desc,tasks:d.tasks}; });
     }
-  }catch(e){ console.warn('AI plan failed, using template',e); }
+  }catch(e){ console.warn('AI plan failed, using template',e);
+    // The AI call failed. Rather than leaving the user with NO plan (which then looks empty and
+    // gets lost on reload while a credit was spent), build a sensible generic plan so they always
+    // come away with something usable. It's clearly generic but keeps the app working offline/failed.
+    if(!state.aiPlan || !state.aiPlan.days || !state.aiPlan.days.length){
+      var petNm=(state.answers&&state.answers.petName)||'your pet';
+      var issue=(state.answers&&state.answers.mainIssue)||'the behaviour';
+      var L=state.planLength||7;
+      var tmpl=[];
+      for(var d=1; d<=L; d++){
+        tmpl.push({ day:d,
+          title: d===1?'Observe and note':(d===L?'Reinforce the routine':'Build consistency'),
+          sub: 'Day '+d,
+          desc: 'Spend focused time with '+petNm+' today. Watch for what happens right before '+issue+', note the triggers, and stay calm and consistent in how you respond.',
+          tasks: ['Note when '+issue+' happens and what preceded it','Reward calm, wanted behaviour right away','Keep routines (feeding, walks, rest) steady'] });
+      }
+      state.aiPlan={ days:tmpl, behaviorExplain:null, causes:null, whatNotToDo:null, __template:true };
+      state.planOverrides={};
+      tmpl.forEach(function(dd,i){ state.planOverrides[i+1]={title:dd.title,sub:dd.sub,desc:dd.desc,tasks:dd.tasks}; });
+    }
+  }
 }
 // A cheap fingerprint of the answers that drive the plan. If any of these change,
 // the cached plan is stale and must be regenerated.
@@ -3218,6 +3244,13 @@ function runGenerating(next){
       pct += Math.max(2, (100-pct)*0.25);
       if(pct>=100){
         pct=100; draw(); clearInterval(iv);
+        // Only continue if we actually have a plan. If generation totally failed (no AI, no
+        // template), don't commit an empty pet or burn a credit - show a retry instead.
+        if(!state.aiPlan || !state.aiPlan.days || !state.aiPlan.days.length){
+          if(typeof genFailedRetry==='function'){ genFailedRetry(next); }
+          else { showScreen('screen-assessment'); toast('Could not create the plan. Please try again.'); }
+          return;
+        }
         setTimeout(next, 300);
         return;
       }
