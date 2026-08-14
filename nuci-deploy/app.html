@@ -953,6 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
+const BUILD_STAMP = "2026-08-14 09:59";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -3920,14 +3921,21 @@ function renderToday(){
   hookGrow('todayNote');
 }
 function testJumpToPlanEnd(){
-  // Move the plan's start date back so today is the final day, then open the final check-in.
+  // TEST ONLY: simulate reaching the final day of the ACTIVE pet's plan and opening its last
+  // check-in - exactly as if the owner had lived through all 7 days. This only touches the
+  // active pet's state; finishing that check-in runs the normal plan-end flow. We deliberately
+  // do NOT call syncPlanDay() here, because that would auto-archive the plan before the
+  // plan-end screen ever appears.
   var L=state.planLength||7;
   var d=new Date(); d.setDate(d.getDate()-(L-1));
   state.planStartDate=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   state.currentDay=L;
-  try{ syncPlanDay(); }catch(e){}
-  state.currentDay=L;
+  state.viewDay=L;
+  state.planComplete=false;   // not complete yet - the check-in + plan-end choice will decide
+  // make sure the active pet's stored entry matches this (so nothing drifts)
+  try{ syncActivePet(); }catch(e){}
   persistStateNow();
+  // open the final day's check-in; finishing it triggers openPlanEnd for THIS pet only
   ciData={}; ciStep=0;
   if(document.getElementById('ciOverlay')){ renderCI(); document.getElementById('ciOverlay').classList.add('open'); }
 }
@@ -4679,6 +4687,7 @@ function renderProfileTab(){
     +'</div>';
 
   h+='<p style="text-align:center;font-family:\'Inter\',-apple-system,sans-serif;font-weight:400;font-size:1.35rem;letter-spacing:-0.03em;margin-top:24px;margin-bottom:8px"><span style="color:var(--sage)">The</span> <span style="color:var(--text)">Nuci</span><span style="color:var(--sage)">.</span></p>';
+  h+='<p style="text-align:center;font-size:0.68rem;color:var(--secondary);margin-bottom:4px">Build '+(typeof BUILD_STAMP!=='undefined'?BUILD_STAMP:'-')+'</p>';
 
   $('tab-profile').innerHTML=h;
 }
