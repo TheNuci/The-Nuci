@@ -3910,7 +3910,7 @@ function testJumpToPlanEnd(){
   // Move the plan's start date back so today is the final day, then open the final check-in.
   var L=state.planLength||7;
   var d=new Date(); d.setDate(d.getDate()-(L-1));
-  state.planStartDate=d.toISOString();
+  state.planStartDate=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   state.currentDay=L;
   try{ syncPlanDay(); }catch(e){}
   state.currentDay=L;
@@ -4665,7 +4665,7 @@ function renderProfileTab(){
     +prow('Settings','openSettings()','',true)
     +'</div>';
 
-  h+='<p style="text-align:center;font-size:1.25rem;letter-spacing:-0.03em;margin-top:22px;margin-bottom:6px"><span style="color:var(--sage)">The</span> <span style="color:var(--forest)">Nuci</span><span style="color:var(--sage)">.</span></p>';
+  h+='<p style="text-align:center;font-family:\'Inter\',-apple-system,sans-serif;font-weight:400;font-size:1.35rem;letter-spacing:-0.03em;margin-top:24px;margin-bottom:8px"><span style="color:var(--sage)">The</span> <span style="color:var(--text)">Nuci</span><span style="color:var(--sage)">.</span></p>';
 
   $('tab-profile').innerHTML=h;
 }
@@ -5208,23 +5208,23 @@ function savedPetsList(){
     var a=(p&&p.answers)||{}; if(!a.petName) return;
     var key=(a.petName+'|'+(a.petType||'')).toLowerCase();
     if(seen[key]) return; seen[key]=1;
-    out.push({index:i, answers:a});
+    out.push({index:i, answers:a, petPhoto:(p&&p.petPhoto)||null});
   });
   // include archived pets too, so a completed pet can start a fresh plan
   (state.archive||[]).forEach(function(ar){
     var a=ar.answers||{}; if(!a.petName) return;
     var key=(a.petName+'|'+(a.petType||'')).toLowerCase();
     if(seen[key]) return; seen[key]=1;
-    out.push({archived:true, answers:a});
+    out.push({archived:true, answers:a, petPhoto:ar.petPhoto||null});
   });
   return out;
 }
 function chooseExistingPet(saved){
   var rows=saved.map(function(s,idx){
     var a=s.answers; var ty=a.petType||'other';
-    var av=petSvg(ty,'22px');
+    var av=s.petPhoto?('<img src="'+s.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(ty,'22px');
     return '<div onclick="planForExistingPet('+idx+')" style="display:flex;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
-      +'<div style="width:42px;height:42px;border-radius:13px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
+      +'<div style="width:42px;height:42px;border-radius:13px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
       +'<div style="flex:1"><div style="font-size:0.95rem">'+esc(a.petName)+'</div><div style="font-size:0.74rem;color:var(--secondary)">'+esc(a.breed||(ty.charAt(0).toUpperCase()+ty.slice(1)))+'</div></div>'
       +'<span style="color:#bbb">'+icon('chevR','15px')+'</span></div>';
   }).join('');
@@ -5255,7 +5255,7 @@ function planForExistingPet(idx){
       +'</div>');
     return;
   }
-  proceedNewPet(choice.answers, choice.answers.petName, choice.answers.petType);
+  proceedNewPet(choice.answers, choice.answers.petName, choice.answers.petType, choice.petPhoto);
 }
 // Does a pet (matched by name+type) currently have a running, uncompleted plan?
 function petHasActivePlan(name, type){
@@ -5274,7 +5274,7 @@ function petHasActivePlan(name, type){
 }
 // Start the new-pet flow. If prefillFrom is given, copy the stable details and jump the
 // questionnaire to the first question that actually needs a fresh answer.
-function proceedNewPet(prefillFrom, targetName, targetType){
+function proceedNewPet(prefillFrom, targetName, targetType, petPhoto){
   syncActivePet();
   var needsPayment = spareCredits() < 1;
   state.__newPetFlow = !needsPayment;
@@ -5283,6 +5283,7 @@ function proceedNewPet(prefillFrom, targetName, targetType){
   // UPDATES that pet's single entry instead of creating a duplicate "My pets" row.
   state.__planForExistingPet = (prefillFrom && targetName)
     ? { name:targetName, type:targetType||(prefillFrom.petType||'') } : null;
+  state.__carryPetPhoto = petPhoto||null;   // keep the pet's existing photo on the new plan
   beginBlankPet();
   showScreen('screen-assessment');
   if(prefillFrom){
@@ -5301,6 +5302,8 @@ function proceedNewPet(prefillFrom, targetName, targetType){
     state.currentQ=0;
     state.__entryQ=0;
   }
+  // keep the pet's existing photo on this new plan (beginBlankPet cleared it)
+  if(state.__carryPetPhoto){ state.petPhoto=state.__carryPetPhoto; }
   renderQ();
 }
 function startAnotherPet_OLD(){
