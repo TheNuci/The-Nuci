@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-14 10:26";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-14 13:30";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1206,7 +1206,7 @@ const state={
   aiCauses:null, aiWhatNotToDo:null, dayInsights:{}, dayNotes:{}, taskOverrides:{}, tasksDone:{},
   userEmail:null, userName:null, userPhoto:null, units:'metric', timeFmt:'24h', purchased:false, paid:false, planCredits:0, transactions:[],
   petPhoto:null, emailReminders:true, checkinHour:20, assessments:[],
-  pets:[], archive:[], activePet:0
+  pets:[], archive:[], activePet:0, plansGenerated:0
 };
 function serializeState(){
   // CRITICAL: the active pet lives in the top-level fields (state.answers, state.aiPlan, ...)
@@ -1234,6 +1234,7 @@ function serializeState(){
     planCredits:state.planCredits||0, transactions:state.transactions||[],
     paid:state.paid||false, assessments:state.assessments||[], checkinHour:state.checkinHour||20,
     pets:state.pets||[], archive:state.archive||[], activePet:state.activePet||0,
+    plansGenerated:state.plansGenerated||0,
     __planSig:state.__planSig||null, __previewSig:state.__previewSig||null,
     _newDesign:true
   };
@@ -2270,6 +2271,7 @@ function finishAssessment(){
   if(state.__newPetFlow && state.userEmail){
     state.__newPetFlow=false;
     state.purchased=true; state.paid=true;
+    state.plansGenerated=(state.plansGenerated||0)+1;   // this plan consumes one paid credit
     state.planStartDate=todayKey(); state.currentDay=1; state.viewDay=1;
     runGenerating(function(){ mergePlanIntoExistingPet(); enterApp(); toast('New plan ready for '+(state.answers.petName||'your pet')); persistStateNow(); });
     return;
@@ -3305,6 +3307,8 @@ function handlePaidReturn(demo){
     state.dayNotes={}; state.dayInsights={}; state.tasksDone={}; state.planOverrides={};
     state.pets.push(snapshotPet());
     state.activePet=state.pets.length-1;
+    state.plansGenerated=(state.plansGenerated||0)+1;   // paid plan consumes one credit
+    window.__addPetCounted=true;   // so the first-plan block below doesn't double-count
     // If this paid plan was for a pet the owner already has, fold it into that pet's single
     // entry so My pets doesn't show the same pet twice.
     if(ap.forExistingPet){ state.__planForExistingPet=ap.forExistingPet; try{ mergePlanIntoExistingPet(); }catch(e){} }
@@ -3328,6 +3332,10 @@ function handlePaidReturn(demo){
       __planSig:p.__planSig||null});
   }
   state.paid=true; state.purchased=true;
+  // Count the very first plan of a fresh purchase as one credit used (the add-pet path above
+  // already counts its own, so skip if it ran).
+  if(!window.__addPetCounted){ state.plansGenerated=(state.plansGenerated||0)+1; }
+  window.__addPetCounted=false;
   if(!state.planStartDate) state.planStartDate=planStartFromPurchase();
   state.currentDay=computedDay();
   if(!Array.isArray(state.transactions)) state.transactions=[];
@@ -5346,7 +5354,16 @@ function syncActivePet(){
 }
 function switchToPet(i){ if(i===state.activePet) return; syncActivePet(); state.activePet=i; loadPet(state.pets[i]); persistStateNow(); renderToday(); showTab('today'); toast('Switched to '+(state.answers.petName||'pet')); }
 function petsUsed(){ return Array.isArray(state.pets)?state.pets.length:1; }
-function spareCredits(){ return (state.planCredits||0) - petsUsed(); }
+// A paid credit is consumed by each plan GENERATED, not by each pet - the same pet can have
+// several plans over time. plansGenerated is the authoritative count of credits used. We fall
+// back to counting current + archived plans if the counter is missing (older saved states).
+function plansUsed(){
+  if(typeof state.plansGenerated==='number' && state.plansGenerated>0) return state.plansGenerated;
+  var current=(state.pets||[]).filter(function(p){ return p&&p.aiPlan&&p.aiPlan.days&&p.aiPlan.days.length; }).length;
+  var archived=(state.archive||[]).length;
+  return current+archived;
+}
+function spareCredits(){ return (state.planCredits||0) - plansUsed(); }
 function startAnotherPet(){
   // From INSIDE the profile: if the owner already has saved pets, first ask whether this plan
   // is for one of them or a brand-new pet. Choosing an existing pet prefills the details that
@@ -5839,7 +5856,12 @@ function openPlanEnd_OLD(){
     +'</div>';
   el.classList.add('open');
 }
-function closePlanEnd(){ var el=document.getElementById('planEndScreen'); if(el) el.classList.remove('open'); }
+function closePlanEnd(){
+  var el=document.getElementById('planEndScreen'); if(el) el.classList.remove('open');
+  // Re-render so the pet switch (after completing a plan) is reflected immediately - without
+  // this the Today hero / switcher can still show the just-finished pet until a manual refresh.
+  try{ if(typeof curTab!=='undefined' && curTab){ showTab(curTab); } else { renderToday(); } }catch(e){}
+}
 async function adaptNextDay(nextDay){
   try{
     const res=await fetch(AI_ADAPT_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
