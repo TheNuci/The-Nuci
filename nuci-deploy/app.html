@@ -2247,7 +2247,8 @@ function finishAssessment(){
     // Park this pet's answers so it is committed as an ADDITIONAL pet only after payment
     // succeeds (handlePaidReturn). Until then nothing is added to the pets array, so backing
     // out of payment leaves no ghost pet.
-    state.__addPetPending={ answers:JSON.parse(JSON.stringify(state.answers||{})), aiPlan:null, previewDay1:null };
+    state.__addPetPending={ answers:JSON.parse(JSON.stringify(state.answers||{})), aiPlan:null, previewDay1:null,
+      forExistingPet: state.__planForExistingPet||null };
     state.__pendingBlankPet=false;
     buildOffer(); showScreen('screen-offer'); persistState(); return;
   }
@@ -2256,7 +2257,7 @@ function finishAssessment(){
     state.__newPetFlow=false;
     state.purchased=true; state.paid=true;
     state.planStartDate=todayKey(); state.currentDay=1; state.viewDay=1;
-    runGenerating(function(){ enterApp(); toast('New plan ready for '+(state.answers.petName||'your pet')); persistStateNow(); });
+    runGenerating(function(){ mergePlanIntoExistingPet(); enterApp(); toast('New plan ready for '+(state.answers.petName||'your pet')); persistStateNow(); });
     return;
   }
   if(state.userEmail){ buildOffer(); showScreen('screen-offer'); }
@@ -3290,6 +3291,9 @@ function handlePaidReturn(demo){
     state.dayNotes={}; state.dayInsights={}; state.tasksDone={}; state.planOverrides={};
     state.pets.push(snapshotPet());
     state.activePet=state.pets.length-1;
+    // If this paid plan was for a pet the owner already has, fold it into that pet's single
+    // entry so My pets doesn't show the same pet twice.
+    if(ap.forExistingPet){ state.__planForExistingPet=ap.forExistingPet; try{ mergePlanIntoExistingPet(); }catch(e){} }
   }
   let p=null;
   try{ const raw=localStorage.getItem('pendingState'); if(raw) p=JSON.parse(raw); }catch(e){}
@@ -3448,16 +3452,20 @@ function toggleTask(day,idx,ev){
 // TODAY
 function todayPetDropdown(){
   syncActivePet();
-  var petCount=state.pets?state.pets.length:1;
-  var credits=state.planCredits||0;
-  var spare=credits-petCount;
-  // Show the switcher whenever there is >1 pet, OR spare plans to add, OR the account simply
-  // paid for more than one plan (credits>1) - the last case guarantees the dropdown appears
-  // even if the pets array is briefly out of step after an add-pet payment.
-  if(petCount<2 && spare<1 && credits<2) return '';
+  // Only pets with a CURRENTLY ACTIVE plan belong in the Today switcher. A finished or
+  // calendar-expired plan is not something you switch to here - otherwise Today shows old pets
+  // as if they were live.
+  var activePets=(state.pets||[]).map(function(p,i){ return {p:p,i:i}; }).filter(function(o){
+    var p=o.p; if(!(p&&p.aiPlan&&p.aiPlan.days&&p.aiPlan.days.length)||p.planComplete) return false;
+    var L=p.planLength||7;
+    if(p.planStartDate){ try{ if(daysBetween(p.planStartDate, todayKey())>=L) return false; }catch(e){} }
+    return true;
+  });
+  // Nothing to switch between unless at least two pets are actively running plans.
+  if(activePets.length<2) return '';
   var cur=(state.pets[state.activePet]&&state.pets[state.activePet].answers)||state.answers||{};
   var name=cur.petName||'Pet';
-  var items=state.pets.map(function(p,i){
+  var items=activePets.map(function(o){ var p=o.p, i=o.i;
     var a=(p&&p.answers)||{}; var nm=a.petName||('Pet '+(i+1)); var tt=a.petType||'other';
     var active=(i===state.activePet);
     var cd=(p&&p.currentDay)||1, pl=(p&&p.planLength)||7;
@@ -3468,9 +3476,11 @@ function todayPetDropdown(){
       +(active?'<span style="color:var(--forest);flex-shrink:0">'+icon('check','16px',2.4)+'</span>':'')+'</div>';
   }).join('');
   // header shows the totals clearly
+  var petCount=activePets.length;
+  var spare=(state.planCredits||0)-(state.pets?state.pets.length:0);
   var header='<div style="padding:12px 14px 10px;border-bottom:1px solid var(--border)">'
-    +'<div style="font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--sage)">Your pets</div>'
-    +'<div style="font-size:0.8rem;color:var(--secondary);margin-top:3px">'+petCount+' pet'+(petCount===1?'':'s')+' \u00b7 '+(spare>0?(spare+' plan'+(spare===1?'':'s')+' available'):'all plans in use')+'</div></div>';
+    +'<div style="font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--sage)">Active plans</div>'
+    +'<div style="font-size:0.8rem;color:var(--secondary);margin-top:3px">'+petCount+' active \u00b7 '+(spare>0?(spare+' plan'+(spare===1?'':'s')+' available'):'all plans in use')+'</div></div>';
   if(spare>0){ items+='<div onclick="event.stopPropagation();startAnotherPet()" style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;border-top:1px solid var(--border)">'
     +'<div style="width:34px;height:34px;border-radius:10px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--forest);font-size:1.2rem;flex-shrink:0">+</div>'
     +'<div style="flex:1"><div style="font-size:0.92rem;color:var(--forest)">Add a pet</div><div style="font-size:0.72rem;color:var(--secondary)">'+spare+' plan'+(spare===1?'':'s')+' available</div></div></div>'; }
@@ -3846,7 +3856,7 @@ function renderToday(){
   var h=todayPetDropdown()
     +'<div class="a-hero">'+heroInner
       +'<div class="a-eye">'+dstr+' · day '+day+'</div>'
-      +'<div class="a-nm"><div class="g">'+greeting()+'</div><h1>'+esc(pet)+'</h1></div>'
+      +'<div class="a-nm"><div class="g">'+greeting()+'</div><h1>'+esc(pet)+'<label style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.22);margin-left:9px;vertical-align:middle;cursor:pointer;color:#fff">'+icon('camera','13px')+'<input type="file" accept="image/*" style="display:none" onchange="setPhoto(this)"></label></h1></div>'
       +'<div class="a-ring"><svg width="64" height="64" viewBox="0 0 64 64">'
         +'<circle cx="32" cy="32" r="'+R+'" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="4"/>'
         +'<circle cx="32" cy="32" r="'+R+'" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-dasharray="'+C.toFixed(0)+'" stroke-dashoffset="'+(C*(1-ringPct)).toFixed(0)+'" transform="rotate(-90 32 32)" style="transition:stroke-dashoffset .8s cubic-bezier(.32,.9,.28,1)"/>'
@@ -5142,6 +5152,32 @@ async function finishCheckin(){
 // ═══════ MULTI-PET ═══════
 var PET_FIELDS=['answers','currentDay','planLength','checkins','streak','lastCheckinDate','lastCheckinDay','planComplete','planStartDate','planOverrides','aiPlan','aiBehaviorExplain','aiAssessment','aiSeekProfessional','aiProfessionalNote','aiCauses','aiWhatNotToDo','dayInsights','dayNotes','taskOverrides','tasksDone','petPhoto'];
 function snapshotPet(){ var o={}; PET_FIELDS.forEach(function(k){ o[k]=state[k]; }); return o; }
+// After a plan is generated for a pet the owner ALREADY has, fold it into that pet's single
+// entry instead of leaving a second row with the same name. Keeps My pets = one row per pet.
+function mergePlanIntoExistingPet(){
+  var tgt=state.__planForExistingPet; state.__planForExistingPet=null;
+  if(!tgt || !tgt.name) return;
+  try{ syncActivePet(); }catch(e){}
+  if(!Array.isArray(state.pets)) return;
+  var key=(tgt.name+'|'+(tgt.type||'')).toLowerCase();
+  var activeIdx=state.activePet;
+  // find the OTHER entry with the same pet identity (an earlier/archived plan for this pet)
+  var otherIdx=-1;
+  for(var i=0;i<state.pets.length;i++){
+    if(i===activeIdx) continue;
+    var a=(state.pets[i]&&state.pets[i].answers)||{};
+    if((a.petName+'|'+(a.petType||'')).toLowerCase()===key){ otherIdx=i; break; }
+  }
+  if(otherIdx<0) return;   // first ever plan for this pet - nothing to merge
+  // Keep the NEW plan (the active one) as the pet's current state, but carry over a stable
+  // photo from the older entry if the new one has none, and drop the older duplicate row.
+  var older=state.pets[otherIdx], newer=state.pets[activeIdx];
+  if(newer && !newer.petPhoto && older && older.petPhoto){ newer.petPhoto=older.petPhoto; state.petPhoto=older.petPhoto; }
+  state.pets.splice(otherIdx,1);
+  // fix the active index after removal
+  state.activePet=state.pets.indexOf(newer);
+  if(state.activePet<0){ state.activePet=Math.max(0,state.pets.length-1); }
+}
 function loadPet(o){ PET_FIELDS.forEach(function(k){ state[k]=o[k]; }); if(!state.tasksDone)state.tasksDone={}; if(!state.dayNotes)state.dayNotes={}; if(!state.dayInsights)state.dayInsights={}; if(!state.planOverrides)state.planOverrides={}; if(!Array.isArray(state.checkins))state.checkins=[]; }
 function syncActivePet(){
   if(!Array.isArray(state.pets))state.pets=[];
@@ -5206,15 +5242,47 @@ function planForNewPet(){ closeSheet(); proceedNewPet(); }
 function planForExistingPet(idx){
   var choice=(window.__petChoices||[])[idx]; closeSheet();
   if(!choice){ proceedNewPet(); return; }
-  proceedNewPet(choice.answers);
+  // One active plan per pet. If this pet already has a plan running, don't start a second -
+  // encourage finishing one behaviour before the next.
+  if(petHasActivePlan(choice.answers.petName, choice.answers.petType)){
+    var nm=esc(choice.answers.petName||'This pet');
+    openSheet('<div style="text-align:center">'
+      +'<div style="width:56px;height:56px;border-radius:50%;background:rgba(107,143,113,.13);display:flex;align-items:center;justify-content:center;margin:4px auto 16px;color:var(--sage)">'+icon('sparkle','24px',1.6)+'</div>'
+      +'<div class="d-eb" style="color:var(--sage)">One thing at a time</div>'
+      +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 10px">'+nm+' already has an active plan</h2>'
+      +'<p style="font-size:0.92rem;color:var(--secondary);line-height:1.55;margin-bottom:20px">It\u2019s best to focus on one behaviour before starting the next. Finish '+nm+'\u2019s current plan, then you can begin a new one.</p>'
+      +'<button class="btn btn-primary" onclick="closeSheet()">Got it</button>'
+      +'</div>');
+    return;
+  }
+  proceedNewPet(choice.answers, choice.answers.petName, choice.answers.petType);
+}
+// Does a pet (matched by name+type) currently have a running, uncompleted plan?
+function petHasActivePlan(name, type){
+  if(!name) return false;
+  var key=(name+'|'+(type||'')).toLowerCase();
+  try{ syncActivePet(); }catch(e){}
+  return (state.pets||[]).some(function(p){
+    var a=(p&&p.answers)||{};
+    if((a.petName+'|'+(a.petType||'')).toLowerCase()!==key) return false;
+    // active = has a plan, not complete, and not run out by the calendar
+    if(!(p.aiPlan && p.aiPlan.days && p.aiPlan.days.length) || p.planComplete) return false;
+    var L=p.planLength||7;
+    if(p.planStartDate){ try{ if(daysBetween(p.planStartDate, todayKey())>=L) return false; }catch(e){} }
+    return true;
+  });
 }
 // Start the new-pet flow. If prefillFrom is given, copy the stable details and jump the
 // questionnaire to the first question that actually needs a fresh answer.
-function proceedNewPet(prefillFrom){
+function proceedNewPet(prefillFrom, targetName, targetType){
   syncActivePet();
   var needsPayment = spareCredits() < 1;
   state.__newPetFlow = !needsPayment;
   state.__buyAnotherPet = needsPayment;
+  // If this plan is for a pet the owner already has, remember which one so the finished plan
+  // UPDATES that pet's single entry instead of creating a duplicate "My pets" row.
+  state.__planForExistingPet = (prefillFrom && targetName)
+    ? { name:targetName, type:targetType||(prefillFrom.petType||'') } : null;
   beginBlankPet();
   showScreen('screen-assessment');
   if(prefillFrom){
