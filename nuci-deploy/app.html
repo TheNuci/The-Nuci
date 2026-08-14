@@ -1208,6 +1208,11 @@ const state={
   pets:[], archive:[], activePet:0
 };
 function serializeState(){
+  // CRITICAL: the active pet lives in the top-level fields (state.answers, state.aiPlan, ...)
+  // while the other pets live in state.pets[]. Before saving, fold the active pet's current
+  // state back into pets[] so the saved snapshot is complete. Without this, a freshly generated
+  // plan sits only in the top-level fields and is lost/misattributed on the next load.
+  try{ syncActivePet(); }catch(e){}
   return {
     userEmail:state.userEmail||null, userName:state.userName||null,
     userPhoto:state.userPhoto||null, units:state.units||'metric', timeFmt:state.timeFmt||'24h',
@@ -1244,6 +1249,14 @@ function restoreState(d){
   if(!Array.isArray(state.pets)) state.pets=[];
   if(!Array.isArray(state.archive)) state.archive=[];
   if(typeof state.activePet!=='number') state.activePet=0;
+  // Make the top-level fields (answers/aiPlan/checkins/...) match the active pet's stored entry.
+  // serializeState always syncs the active pet into pets[] before saving, so pets[activePet] is
+  // the authoritative copy - loading it here guarantees the two never drift apart on restore.
+  if(state.pets.length){
+    if(state.activePet>=state.pets.length) state.activePet=state.pets.length-1;
+    if(state.activePet<0) state.activePet=0;
+    if(state.pets[state.activePet]) loadPet(state.pets[state.activePet]);
+  }
 }
 let _saveTimer=null;
 function persistState(){ clearTimeout(_saveTimer); _saveTimer=setTimeout(persistStateNow,900); }
