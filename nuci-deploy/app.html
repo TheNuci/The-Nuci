@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-15 09:09";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-15 09:47";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -4784,12 +4784,17 @@ function renderProfileTab(){
   var pets=Array.isArray(state.pets)?state.pets:[];
   // make sure the currently active (unsaved) pet is represented
   if(state.answers&&state.answers.petName){ try{ syncActivePet(); pets=state.pets; }catch(e){} }
+  // "My pets" = every distinct animal the owner has, whether their current plan is running or
+  // finished (archived). Use the same deduped list the plan chooser uses so the two never
+  // disagree. Each row maps back to its pets[] index when it has a live entry.
+  var allPets=savedPetsList();
   var petRows='';
-  if(pets.length){
-    petRows=pets.map(function(p,i){
-      var a=(p&&p.answers)||{}; var nm=a.petName||('Pet '+(i+1)); var ty=a.petType||'other';
-      var av=(p&&p.petPhoto)?('<img src="'+p.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(ty,'22px');
-      return '<div onclick="openPetCard('+i+')" style="display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
+  if(allPets.length){
+    petRows=allPets.map(function(s){
+      var a=s.answers||{}; var nm=a.petName||'Pet'; var ty=a.petType||'other';
+      var av=(s.petPhoto)?('<img src="'+s.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(ty,'22px');
+      var onclick = (typeof s.index==='number') ? ('openPetCard('+s.index+')') : ('openArchivedPetCard(\''+esc((a.petName||'')+'|'+(a.petType||''))+'\')');
+      return '<div onclick="'+onclick+'" style="display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
         +'<div style="width:42px;height:42px;border-radius:13px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
         +'<div style="flex:1"><div style="font-size:0.95rem">'+esc(nm)+'</div><div style="font-size:0.74rem;color:var(--secondary)">'+esc(a.breed||(ty.charAt(0).toUpperCase()+ty.slice(1)))+'</div></div>'
         +chev+'</div>';
@@ -4797,7 +4802,7 @@ function renderProfileTab(){
   } else {
     petRows='<div style="padding:16px 2px;color:var(--secondary);font-size:0.9rem;text-align:center">No pets yet.</div>';
   }
-  var spare=(state.planCredits||0)-pets.length;
+  var spare=spareCredits();
   var addPetRow = spare>0
     ? '<div onclick="startAnotherPet()" style="display:flex;align-items:center;gap:12px;padding:13px 2px;cursor:pointer">'
       +'<div style="width:42px;height:42px;border-radius:13px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--forest);font-size:1.4rem">+</div>'
@@ -4867,6 +4872,42 @@ function openPetCard(i){
     +'<div style="width:56px;height:56px;border-radius:16px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
     +'<div><div style="font-size:1.25rem;letter-spacing:-0.02em">'+esc(a.petName||'Pet')+'</div>'
     +'<div style="font-size:0.8rem;color:var(--secondary)">'+esc(a.breed||tyL)+'</div></div></div>'
+    +'<div class="d-eb" style="color:var(--sage);margin-bottom:4px">Profile</div>'
+    +rows
+  );
+}
+// Open the pet card for an animal that currently lives only in the archive (its plan finished).
+// Looks the pet up by "name|type" and shows the same details card as a live pet.
+function openArchivedPetCard(key){
+  key=(key||'').toLowerCase();
+  var rec=null;
+  (state.archive||[]).forEach(function(ar){
+    var a=ar.answers||{petName:ar.petName,petType:ar.petType};
+    if(((a.petName||'')+'|'+(a.petType||'')).toLowerCase()===key && !rec){ rec=a; }
+  });
+  if(!rec){ return; }
+  var a=rec; var ty=a.petType||'other'; var tyL=ty.charAt(0).toUpperCase()+ty.slice(1);
+  var av=petSvg(ty,'40px');
+  var rows='';
+  var pairs=[
+    ['Name',a.petName],['Species',tyL],['Breed / type',a.breed],['Age',a.age],['Sex',a.sex],
+    ['Neutered',a.neutered],['Main issue',a.mainIssue],['When it happens',a.frequency||a.duration],
+    ['Household',Array.isArray(a.household)?a.household.join(', '):a.household],
+    ['Environment',Array.isArray(a.environment)?a.environment.join(', '):a.environment],
+    ['Triggers',Array.isArray(a.warningSigns)?a.warningSigns.join(', '):a.warningSigns],
+    ['Already tried',Array.isArray(a.tried)?a.tried.join(', '):a.tried]
+  ];
+  pairs.forEach(function(kv){
+    if(kv[1]==null||kv[1]==='') return;
+    rows+='<div style="padding:11px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="font-size:0.72rem;color:var(--sage);margin-bottom:3px">'+kv[0]+'</div>'
+      +'<div style="font-size:0.92rem;color:var(--text);line-height:1.45">'+esc(String(kv[1]))+'</div></div>';
+  });
+  openSheet(
+    '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'
+    +'<div style="width:56px;height:56px;border-radius:16px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
+    +'<div><div style="font-size:1.25rem;letter-spacing:-0.02em">'+esc(a.petName||'Pet')+'</div>'
+    +'<div style="font-size:0.8rem;color:var(--secondary)">'+esc(a.breed||tyL)+' \u00b7 plan complete</div></div></div>'
     +'<div class="d-eb" style="color:var(--sage);margin-bottom:4px">Profile</div>'
     +rows
   );
@@ -5446,10 +5487,17 @@ function petsUsed(){ return Array.isArray(state.pets)?state.pets.length:1; }
 // several plans over time. plansGenerated is the authoritative count of credits used. We fall
 // back to counting current + archived plans if the counter is missing (older saved states).
 function plansUsed(){
-  if(typeof state.plansGenerated==='number' && state.plansGenerated>0) return state.plansGenerated;
+  // Real, observable plan count: every pet that currently holds a plan, plus every archived
+  // (completed) plan. Each of those consumed one credit when it was created.
   var current=(state.pets||[]).filter(function(p){ return p&&p.aiPlan&&p.aiPlan.days&&p.aiPlan.days.length; }).length;
   var archived=(state.archive||[]).length;
-  return current+archived;
+  var observed=current+archived;
+  // Trust whichever is HIGHER: the stored counter or what we can actually see. This self-heals
+  // existing profiles whose stored counter drifted too low (older buggy builds) - they'd
+  // otherwise show phantom "plans available" - while still honouring a counter that's legitimately
+  // higher (e.g. a pet that had several plans all merged into one visible entry).
+  var stored=(typeof state.plansGenerated==='number')?state.plansGenerated:0;
+  return Math.max(stored, observed);
 }
 function spareCredits(){ return (state.planCredits||0) - plansUsed(); }
 function startAnotherPet(){
