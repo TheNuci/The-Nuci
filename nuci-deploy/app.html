@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-14 16:17";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-15 09:09";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1263,6 +1263,7 @@ function restoreState(d){
   // serializeState always syncs the active pet into pets[] before saving, so pets[activePet] is
   // the authoritative copy - loading it here guarantees the two never drift apart on restore.
   if(state.pets.length){
+    try{ dedupePets(); }catch(e){}   // collapse any duplicate pets left by an earlier flow
     if(state.activePet>=state.pets.length) state.activePet=state.pets.length-1;
     if(state.activePet<0) state.activePet=0;
     if(state.pets[state.activePet]) loadPet(state.pets[state.activePet]);
@@ -3291,6 +3292,7 @@ function proceedToPayment(pkg){
       planOverrides:state.planOverrides||null, aiPlan:state.aiPlan||null, __planSig:state.__planSig||null, paid:true,
       pets:state.pets||[], activePet:state.activePet||0,
       priorCredits:state.planCredits||0,
+      plansGenerated:state.plansGenerated||0,
       transactions:state.transactions||[],
       addPetPending:addCtx
     }));
@@ -3331,6 +3333,11 @@ function handlePaidReturn(demo){
   if(state.__addPetPending){
     var ap=state.__addPetPending; state.__addPetPending=null; state.__buyAnotherPet=false;
     if(!Array.isArray(state.pets)) state.pets=[];
+    // Restore the plans-used counter from the parked pendingState BEFORE we increment it, so the
+    // running total survives the Stripe round-trip. Take the HIGHER of what's in state (from the
+    // profile reload) and the parked copy - the profile may be stale, and a lower count would
+    // wrongly hand out free credits.
+    try{ var _pp=JSON.parse(localStorage.getItem('pendingState')||'{}'); if(typeof _pp.plansGenerated==='number'){ state.plansGenerated=Math.max(state.plansGenerated||0, _pp.plansGenerated); } }catch(e){}
     // IMPORTANT: the previous pet was already snapshotted into the array when the add-pet flow
     // began, so we must NOT syncActivePet() here (state.answers now holds the NEW pet, and a
     // sync would snapshot it over the previous slot, wiping that pet). Instead: load the new
@@ -3359,6 +3366,10 @@ function handlePaidReturn(demo){
     // server says means the credit is granted exactly once, whichever side counted it.
     var baseCredits=(typeof p.priorCredits==='number') ? p.priorCredits : (state.planCredits||0);
     var newCredits=Math.max(baseCredits+addCredits, state.planCredits||0);
+    // Preserve the plans-used counter across checkout. It was saved into pendingState before the
+    // Stripe redirect; if the profile reload didn't restore it, fall back to that copy so credit
+    // counting isn't reset by the payment round-trip.
+    if(typeof p.plansGenerated==='number'){ state.plansGenerated=Math.max(state.plansGenerated||0, p.plansGenerated); }
     Object.assign(state,{answers:p.answers||state.answers||{}, planLength:p.planLength||7, currentDay:p.currentDay||1,
       petPhoto:p.petPhoto||state.petPhoto, userEmail:p.userEmail||state.userEmail, userName:p.userName||state.userName,
       pricePaid:p.pricePaid!=null?p.pricePaid:9.95, promoUsed:p.promoUsed||null,
@@ -5360,25 +5371,65 @@ function mergePlanIntoExistingPet(){
   try{ syncActivePet(); }catch(e){}
   if(!Array.isArray(state.pets)) return;
   var key=(tgt.name+'|'+(tgt.type||'')).toLowerCase();
-  var activeIdx=state.activePet;
-  // find the OTHER entry with the same pet identity (an earlier/archived plan for this pet)
-  var otherIdx=-1;
+  var newer=state.pets[state.activePet];
+  if(!newer){ return; }
+  // Carry a stable photo from any older copy of this pet if the new plan has none.
+  var older=null;
   for(var i=0;i<state.pets.length;i++){
-    if(i===activeIdx) continue;
+    if(i===state.activePet) continue;
     var a=(state.pets[i]&&state.pets[i].answers)||{};
-    if((a.petName+'|'+(a.petType||'')).toLowerCase()===key){ otherIdx=i; break; }
+    if((a.petName+'|'+(a.petType||'')).toLowerCase()===key){ older=state.pets[i]; break; }
   }
-  if(otherIdx<0) return;   // first ever plan for this pet - nothing to merge
-  // Keep the NEW plan (the active one) as the pet's current state, but carry over a stable
-  // photo from the older entry if the new one has none, and drop the older duplicate row.
-  var older=state.pets[otherIdx], newer=state.pets[activeIdx];
-  if(newer && !newer.petPhoto && older && older.petPhoto){ newer.petPhoto=older.petPhoto; state.petPhoto=older.petPhoto; }
-  state.pets.splice(otherIdx,1);
-  // fix the active index after removal
+  if(older && older.petPhoto && newer && !newer.petPhoto){ newer.petPhoto=older.petPhoto; state.petPhoto=older.petPhoto; }
+  // Remove EVERY other entry with this pet's identity (not just the first), so the same pet can
+  // never end up duplicated in My pets - keep only the new active plan.
+  var kept=[];
+  for(var j=0;j<state.pets.length;j++){
+    if(j===state.activePet){ continue; }              // handle the active (newer) separately
+    var aj=(state.pets[j]&&state.pets[j].answers)||{};
+    if((aj.petName+'|'+(aj.petType||'')).toLowerCase()===key){ continue; }  // drop older duplicate
+    kept.push(state.pets[j]);
+  }
+  kept.push(newer);                                    // the new plan becomes this pet's entry
+  state.pets=kept;
   state.activePet=state.pets.indexOf(newer);
   if(state.activePet<0){ state.activePet=Math.max(0,state.pets.length-1); }
 }
 function loadPet(o){ PET_FIELDS.forEach(function(k){ state[k]=o[k]; }); if(!state.tasksDone)state.tasksDone={}; if(!state.dayNotes)state.dayNotes={}; if(!state.dayInsights)state.dayInsights={}; if(!state.planOverrides)state.planOverrides={}; if(!Array.isArray(state.checkins))state.checkins=[]; }
+// Safety net: collapse any duplicate pets (same name+type) into a single entry, preferring the
+// one with a running (uncompleted) plan, else the most recently active. Protects My pets from
+// ever showing the same animal twice even if some earlier flow left a duplicate behind.
+function dedupePets(){
+  if(!Array.isArray(state.pets) || state.pets.length<2) return;
+  var activePetRef = state.pets[state.activePet] || null;
+  var byKey={}; var order=[];
+  state.pets.forEach(function(p){
+    if(!p || !p.answers || !p.answers.petName) return;
+    var key=(p.answers.petName+'|'+(p.answers.petType||'')).toLowerCase();
+    if(!byKey[key]){ byKey[key]=p; order.push(key); }
+    else {
+      // choose the better of the two: a running plan beats a completed one
+      var cur=byKey[key];
+      var pRunning = p.aiPlan&&p.aiPlan.days&&p.aiPlan.days.length&&!p.planComplete;
+      var curRunning = cur.aiPlan&&cur.aiPlan.days&&cur.aiPlan.days.length&&!cur.planComplete;
+      if(pRunning && !curRunning){ if(!p.petPhoto&&cur.petPhoto)p.petPhoto=cur.petPhoto; byKey[key]=p; }
+      else { if(!cur.petPhoto&&p.petPhoto)cur.petPhoto=p.petPhoto; }
+    }
+  });
+  var deduped=order.map(function(k){ return byKey[k]; });
+  if(deduped.length!==state.pets.length){
+    state.pets=deduped;
+    var idx=activePetRef?state.pets.indexOf(activePetRef):-1;
+    if(idx<0){
+      // active pet was a removed duplicate - point at the kept copy of the same identity
+      if(activePetRef&&activePetRef.answers){
+        var akey=(activePetRef.answers.petName+'|'+(activePetRef.answers.petType||'')).toLowerCase();
+        idx=state.pets.findIndex(function(p){ return ((p.answers.petName+'|'+(p.answers.petType||'')).toLowerCase()===akey); });
+      }
+    }
+    state.activePet=idx>=0?idx:0;
+  }
+}
 function syncActivePet(){
   if(!Array.isArray(state.pets))state.pets=[];
   // Never commit a blank pet (no name) into the pets array - that's what created empty
