@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-15 10:12";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-15 13:57";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -4969,16 +4969,29 @@ function plansForPet(petIndex){
   var p=(state.pets||[])[petIndex]; if(!p) return [];
   var a=p.answers||{}; var key=(a.petName+'|'+(a.petType||'')).toLowerCase();
   var list=[];
-  // current plan (from pets[])
-  list.push({ kind:'current', petIndex:petIndex, answers:a, issue:a.mainIssue||'Current plan',
-    completedDate:null, source:p });
   // archived plans for the same pet
+  var archIssues={};
   (state.archive||[]).forEach(function(ar,ai){
     if(((ar.petName||'')+'|'+(ar.petType||'')).toLowerCase()===key){
+      var iss=(ar.issue||ar.answers&&ar.answers.mainIssue||'').toLowerCase();
+      archIssues[iss]=true;
       list.push({ kind:'archive', archiveIndex:ai, answers:ar.answers||{petName:ar.petName,petType:ar.petType},
-        issue:ar.issue||'Behaviour plan', completedDate:ar.completedDate||null, source:ar });
+        issue:ar.issue||(ar.answers&&ar.answers.mainIssue)||'Behaviour plan',
+        completedDate:ar.completedDate||null, source:ar });
     }
   });
+  // The plan currently sitting in pets[]. Only add it if it isn't already represented in the
+  // archive (a finished plan lives in BOTH pets[] and archive, which otherwise showed twice -
+  // once "in progress", once "completed"). Its real status comes from planComplete / calendar.
+  var curIssue=(a.mainIssue||'').toLowerCase();
+  var hasPlan = p.aiPlan && p.aiPlan.days && p.aiPlan.days.length;
+  var alreadyArchived = curIssue && archIssues[curIssue];
+  if(hasPlan && !alreadyArchived){
+    var done = !!p.planComplete;
+    if(!done && p.planStartDate){ try{ if(daysBetween(p.planStartDate, todayKey())>=(p.planLength||7)) done=true; }catch(e){} }
+    list.unshift({ kind:'current', petIndex:petIndex, answers:a, issue:a.mainIssue||'Current plan',
+      completedDate: done ? (p.completedDate||todayKey()) : null, done:done, source:p });
+  }
   return list;
 }
 function choosePlanForPet(petIndex){
@@ -4986,11 +4999,13 @@ function choosePlanForPet(petIndex){
   if(plans.length<=1){ exportPetPDF(petIndex); return; }
   var pet=((state.pets||[])[petIndex]||{}).answers||{};
   var rows=plans.map(function(pl,idx){
-    var when = pl.completedDate ? ('Completed '+new Date(pl.completedDate).toLocaleDateString()) : 'In progress';
+    var when = pl.completedDate ? ('Completed '+new Date(pl.completedDate).toLocaleDateString())
+             : (pl.done ? 'Completed' : 'In progress');
     var label = pl.issue || (pl.kind==='current'?'Current plan':'Behaviour plan');
+    var isLive = (pl.kind==='current' && !pl.done);
     return '<div onclick="closeSheet();exportPlanForPet('+petIndex+','+idx+')" style="display:flex;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
       +'<div style="width:38px;height:38px;border-radius:12px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+icon('doc','18px')+'</div>'
-      +'<div style="flex:1"><div style="font-size:0.95rem">'+esc(label)+'</div><div style="font-size:0.74rem;color:var(--secondary)">'+when+(pl.kind==='current'?' \u00b7 current':'')+'</div></div>'
+      +'<div style="flex:1"><div style="font-size:0.95rem">'+esc(label)+'</div><div style="font-size:0.74rem;color:var(--secondary)">'+when+(isLive?' \u00b7 current':'')+'</div></div>'
       +'<span style="color:#bbb">'+icon('chevR','15px')+'</span></div>';
   }).join('');
   openSheet('<div class="d-eb" style="color:var(--sage)">'+esc(pet.petName||'Pet')+'</div>'
