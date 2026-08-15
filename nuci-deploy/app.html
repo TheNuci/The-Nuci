@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-15 09:47";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-15 10:12";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -2282,7 +2282,14 @@ function finishAssessment(){
     state.purchased=true; state.paid=true;
     state.plansGenerated=(state.plansGenerated||0)+1;   // this plan consumes one paid credit
     state.planStartDate=todayKey(); state.currentDay=1; state.viewDay=1;
-    runGenerating(function(){ mergePlanIntoExistingPet(); enterApp(); toast('New plan ready for '+(state.answers.petName||'your pet')); persistStateNow(); });
+    runGenerating(function(){
+      // Commit now, AFTER generation. The active pet was snapshotted in beginBlankPet and never
+      // removed, so appending a brand-new entry can't overwrite it. A new pet becomes its own
+      // row; an existing-pet plan is folded into that pet by mergePlanIntoExistingPet.
+      commitScratchPet();
+      mergePlanIntoExistingPet();
+      enterApp(); toast('New plan ready for '+(state.answers.petName||'your pet')); persistStateNow();
+    });
     return;
   }
   if(state.userEmail){ buildOffer(); showScreen('screen-offer'); }
@@ -4913,20 +4920,48 @@ function openArchivedPetCard(key){
   );
 }
 function choosePlanToDownload(){
-  var pets=Array.isArray(state.pets)?state.pets:[];
-  if(state.answers&&state.answers.petName){ try{ syncActivePet(); pets=state.pets; }catch(e){} }
-  if(!pets.length){ toast('No plan to download yet'); return; }
-  if(pets.length===1){ choosePlanForPet(0); return; }
-  var rows=pets.map(function(p,i){
-    var a=(p&&p.answers)||{}; var ty=a.petType||'other';
-    var av=p&&p.petPhoto?('<img src="'+p.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(ty,'20px');
-    return '<div onclick="closeSheet();choosePlanForPet('+i+')" style="display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
+  if(state.answers&&state.answers.petName){ try{ syncActivePet(); }catch(e){} }
+  var all=savedPetsList();   // every distinct pet (current + archived), same as My pets
+  if(!all.length){ toast('No plan to download yet'); return; }
+  if(all.length===1){ choosePlanForPetKey(all[0]); return; }
+  var rows=all.map(function(s,i){
+    var a=s.answers||{}; var ty=a.petType||'other';
+    var av=s.petPhoto?('<img src="'+s.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(ty,'20px');
+    return '<div onclick="closeSheet();choosePlanForDownloadIdx('+i+')" style="display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
       +'<div style="width:38px;height:38px;border-radius:12px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
       +'<div style="flex:1;font-size:0.95rem">'+esc(a.petName||('Pet '+(i+1)))+'</div>'
       +'<span style="color:#bbb">'+icon('chevR','15px')+'</span></div>';
   }).join('');
+  window.__downloadPetList=all;
   openSheet('<div class="d-eb" style="color:var(--sage)">Download a plan</div>'
     +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 14px">Which pet?</h2>'+rows);
+}
+// Bridge from the deduped download list to the plan chooser: a pet with a live pets[] entry uses
+// its index; an archive-only pet is handled by identity.
+function choosePlanForDownloadIdx(i){
+  var s=(window.__downloadPetList||[])[i]; if(!s){ return; }
+  choosePlanForPetKey(s);
+}
+function choosePlanForPetKey(s){
+  if(typeof s.index==='number'){ choosePlanForPet(s.index); return; }
+  // archive-only pet: gather its archived plans and let the user pick, or export directly if one
+  var a=s.answers||{}; var key=((a.petName||'')+'|'+(a.petType||'')).toLowerCase();
+  var arch=(state.archive||[]).filter(function(ar){ return (((ar.petName||'')+'|'+(ar.petType||'')).toLowerCase()===key); });
+  if(arch.length<=1){ exportArchivedPDF(arch[0]); return; }
+  var rows=arch.map(function(ar,idx){
+    var when=ar.completedDate?('Completed '+new Date(ar.completedDate).toLocaleDateString()):'Completed';
+    return '<div onclick="closeSheet();exportArchivedByKey(\''+esc(key)+'\','+idx+')" style="display:flex;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
+      +'<div style="width:38px;height:38px;border-radius:12px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+icon('doc','18px')+'</div>'
+      +'<div style="flex:1"><div style="font-size:0.95rem">'+esc(ar.issue||'Behaviour plan')+'</div><div style="font-size:0.74rem;color:var(--secondary)">'+when+'</div></div>'
+      +'<span style="color:#bbb">'+icon('chevR','15px')+'</span></div>';
+  }).join('');
+  openSheet('<div class="d-eb" style="color:var(--sage)">'+esc(a.petName||'Pet')+'</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 4px">Which plan?</h2>'
+    +'<p style="font-size:0.84rem;color:var(--secondary);margin-bottom:14px">Pick which plan to download.</p>'+rows);
+}
+function exportArchivedByKey(key,idx){
+  var arch=(state.archive||[]).filter(function(ar){ return (((ar.petName||'')+'|'+(ar.petType||'')).toLowerCase()===key.toLowerCase()); });
+  exportArchivedPDF(arch[idx]);
 }
 // All plans belonging to one pet: the current one (in pets[]) plus any archived attempts for
 // the same pet identity. Each entry can build its own PDF.
@@ -5473,13 +5508,25 @@ function dedupePets(){
 }
 function syncActivePet(){
   if(!Array.isArray(state.pets))state.pets=[];
-  // Never commit a blank pet (no name) into the pets array - that's what created empty
-  // "ghost" pets when a refresh landed mid-flow with cleared answers.
+  // While building an uncommitted scratch pet (new plan not yet paid/generated), do NOT write it
+  // into the pets array - that's what let a half-built pet overwrite or ghost a real one.
+  if(state.__pendingBlankPet) return;
+  // Never commit a blank pet (no name) into the pets array either.
   var hasPet = state.answers && state.answers.petName;
   if(!hasPet) return;
   if(state.pets.length===0){ state.pets=[snapshotPet()]; state.activePet=0; }
   else if(state.activePet>=state.pets.length){ state.pets.push(snapshotPet()); state.activePet=state.pets.length-1; }
   else { state.pets[state.activePet]=snapshotPet(); }
+}
+// Commit the scratch pet (the one just built + generated in the top-level fields) as a BRAND-NEW
+// entry in the pets array. Never overwrites an existing pet. Clears the scratch flag so the pet
+// is now real. Used after a plan is generated (free or paid flow).
+function commitScratchPet(){
+  state.__pendingBlankPet=false;
+  if(!Array.isArray(state.pets)) state.pets=[];
+  if(!(state.answers && state.answers.petName)) return;
+  state.pets.push(snapshotPet());
+  state.activePet=state.pets.length-1;
 }
 function switchToPet(i){ if(i===state.activePet) return; syncActivePet(); state.activePet=i; loadPet(state.pets[i]); persistStateNow(); renderToday(); showTab('today'); toast('Switched to '+(state.answers.petName||'pet')); }
 function petsUsed(){ return Array.isArray(state.pets)?state.pets.length:1; }
@@ -5646,21 +5693,16 @@ function startAnotherPet_OLD(){
   beginBlankPet(); showScreen('screen-assessment'); state.currentQ=0; renderQ();
 }
 function beginBlankPet(){
+  // RULE: nothing in the app changes until a plan is actually paid-for (if needed) AND generated.
+  // So we do NOT add anything to state.pets here. We snapshot the current active pet so we can
+  // restore it if the user backs out, then clear the top-level fields to a blank scratch pet.
+  // The new pet is only committed to state.pets in finishAssessment (free) or handlePaidReturn
+  // (paid), after generation succeeds.
   syncActivePet();
-  state.__prevActivePet=state.activePet;          // remember where to return if cancelled
-  // Only commit a real slot in the pets array when the pet is FREE (a spare credit covers it).
-  // When payment is required, we must NOT add the pet yet - otherwise backing out of the
-  // payment leaves a ghost pet with no plan. In that case we work in a scratch state and the
-  // pet gets committed only in handlePaidReturn after a successful payment.
-  var needsPayment = !!state.__buyAnotherPet;
-  if(needsPayment){
-    state.__pendingBlankPet=true;                 // flag: we're building a pet that isn't committed
-    state.__newPetIndex=-1;
-  } else {
-    state.__pendingBlankPet=false;
-    state.__newPetIndex=state.pets.length;        // index of the blank pet we are about to add
-    state.pets.push(null); state.activePet=state.pets.length-1;
-  }
+  state.__prevActivePet=state.activePet;
+  state.__prevPetSnapshot=snapshotPet();          // the active pet, to restore on cancel
+  state.__pendingBlankPet=true;                    // we're building an uncommitted scratch pet
+  state.__newPetIndex=-1;
   state.answers={}; state.currentQ=0; state.currentDay=1; state.viewDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
   state.lastCheckinDate=null; state.lastCheckinDay=0; state.planComplete=false; state.planStartDate=null;
   state.planOverrides={}; state.aiPlan=null; state.aiBehaviorExplain=null; state.aiCauses=null; state.aiWhatNotToDo=null;
@@ -5875,13 +5917,10 @@ function planEndWorked(){
   // makes everything look empty even though another pet is still going).
   switchActiveToAnotherRunningPet();
   var el=document.getElementById('planEndScreen');
-  el.innerHTML='<div class="pe-inner">'
-    +'<div class="d-eb" style="color:var(--sage)">Wonderful</div>'
-    +'<h1 style="font-size:2.1rem;letter-spacing:-0.04em;line-height:1.14;margin:8px 0 16px">'+esc(pet)+'\u2019s plan is<br><span class="accent">safely saved.</span></h1>'
-    +'<div style="width:110px;height:110px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage);margin:6px auto 20px">'+icon('check','52px',1.7)+'</div>'
-    +'<p style="font-size:0.98rem;color:var(--text);line-height:1.55;max-width:32ch;margin:0 auto 10px">We\u2019ve moved this plan to your archive.</p>'
-    +'<p style="font-size:0.88rem;color:var(--secondary);line-height:1.5;max-width:32ch;margin:0 auto 22px">Find it any time under <b style="color:var(--text);font-weight:500">Profile \u2192 Archive</b>. Every check-in, note and result is kept there.</p>'
-    +'<button class="btn btn-primary" style="margin:0 0 8px" onclick="closePlanEnd();showTab(\'profile\')">Go to my archive</button>'
+  el.innerHTML='<div class="pe-inner" style="text-align:center">'
+    +'<div style="width:110px;height:110px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage);margin:10px auto 22px">'+icon('check','52px',1.7)+'</div>'
+    +'<h1 style="font-size:1.9rem;letter-spacing:-0.04em;line-height:1.16;margin:0 0 28px">Thank you for<br><span class="accent">trusting the plan.</span></h1>'
+    +'<button class="btn btn-primary" style="margin:0 0 8px" onclick="closePlanEnd();showTab(\'profile\')">Take me to archive</button>'
     +'<button class="btn btn-ghost" onclick="closePlanEnd();openShareResult()">Share the result</button>'
     +'<button class="btn btn-ghost" style="color:var(--secondary);padding:6px" onclick="closePlanEnd()">Close</button>'
     +'</div>';
