@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-16 21:16";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-16 21:38";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1317,11 +1317,13 @@ async function loadStateForUser(email){
     if(data.data) restoreState(data.data);
     state.purchased=(data.purchased===true);
     // The Stripe webhook writes plan_credits / transactions server-side, so they are the
-    // trustworthy record of what was actually paid for. Take them whenever they're ahead of
-    // what this device knows - that's how a buyer whose browser closed mid-payment still gets
-    // their plan. We never go DOWN from the local value, so an unconfigured webhook can't
-    // strip credits from someone who legitimately has them.
-    if(typeof data.plan_credits==='number' && data.plan_credits>(state.planCredits||0)){
+    // trustworthy record of what was actually paid for. The COLUMN is the source of truth: the
+    // webhook increments it on every purchase. We take it whenever it's present and at least as
+    // high as what this device knows. (Using ">=" not ">" matters: after a second purchase the
+    // device may have already added the credit locally, making the two equal - if we required
+    // strictly greater we'd ignore the column and the purchase would look unregistered. We still
+    // never go below the local value, so a missing/unconfigured webhook can't strip credits.)
+    if(typeof data.plan_credits==='number' && data.plan_credits>=(state.planCredits||0)){
       state.planCredits=data.plan_credits;
       state.purchased=state.purchased||data.plan_credits>0;
     }
@@ -3363,11 +3365,15 @@ function handlePaidReturn(demo){
     var addCredits=(typeof _pp.planCredits==='number')?_pp.planCredits:0;
     if(addCredits>0){ state.planCredits=(state.planCredits||0)+addCredits; }
     state.paid=true; state.purchased=true;
-    try{ localStorage.removeItem('pendingState'); }catch(e){}
     runGenerating(function(){
+      try{ console.log('[NUCI] add-pet commit start: pending='+state.__pendingBlankPet+' answers='+(state.answers&&state.answers.mainIssue)+' plan='+(state.aiPlan&&state.aiPlan.days?state.aiPlan.days.length:0)); }catch(e){}
       commitScratchPet();
       if(_forExisting){ state.__planForExistingPet=_forExisting; try{ mergePlanIntoExistingPet(); }catch(e){} }
+      try{ console.log('[NUCI] add-pet commit done: pets='+JSON.stringify((state.pets||[]).map(function(p){return p.answers.petName+'/'+(p.answers.mainIssue||'?')+(p.planComplete?'(done)':'(active)');}))+' active='+state.answers.mainIssue+' hasPlan='+hasActivePlan()); }catch(e){}
+      // Only now that the plan is safely committed do we clear the parked checkout state.
+      try{ localStorage.removeItem('pendingState'); }catch(e){}
       enterApp(); toast('New plan ready for '+(state.answers.petName||'your pet')); persistStateNow();
+      try{ console.log('[NUCI] add-pet persisted'); }catch(e){}
     });
     return;   // don't fall through to the first-plan block
   }
@@ -6254,6 +6260,30 @@ async function adaptNextDay(nextDay){
           }
           if(_sess && _sess.user && _sess.user.email){ state.userEmail=_sess.user.email; }
           if(state.userEmail){ try{ await loadStateForUser(state.userEmail); }catch(e){} }
+          // The webhook that records the purchase can land a few seconds AFTER Stripe redirects
+          // us back. loadStateForUser above may therefore read a plan_credits that predates this
+          // purchase. Poll the column a few times so the freshly-bought credit is reflected even
+          // with that delay - without this, an extra purchase can look like it never registered.
+          if(supa && state.userEmail){
+            (async function(){
+              for(var _ci=0; _ci<6; _ci++){
+                await new Promise(function(r){ setTimeout(r,1500); });
+                try{
+                  var _q=await supa.from('profiles').select('plan_credits,transactions').eq('email',state.userEmail.toLowerCase()).maybeSingle();
+                  if(_q && _q.data){
+                    if(typeof _q.data.plan_credits==='number' && _q.data.plan_credits>(state.planCredits||0)){
+                      state.planCredits=_q.data.plan_credits; state.purchased=true;
+                      try{ if(curTab==='profile') showTab('profile'); renderToday(); }catch(e){}
+                      persistState();
+                    }
+                    if(Array.isArray(_q.data.transactions) && _q.data.transactions.length>((state.transactions||[]).length)){
+                      state.transactions=_q.data.transactions;
+                    }
+                  }
+                }catch(e){}
+              }
+            })();
+          }
         }
       }catch(e){}
       handlePaidReturn(false); return;
