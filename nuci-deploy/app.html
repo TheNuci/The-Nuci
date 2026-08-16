@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-16 16:13";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-16 16:28";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -5617,8 +5617,26 @@ function chooseExistingPet(saved){
     +'<div style="width:42px;height:42px;border-radius:13px;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--forest);font-size:1.4rem">+</div>'
     +'<div style="flex:1;font-size:0.95rem;color:var(--forest)">A new pet</div></div>');
 }
+// iOS/Safari only opens the keyboard when focus happens inside the SAME synchronous gesture as
+// the user's tap. Building the question through a popup breaks that chain, so at the moment the
+// pet is tapped we focus a throwaway text input immediately - this "claims" the keyboard. renderQ
+// then moves focus to the real field and the keyboard stays up.
+function primeKeyboard(){
+  try{
+    var tmp=document.getElementById('__kbPrimer');
+    if(!tmp){
+      tmp=document.createElement('input');
+      tmp.type='text'; tmp.id='__kbPrimer';
+      tmp.setAttribute('autocomplete','off');
+      tmp.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:0;padding:0;margin:0;font-size:16px;z-index:-1;';
+      document.body.appendChild(tmp);
+    }
+    tmp.focus({preventScroll:true});
+  }catch(e){}
+}
 function planForNewPet(){ closeSheet(); proceedNewPet(); }
 function planForExistingPet(idx){
+  primeKeyboard();   // claim the keyboard synchronously, while we're still inside the tap
   var choice=(window.__petChoices||[])[idx]; closeSheet();
   if(!choice){ proceedNewPet(); return; }
   // One active plan per pet. If this pet already has a plan running, don't start a second -
@@ -5704,16 +5722,15 @@ function proceedNewPet(prefillFrom, targetName, targetType, petPhoto){
   // keep the pet's existing photo on this new plan (beginBlankPet cleared it)
   if(state.__carryPetPhoto){ state.petPhoto=state.__carryPetPhoto; }
   renderQ();
-  // For an existing pet we jump straight to a text question (usually the main issue). Because we
-  // arrived here through a popup choice rather than a "Next" tap, mobile browsers can refuse to
-  // auto-open the keyboard. Re-assert focus (and lock it) on the text field so the keyboard opens
-  // just like it does on every other question.
+  // The keyboard was already claimed synchronously in planForExistingPet (primeKeyboard). Now
+  // move that focus onto the real text field and lock it so mobile keeps the keyboard open.
   if(state.__prefilledPet){
     var qs2=getQuestions(); var q2=qs2[state.currentQ];
     if(q2 && (q2.type==='text' || q2.type==='textarea')){
-      [60,180,360].forEach(function(ms){
-        setTimeout(function(){ var i=document.getElementById('qInput'); if(i){ try{ i.focus({preventScroll:true}); }catch(e){ try{ i.focus(); }catch(_){} } if(ms===360){ try{ kbLock(i); }catch(e){} } } }, ms);
-      });
+      var grab=function(){ var i=document.getElementById('qInput'); if(i){ try{ i.focus({preventScroll:true}); }catch(e){ try{ i.focus(); }catch(_){} } return i; } return null; };
+      grab();
+      requestAnimationFrame(function(){ grab(); });
+      [40,120,260].forEach(function(ms){ setTimeout(function(){ var i=grab(); if(i && ms===260){ try{ kbLock(i); }catch(e){} } }, ms); });
     }
   }
 }
