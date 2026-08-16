@@ -147,9 +147,21 @@ Rules:
     const data = await resp.json();
     let text = (data.content || []).map(b => b.text || '').join('').trim();
     text = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+    // The model sometimes wraps the JSON in a sentence ("Here is the plan: {...}") or adds a
+    // trailing note, which makes a whole-string JSON.parse fail even though valid JSON is present.
+    // Slice from the first "{" to the last "}" so surrounding prose is ignored.
     let plan;
-    try { plan = JSON.parse(text); }
-    catch (e) { console.error('Parse fail', text.slice(0, 300)); const fb = fallbackPlan(answers); fb._fallback = 'parse-fail'; return { statusCode: 200, headers: CORS, body: JSON.stringify(fb) }; }
+    let jsonText = text;
+    var _fb = text.indexOf('{'), _lb = text.lastIndexOf('}');
+    if (_fb > 0 || (_lb > -1 && _lb < text.length - 1)) {
+      if (_fb > -1 && _lb > _fb) jsonText = text.slice(_fb, _lb + 1);
+    }
+    try { plan = JSON.parse(jsonText); }
+    catch (e) {
+      // last resort: try the original text too
+      try { plan = JSON.parse(text); }
+      catch (e2) { console.error('Parse fail', text.slice(0, 300)); const fb = fallbackPlan(answers); fb._fallback = 'parse-fail'; return { statusCode: 200, headers: CORS, body: JSON.stringify(fb) }; }
+    }
     plan = normalize(plan, answers);
     return { statusCode: 200, headers: CORS, body: JSON.stringify(plan) };
   } catch (e) {
