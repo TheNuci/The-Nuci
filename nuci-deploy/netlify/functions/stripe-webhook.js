@@ -25,6 +25,10 @@ const SERVICE_KEY = process.env.THE_NUCI_SUPABASE_SERVICE_ROLE_KEY;
 // is the second account. A payment is valid if it verifies against ANY configured secret.
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const STRIPE_WEBHOOK_SECRET_2 = process.env.STRIPE_WEBHOOK_SECRET_2;
+// Optional third slot for a TEST-mode webhook, so you can verify the whole billing flow with a
+// test card without touching either live secret. Remove or ignore before it matters - live
+// payments never verify against a test secret anyway.
+const STRIPE_WEBHOOK_SECRET_TEST = process.env.STRIPE_WEBHOOK_SECRET_TEST;
 
 // ---- Verify Stripe signature (so nobody can fake a purchase) ----
 function verifyStripeSignature(rawBody, sigHeader, secret) {
@@ -63,7 +67,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method not allowed' };
   }
-  if (!SUPABASE_URL || !SERVICE_KEY || (!STRIPE_WEBHOOK_SECRET && !STRIPE_WEBHOOK_SECRET_2)) {
+  if (!SUPABASE_URL || !SERVICE_KEY || (!STRIPE_WEBHOOK_SECRET && !STRIPE_WEBHOOK_SECRET_2 && !STRIPE_WEBHOOK_SECRET_TEST)) {
     return { statusCode: 500, body: 'Missing environment configuration' };
   }
 
@@ -72,7 +76,8 @@ exports.handler = async (event) => {
 
   // Valid if the signature matches EITHER account's secret.
   const okSig = verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET)
-    || verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET_2);
+    || verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET_2)
+    || verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET_TEST);
   if (!okSig) {
     return { statusCode: 400, body: 'Invalid signature' };
   }
