@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-16 16:28";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-16 21:16";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -4885,14 +4885,75 @@ function openPetCard(i){
   });
   openSheet(
     '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'
+    +'<div style="position:relative;width:56px;height:56px;flex-shrink:0">'
     +'<div style="width:56px;height:56px;border-radius:16px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
+    +'<label style="position:absolute;right:-4px;bottom:-4px;width:26px;height:26px;border-radius:50%;background:var(--forest);display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;border:2px solid var(--card)">'+icon('camera','13px')+'<input type="file" accept="image/*" style="display:none" onchange="setPetCardPhoto(this,'+i+')"></label>'
+    +'</div>'
     +'<div><div style="font-size:1.25rem;letter-spacing:-0.02em">'+esc(a.petName||'Pet')+'</div>'
     +'<div style="font-size:0.8rem;color:var(--secondary)">'+esc(a.breed||tyL)+'</div></div></div>'
     +'<div class="d-eb" style="color:var(--sage);margin-bottom:4px">Profile</div>'
     +rows
   );
 }
-// Open the pet card for an animal that currently lives only in the archive (its plan finished).
+// Change a specific pet's photo from the My-pets card (works whether or not that pet has an
+// active plan). petIndex points into state.pets; the image is resized like setPhoto does.
+function setPetCardPhoto(inp, petIndex){
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const maxEdge=1600; const scale=Math.min(1, maxEdge/Math.max(img.width,img.height));
+      const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const cx=c.getContext('2d'); cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
+      cx.drawImage(img,0,0,w,h);
+      var dataUrl=c.toDataURL('image/jpeg',0.9);
+      var pets=state.pets||[];
+      if(pets[petIndex]){ pets[petIndex].petPhoto=dataUrl; }
+      // if this is also the active pet, keep the top-level copy in sync
+      if(petIndex===state.activePet){ state.petPhoto=dataUrl; }
+      persistState();
+      try{ renderProfileTab(); }catch(e){}
+      if(curTab==='today') renderToday();
+      try{ openPetCard(petIndex); }catch(e){}   // reopen the card so the new photo shows
+      toast('Photo updated');
+    };
+    img.src=rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+function setArchivedPetPhoto(inp, key){
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  key=(key||'').toLowerCase();
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const maxEdge=1600; const scale=Math.min(1, maxEdge/Math.max(img.width,img.height));
+      const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const cx=c.getContext('2d'); cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
+      cx.drawImage(img,0,0,w,h);
+      var dataUrl=c.toDataURL('image/jpeg',0.9);
+      (state.archive||[]).forEach(function(ar){
+        var aa=ar.answers||{petName:ar.petName,petType:ar.petType};
+        if(((aa.petName||'')+'|'+(aa.petType||'')).toLowerCase()===key){ ar.petPhoto=dataUrl; }
+      });
+      (state.pets||[]).forEach(function(p,idx){
+        var aa=(p&&p.answers)||{};
+        if(((aa.petName||'')+'|'+(aa.petType||'')).toLowerCase()===key){ p.petPhoto=dataUrl; if(idx===state.activePet) state.petPhoto=dataUrl; }
+      });
+      persistState();
+      try{ renderProfileTab(); }catch(e){}
+      if(curTab==='today') renderToday();
+      try{ openArchivedPetCard(key); }catch(e){}
+      toast('Photo updated');
+    };
+    img.src=rd.result;
+  };
+  rd.readAsDataURL(f);
+}
 // Looks the pet up by "name|type" and shows the same details card as a live pet.
 function openArchivedPetCard(key){
   key=(key||'').toLowerCase();
@@ -4921,7 +4982,10 @@ function openArchivedPetCard(key){
   });
   openSheet(
     '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'
+    +'<div style="position:relative;width:56px;height:56px;flex-shrink:0">'
     +'<div style="width:56px;height:56px;border-radius:16px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
+    +'<label style="position:absolute;right:-4px;bottom:-4px;width:26px;height:26px;border-radius:50%;background:var(--forest);display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;border:2px solid var(--card)">'+icon('camera','13px')+'<input type="file" accept="image/*" style="display:none" onchange="setArchivedPetPhoto(this,\''+esc(key)+'\')"></label>'
+    +'</div>'
     +'<div><div style="font-size:1.25rem;letter-spacing:-0.02em">'+esc(a.petName||'Pet')+'</div>'
     +'<div style="font-size:0.8rem;color:var(--secondary)">'+esc(a.breed||tyL)+' \u00b7 plan complete</div></div></div>'
     +'<div class="d-eb" style="color:var(--sage);margin-bottom:4px">Profile</div>'
@@ -5634,7 +5698,7 @@ function primeKeyboard(){
     tmp.focus({preventScroll:true});
   }catch(e){}
 }
-function planForNewPet(){ closeSheet(); proceedNewPet(); }
+function planForNewPet(){ primeKeyboard(); closeSheet(); proceedNewPet(); }
 function planForExistingPet(idx){
   primeKeyboard();   // claim the keyboard synchronously, while we're still inside the tap
   var choice=(window.__petChoices||[])[idx]; closeSheet();
@@ -5722,16 +5786,17 @@ function proceedNewPet(prefillFrom, targetName, targetType, petPhoto){
   // keep the pet's existing photo on this new plan (beginBlankPet cleared it)
   if(state.__carryPetPhoto){ state.petPhoto=state.__carryPetPhoto; }
   renderQ();
-  // The keyboard was already claimed synchronously in planForExistingPet (primeKeyboard). Now
-  // move that focus onto the real text field and lock it so mobile keeps the keyboard open.
-  if(state.__prefilledPet){
-    var qs2=getQuestions(); var q2=qs2[state.currentQ];
-    if(q2 && (q2.type==='text' || q2.type==='textarea')){
-      var grab=function(){ var i=document.getElementById('qInput'); if(i){ try{ i.focus({preventScroll:true}); }catch(e){ try{ i.focus(); }catch(_){} } return i; } return null; };
-      grab();
-      requestAnimationFrame(function(){ grab(); });
-      [40,120,260].forEach(function(ms){ setTimeout(function(){ var i=grab(); if(i && ms===260){ try{ kbLock(i); }catch(e){} } }, ms); });
-    }
+  // We arrived here through a popup choice rather than a "Next" tap, so mobile browsers can
+  // refuse to auto-open the keyboard. The keyboard was already claimed in planForExistingPet /
+  // planForNewPet (primeKeyboard); now move that focus onto the real text field and lock it so
+  // the keyboard stays open - for BOTH a new pet (first question = name) and an existing one
+  // (first question = the main issue).
+  var qs2=getQuestions(); var q2=qs2[state.currentQ];
+  if(q2 && (q2.type==='text' || q2.type==='textarea')){
+    var grab=function(){ var i=document.getElementById('qInput'); if(i){ try{ i.focus({preventScroll:true}); }catch(e){ try{ i.focus(); }catch(_){} } return i; } return null; };
+    grab();
+    requestAnimationFrame(function(){ grab(); });
+    [40,120,260].forEach(function(ms){ setTimeout(function(){ var i=grab(); if(i && ms===260){ try{ kbLock(i); }catch(e){} } }, ms); });
   }
 }
 function startAnotherPet_OLD(){
@@ -6175,11 +6240,20 @@ async function adaptNextDay(nextDay){
       // Load the saved profile FIRST. Stripe sends the user back on a fresh page load, so
       // without this the app thinks there are no pets, no previous purchases and no credits -
       // and then writes that empty picture over the database, wiping earlier pets and the
-      // billing history.
+      // billing history. CRUCIAL: the Supabase session is often NOT ready yet on this fresh load
+      // (the auth token is still being restored), so a single getSession() returns null and the
+      // profile load is skipped - which is exactly what wiped the pet/plan/credits. So we WAIT
+      // (poll) for the session for a few seconds, then load. Only if it truly never appears do we
+      // fall back to loading by the email we recovered from pendingState.
       try{
-        if(supa && state.userEmail){
-          const s=await supa.auth.getSession();
-          if(s && s.data && s.data.session) await loadStateForUser(state.userEmail);
+        if(supa){
+          var _sess=null;
+          for(var _pi=0; _pi<16 && !_sess; _pi++){
+            try{ var _r=await supa.auth.getSession(); _sess=_r&&_r.data&&_r.data.session; }catch(e){}
+            if(!_sess) await new Promise(function(r){ setTimeout(r,250); });
+          }
+          if(_sess && _sess.user && _sess.user.email){ state.userEmail=_sess.user.email; }
+          if(state.userEmail){ try{ await loadStateForUser(state.userEmail); }catch(e){} }
         }
       }catch(e){}
       handlePaidReturn(false); return;
