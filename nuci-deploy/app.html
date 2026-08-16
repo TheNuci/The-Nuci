@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-15 13:57";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-16 01:46";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -2272,6 +2272,7 @@ function finishAssessment(){
     // succeeds (handlePaidReturn). Until then nothing is added to the pets array, so backing
     // out of payment leaves no ghost pet.
     state.__addPetPending={ answers:JSON.parse(JSON.stringify(state.answers||{})), aiPlan:null, previewDay1:null,
+      petPhoto:state.__carryPetPhoto||state.petPhoto||null,
       forExistingPet: state.__planForExistingPet||null };
     state.__pendingBlankPet=false;
     buildOffer(); showScreen('screen-offer'); persistState(); return;
@@ -3340,27 +3341,35 @@ function handlePaidReturn(demo){
   if(state.__addPetPending){
     var ap=state.__addPetPending; state.__addPetPending=null; state.__buyAnotherPet=false;
     if(!Array.isArray(state.pets)) state.pets=[];
-    // Restore the plans-used counter from the parked pendingState BEFORE we increment it, so the
-    // running total survives the Stripe round-trip. Take the HIGHER of what's in state (from the
-    // profile reload) and the parked copy - the profile may be stale, and a lower count would
-    // wrongly hand out free credits.
-    try{ var _pp=JSON.parse(localStorage.getItem('pendingState')||'{}'); if(typeof _pp.plansGenerated==='number'){ state.plansGenerated=Math.max(state.plansGenerated||0, _pp.plansGenerated); } }catch(e){}
-    // IMPORTANT: the previous pet was already snapshotted into the array when the add-pet flow
-    // began, so we must NOT syncActivePet() here (state.answers now holds the NEW pet, and a
-    // sync would snapshot it over the previous slot, wiping that pet). Instead: load the new
-    // pet's data into state, then append it as a brand-new slot.
-    state.answers=ap.answers; state.aiPlan=ap.aiPlan||null; state.previewDay1=ap.previewDay1||null;
+    // Restore identity + counter from the parked pendingState (the Stripe redirect reloaded the
+    // page, so the profile may not have loaded). Without the name/email the profile shows blank.
+    var _pp={};
+    try{ _pp=JSON.parse(localStorage.getItem('pendingState')||'{}'); }catch(e){}
+    if(_pp.userName && !state.userName) state.userName=_pp.userName;
+    if(_pp.userEmail && !state.userEmail) state.userEmail=_pp.userEmail;
+    if(typeof _pp.plansGenerated==='number'){ state.plansGenerated=Math.max(state.plansGenerated||0, _pp.plansGenerated); }
+    // Load the NEW pet's answers into the top-level scratch fields. The plan is NOT in ap (it is
+    // generated AFTER payment), so we run generation now and append the pet once it's ready.
+    state.answers=ap.answers||{}; state.aiPlan=null; state.previewDay1=null;
     state.currentDay=1; state.viewDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
-    state.lastCheckinDate=null; state.planComplete=false; state.planStartDate=null;
-    state.__planSig=null; state.__previewSig=null; state.petPhoto=null;
+    state.lastCheckinDate=null; state.planComplete=false; state.planStartDate=todayKey();
+    state.__planSig=null; state.__previewSig=null; state.petPhoto=ap.petPhoto||null;
     state.dayNotes={}; state.dayInsights={}; state.tasksDone={}; state.planOverrides={};
-    state.pets.push(snapshotPet());
-    state.activePet=state.pets.length-1;
+    state.__pendingBlankPet=true;   // scratch until generated + committed
     state.plansGenerated=(state.plansGenerated||0)+1;   // paid plan consumes one credit
-    window.__addPetCounted=true;   // so the first-plan block below doesn't double-count
-    // If this paid plan was for a pet the owner already has, fold it into that pet's single
-    // entry so My pets doesn't show the same pet twice.
-    if(ap.forExistingPet){ state.__planForExistingPet=ap.forExistingPet; try{ mergePlanIntoExistingPet(); }catch(e){} }
+    window.__addPetCounted=true;    // so the first-plan block below doesn't double-count
+    var _forExisting=ap.forExistingPet||null;
+    // credit the purchase (how many the chosen package granted), then generate + commit.
+    var addCredits=(typeof _pp.planCredits==='number')?_pp.planCredits:0;
+    if(addCredits>0){ state.planCredits=(state.planCredits||0)+addCredits; }
+    state.paid=true; state.purchased=true;
+    try{ localStorage.removeItem('pendingState'); }catch(e){}
+    runGenerating(function(){
+      commitScratchPet();
+      if(_forExisting){ state.__planForExistingPet=_forExisting; try{ mergePlanIntoExistingPet(); }catch(e){} }
+      enterApp(); toast('New plan ready for '+(state.answers.petName||'your pet')); persistStateNow();
+    });
+    return;   // don't fall through to the first-plan block
   }
   let p=null;
   try{ const raw=localStorage.getItem('pendingState'); if(raw) p=JSON.parse(raw); }catch(e){}
@@ -5959,7 +5968,7 @@ async function planEndNotYet(){
     }catch(e){}
     if(!msg){
       // fallback if the AI endpoint doesn't return a message
-      msg='We\u2019re genuinely sorry the plan didn\u2019t bring the change you and '+esc(pet)+' were hoping for. Some behaviours have roots that need a professional set of eyes \u2014 a vet or a qualified behaviourist can assess '+esc(pet)+' in person and build on everything you\u2019ve already tracked here.';
+      msg='We\u2019re genuinely sorry the plan didn\u2019t bring the change you and '+esc(pet)+' were hoping for. Some behaviours have roots that need a professional set of eyes. A vet or a qualified behaviourist can assess '+esc(pet)+' in person and build on everything you\u2019ve already tracked here.';
     }
     // archive the plan now - this attempt is over
     try{ archiveCurrentPlan(); }catch(e){}
