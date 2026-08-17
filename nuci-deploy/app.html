@@ -676,7 +676,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 .a-task .tx small{display:block;color:var(--secondary);font-size:12px;margin-top:2px;line-height:1.4}
 .a-task.done .tx b{color:var(--secondary);text-decoration:line-through}
 .a-card{background:var(--card);border-radius:24px;padding:20px;box-shadow:0 8px 24px rgba(35,39,31,.06);margin-top:12px}
-.a-quote{font-family:inherit;font-style:normal;font-size:15px;line-height:1.6;color:var(--text)}
+.a-quote{font-family:'Fraunces',Georgia,serif;font-style:italic;font-size:16px;line-height:1.6;color:var(--text)}
 /* ===== Nuci animated character ===== */
 .nuci-char{display:block;margin:0 auto;transform-origin:center bottom;animation:nuciBreathe 3.4s ease-in-out infinite}
 @keyframes nuciBreathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.03)}}
@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-17 18:07";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-17 20:13";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1373,19 +1373,7 @@ function petSvg(t,size){ return icon(PET_ICON[t]||'paw',size||'1em'); }
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
-function showDebugBanner(text){
-  try{
-    var old=document.getElementById('__nuciDebugBanner'); if(old) old.remove();
-    var d=document.createElement('div');
-    d.id='__nuciDebugBanner';
-    d.style.cssText='position:fixed;left:8px;right:8px;top:8px;z-index:99999;background:#1A211C;color:#DDE;font:12px/1.4 monospace;padding:12px;border-radius:10px;white-space:pre-wrap;word-break:break-word;box-shadow:0 8px 30px rgba(0,0,0,.4);max-height:70vh;overflow:auto';
-    d.innerHTML='<div style="font-weight:bold;color:#8FBF97;margin-bottom:6px">NUCI DIAGNOSTIKA (kopiraj Urbanu)</div>'
-      +'<div id="__nuciDbgText">'+text.replace(/</g,'&lt;')+'</div>'
-      +'<button onclick="try{var t=document.getElementById(\'__nuciDbgText\').innerText;navigator.clipboard&&navigator.clipboard.writeText(t);}catch(e){};this.textContent=\'kopirano\'" style="margin-top:10px;background:#6B8F71;color:#fff;border:0;padding:8px 14px;border-radius:8px;font:600 13px sans-serif">Kopiraj</button>'
-      +' <button onclick="document.getElementById(\'__nuciDebugBanner\').remove()" style="margin-top:10px;background:#3A403C;color:#fff;border:0;padding:8px 14px;border-radius:8px;font:600 13px sans-serif">Zapri</button>';
-    document.body.appendChild(d);
-  }catch(e){}
-}
+function showDebugBanner(text){ /* diagnostics removed */ }
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function yesterdayKey(){ const d=new Date(Date.now()-86400000); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 // ── Date-driven plan progression (all in the USER'S local time) ──
@@ -3387,15 +3375,8 @@ async function handlePaidReturn(demo){
     state.paid=true; state.purchased=true;
     return new Promise(function(resolve){
       runGenerating(function(){
-        var _dbg=[];
-        _dbg.push('gen: petName='+(state.answers&&state.answers.petName||'MISSING')+' issue='+(state.answers&&state.answers.mainIssue||'?')+' planDays='+(state.aiPlan&&state.aiPlan.days?state.aiPlan.days.length:0)+' pendingBlank='+state.__pendingBlankPet);
-        var _before=(state.pets||[]).length;
         commitScratchPet();
-        _dbg.push('afterCommit: pets '+_before+'->'+(state.pets||[]).length+' activePet='+state.activePet);
-        if(_forExisting){ state.__planForExistingPet=_forExisting; try{ mergePlanIntoExistingPet(); }catch(e){ _dbg.push('mergeERR:'+e.message); } }
-        _dbg.push('afterMerge: pets='+JSON.stringify((state.pets||[]).map(function(p){return (p.answers&&p.answers.petName)+'/'+(p.answers&&p.answers.mainIssue||'?')+(p.planComplete?'(done)':'(active)');})));
-        _dbg.push('hasActivePlan='+hasActivePlan()+' topPlan='+(state.aiPlan&&state.aiPlan.days?state.aiPlan.days.length:0));
-        try{ window.__nuciDbg=_dbg.join(' || '); showDebugBanner(_dbg.join('\n')); }catch(e){}
+        if(_forExisting){ state.__planForExistingPet=_forExisting; try{ mergePlanIntoExistingPet(); }catch(e){} }
         try{ localStorage.removeItem('pendingState'); }catch(e){}
         enterApp(); toast('New plan ready for '+(state.answers.petName||'your pet')); persistStateNow();
         window.__handlingPaidReturn=false;
@@ -3406,7 +3387,6 @@ async function handlePaidReturn(demo){
   let p=null;
   try{ const raw=localStorage.getItem('pendingState'); if(raw) p=JSON.parse(raw); }catch(e){}
   try{ localStorage.removeItem('pendingState'); }catch(e){}
-  try{ showDebugBanner('POT: prvi-plan blok (NE add-pet)\nap.forExisting='+(p&&p.addPetPending?JSON.stringify(p.addPetPending.forExistingPet):'ni addPetPending')+'\npets='+JSON.stringify((state.pets||[]).map(function(x){return x&&x.answers?x.answers.petName:'?';}))+'\nanswers.petName='+(state.answers&&state.answers.petName)); }catch(e){}
   if(p){
     var addCredits=p.planCredits||1;
     // Base the new total on what we had BEFORE checkout (saved in pendingState), not on the
@@ -4025,7 +4005,7 @@ function renderToday(){
     +'<div id="segTasks" style="transition:opacity .18s ease">'+segTaskHtml(segTasks,day)+'</div>' 
     +'<div class="a-card"><div>'+nuciCharacter('96px')+'</div><div class="nuci-mood">'+esc(pet)+' \u00b7 '+nuciMood().label+'</div>'
     +'<div class="d-eb" style="margin:16px 0 8px;color:var(--sage)">Nuci says</div>'
-    +'<div class="a-quote">"'+esc(insight)+'"</div>'
+    +'<div class="a-quote">'+esc(insight)+'</div>'
     +'<button onclick="openAskAI()" style="margin-top:14px;background:rgba(107,143,113,.12);color:var(--forest);border:none;border-radius:12px;padding:11px 16px;font-size:13px;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:7px">'+icon('sparkle','15px',1.7)+'Ask about '+esc(pet)+'\u2019s behaviour</button></div>';
     // Notes / observations for today - multiple timestamped entries
   var notes=getDayNotes(day);
@@ -4235,7 +4215,7 @@ async function submitAskAI(){
       body:JSON.stringify({question:q,answers:state.answers,plan:state.aiBehaviorExplain||'',lang:'en'})});
     var data=await resp.json();
     var text=data && data.answer ? data.answer : 'I could not answer that right now. Please try again.';
-    ans.innerHTML='<div class="a-card" style="margin-top:0"><div class="d-eb" style="color:var(--sage);margin-bottom:6px">Nuci says</div><div style="font-size:.92rem;line-height:1.55;color:var(--text)">'+esc(text)+'</div></div>';
+    ans.innerHTML='<div class="a-card" style="margin-top:0"><div class="d-eb" style="color:var(--sage);margin-bottom:6px">Nuci says</div><div class="a-quote">'+esc(text)+'</div></div>';
   }catch(e){
     ans.innerHTML='<div class="a-card" style="margin-top:0"><div style="color:var(--danger);font-size:.9rem">Could not reach the service. Check your connection and try again.</div></div>';
   }
@@ -5391,10 +5371,33 @@ function editFromStart(){
   state.__editSingle=false;
   state.currentQ=0; showScreen('screen-assessment'); renderQ();
 }
-function openBilling(){
-  const tx=(state.transactions||[]);
+async function openBilling(){
+  // Pull the authoritative history from the server first (the Stripe webhook records every
+  // purchase there, including ones made on another device), then merge with anything local.
+  try{
+    if(supa && state.userEmail){
+      var _q=await supa.from('profiles').select('transactions').eq('email',state.userEmail.toLowerCase()).maybeSingle();
+      if(_q && _q.data && Array.isArray(_q.data.transactions) && _q.data.transactions.length>=((state.transactions||[]).length)){
+        state.transactions=_q.data.transactions;
+      }
+    }
+  }catch(e){}
+  // Full history, newest first. Each row shows date + time so multiple purchases on the same day
+  // are distinguishable.
+  var tx=(state.transactions||[]).slice().filter(function(t){return t && t.date;});
+  tx.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+  function fmt(d){
+    var dt=new Date(d); if(isNaN(dt)) return '';
+    var day=dt.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+    var time=dt.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+    return day+' · '+time;
+  }
+  function label(t){
+    var m={single:'1 plan',triple:'3 plans',five:'5 plans'};
+    return m[t.packageId]||esc(t.packageId||'Plan');
+  }
   openSheet('<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin-bottom:10px">Billing</h2>'
-    +(tx.length?tx.map(t=>'<div class="prow" style="cursor:default"><span style="font-size:0.9rem">'+new Date(t.date).toLocaleDateString()+' · '+esc(t.packageId)+'</span><span style="font-size:0.9rem">\u20AC'+(t.price!=null?Number(t.price).toFixed(2):'')+'</span></div>').join(''):'<p style="font-size:0.9rem;color:var(--secondary)">No purchases yet.</p>')
+    +(tx.length?tx.map(function(t){ return '<div class="prow" style="cursor:default"><span style="font-size:0.9rem"><span style="display:block">'+fmt(t.date)+'</span><span style="font-size:0.76rem;color:var(--secondary)">'+label(t)+'</span></span><span style="font-size:0.9rem">\u20AC'+(t.price!=null?Number(t.price).toFixed(2):'')+'</span></div>'; }).join(''):'<p style="font-size:0.9rem;color:var(--secondary)">No purchases yet.</p>')
     +'<p style="font-size:0.78rem;color:var(--secondary);margin-top:12px">Payments are processed by Stripe. For receipts or refunds, contact hello@thenuci.com.</p>');
 }
 async function toggleReminders(){
