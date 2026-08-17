@@ -129,11 +129,11 @@ Rules:
 Return ONLY valid minified JSON (no markdown, no preamble) with EXACTLY these keys:
 {"behaviorExplain":string,"assessment":string,"seekProfessional":boolean,"professionalNote":string,"causes":string[],"whatNotToDo":string[],"days":[{"title":string,"sub":string,"desc":string,"tasks":[{"title":string,"detail":string}]}]}
 Rules:
-- "days" MUST contain exactly 7 items (day 1..7). Each day MUST have 5-7 tasks.
-- Each task is an OBJECT: "title" is a short imperative action (3-7 words), "detail" is one concrete sentence explaining HOW to do it or WHY it helps (12-24 words). Make details specific to this pet and issue, not generic.
+- "days" MUST contain exactly 7 items (day 1..7). Each day MUST have 4-5 tasks.
+- Each task is an OBJECT: "title" is a short imperative action (3-7 words), "detail" is one concise sentence (10-18 words) on HOW or WHY, specific to this pet and issue.
 - Titles are 1-3 words. "sub" is a 2-4 word tag. "desc" is one sentence.
 - If any warning sign suggests a medical issue (aggression/biting, not eating or drinking, lethargy, vomiting/diarrhea), set seekProfessional=true and explain briefly in professionalNote.
-- "causes": 2-4 likely causes. "whatNotToDo": 2-4 concise items.
+- "causes": 2-3 likely causes. "whatNotToDo": 2-3 concise items. Keep behaviorExplain to 2 sentences.
 - Base everything on the owner's answers. Be specific to ${pet}. Language: ${lang}.
 - Never use em-dashes or en-dashes (— or –) anywhere in your output. Use a normal hyphen (-), a comma, or a full stop instead.`;
 

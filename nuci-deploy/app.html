@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-17 20:13";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-17 22:23";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -6329,6 +6329,10 @@ async function adaptNextDay(nextDay){
   try{ var _ref=params.get('ref'); if(_ref){ localStorage.setItem('nuci_ref', _ref.slice(0,40)); } }catch(e){}
   const route=async()=>{
     if(isPaid){
+      // Show the generating screen straight away so the moment the user returns from Stripe they
+      // see progress - not a blank pause while we restore the session and profile in the
+      // background.
+      try{ showScreen('screen-generating'); }catch(e){}
       // Clean the URL straight away: if the page is refreshed while we're loading the profile
       // below, the payment must not be processed a second time (that caused double plan
       // generation).
@@ -6346,9 +6350,13 @@ async function adaptNextDay(nextDay){
       try{
         if(supa){
           var _sess=null;
-          for(var _pi=0; _pi<16 && !_sess; _pi++){
+          // The session is almost always ready immediately after the Stripe redirect; only rarely
+          // is the auth token still restoring. Try fast and few times so we don't add a visible
+          // delay before generation starts (was up to 4s; now ~1.2s worst case, usually instant).
+          for(var _pi=0; _pi<6 && !_sess; _pi++){
             try{ var _r=await supa.auth.getSession(); _sess=_r&&_r.data&&_r.data.session; }catch(e){}
-            if(!_sess) await new Promise(function(r){ setTimeout(r,250); });
+            if(_sess) break;
+            await new Promise(function(r){ setTimeout(r,200); });
           }
           if(_sess && _sess.user && _sess.user.email){ state.userEmail=_sess.user.email; }
           if(state.userEmail){ try{ await loadStateForUser(state.userEmail); }catch(e){} }
