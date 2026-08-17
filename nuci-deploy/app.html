@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-17 17:48";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-17 18:07";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -3303,18 +3303,18 @@ function proceedToPayment(pkg){
     // The Stripe redirect reloads the page, so ANYTHING not written here is lost. That
     // includes the pets array and the "I'm adding another pet" context - without them the
     // returning page overwrote the existing pet and never counted the new plan.
+    var _fx = (state.__addPetPending && state.__addPetPending.forExistingPet)
+      || state.__planForExistingPet
+      || null;
     var addCtx = state.__addPetPending
-      || ((state.__buyAnotherPet || state.__pendingBlankPet)
+      || ((state.__buyAnotherPet || state.__pendingBlankPet || _fx)
             ? { answers: JSON.parse(JSON.stringify(state.answers||{})),
                 aiPlan: state.aiPlan||null, previewDay1: state.previewDay1||null,
-                forExistingPet: state.__planForExistingPet||null }
+                petPhoto: state.__carryPetPhoto||state.petPhoto||null,
+                forExistingPet: _fx }
             : null);
-    // If addPetPending existed already but lacked the existing-pet target, attach it now - this is
-    // what tells the post-payment step to UPDATE the existing pet instead of leaving the new plan
-    // unattached (which showed up as "plan not created, My pets unchanged").
-    if(addCtx && !addCtx.forExistingPet && state.__planForExistingPet){
-      addCtx.forExistingPet = state.__planForExistingPet;
-    }
+    // Make sure the existing-pet link is present even if addPetPending was built earlier without it.
+    if(addCtx && !addCtx.forExistingPet && _fx){ addCtx.forExistingPet = _fx; }
     localStorage.setItem('pendingState',JSON.stringify({
       answers:state.answers, planLength:state.planLength, currentDay:state.currentDay,
       petPhoto:state.petPhoto, userEmail:state.userEmail, userName:state.userName,
@@ -3439,8 +3439,40 @@ async function handlePaidReturn(demo){
     credits:(p&&p.planCredits)||1});   // credits bought in THIS purchase, not the running total
   try{ if(supa&&state.userEmail) supa.from('profiles').update({purchased:true}).eq('email',state.userEmail.toLowerCase()); }catch(e){}
   try{ history.replaceState({},'',location.pathname); }catch(e){}
+  // Safety net for existing pets: the add-pet context can be lost across the Stripe redirect
+  // (in-memory flags don't survive the reload). If the plan we're about to generate is for a pet
+  // that already exists in the list, treat it like an existing-pet update so the new plan REPLACES
+  // that pet's entry instead of being dropped. Detect by matching name+type against current pets.
+  var _existingTarget=null;
+  try{
+    var _an=(state.answers&&state.answers.petName||'').toLowerCase();
+    var _at=(state.answers&&state.answers.petType||'').toLowerCase();
+    if(_an){
+      (state.pets||[]).forEach(function(pp){
+        var a=(pp&&pp.answers)||{};
+        if((a.petName||'').toLowerCase()===_an && (a.petType||'').toLowerCase()===_at){
+          _existingTarget={ name:state.answers.petName, type:state.answers.petType||'' };
+        }
+      });
+    }
+  }catch(e){}
   return new Promise(function(resolve){
-    runGenerating(()=>{ enterApp(); toast(demo?'Plan unlocked':'Payment successful - your plan is ready'); persistStateNow(); window.__handlingPaidReturn=false; resolve(); });
+    runGenerating(()=>{
+      // If this plan is for an already-existing pet, merge into that entry (no duplicate, no lost plan).
+      if(_existingTarget){
+        try{
+          // This is a brand-new plan, so make sure it's marked active (the old entry may have been
+          // completed) before merging it into the existing pet.
+          state.planComplete=false;
+          if(!state.planStartDate) state.planStartDate=todayKey();
+          if(!state.currentDay || state.currentDay<1) state.currentDay=1;
+          state.__planForExistingPet=_existingTarget;
+          if(state.__pendingBlankPet){ commitScratchPet(); }
+          mergePlanIntoExistingPet();
+        }catch(e){}
+      }
+      enterApp(); toast(demo?'Plan unlocked':'Payment successful - your plan is ready'); persistStateNow(); window.__handlingPaidReturn=false; resolve();
+    });
   });
 }
 
