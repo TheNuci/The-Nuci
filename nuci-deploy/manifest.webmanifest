@@ -1,0 +1,16 @@
+{
+  "name": "The Nuci",
+  "short_name": "The Nuci",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F2F1EC",
+  "theme_color": "#F2F1EC",
+  "icons": [
+    {
+      "src": "/the-nuci-favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -12,7 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="The Nuci">
-<link rel="manifest" href='data:application/manifest+json,{"name":"The Nuci","short_name":"The Nuci","start_url":".","display":"standalone","background_color":"#F2F1EC","theme_color":"#F2F1EC","icons":[{"src":"the-nuci-favicon-512.png","sizes":"512x512","type":"image/png"}]}'>
+<link rel="manifest" href="/manifest.webmanifest">
 <title>The Nuci. Understand your pet</title>
 <meta name="description" content="A personalized 7-day pet behaviour plan, built by AI. Every behaviour has a cause.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -896,7 +896,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 <div class="sheet" id="sheet"><div class="dim" onclick="closeSheet()"></div><div class="panel" id="sheetPanel"></div></div>
 </div><!-- /appFrame -->
 
-<input id="kbProxy" aria-hidden="true" tabindex="-1" inputmode="text" enterkeyhint="next" autocapitalize="off" autocomplete="off"
+<input id="kbProxy" tabindex="-1" inputmode="text" enterkeyhint="next" autocapitalize="off" autocomplete="off"
   style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:none;padding:0;background:transparent;font-size:16px">
 <div id="toast"></div>
 </script>
@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-17 10:19";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-17 11:09";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -5729,19 +5729,7 @@ function chooseExistingPet(saved){
 // the user's tap. Building the question through a popup breaks that chain, so at the moment the
 // pet is tapped we focus a throwaway text input immediately - this "claims" the keyboard. renderQ
 // then moves focus to the real field and the keyboard stays up.
-function primeKeyboard(){
-  try{
-    var tmp=document.getElementById('__kbPrimer');
-    if(!tmp){
-      tmp=document.createElement('input');
-      tmp.type='text'; tmp.id='__kbPrimer';
-      tmp.setAttribute('autocomplete','off');
-      tmp.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:0;padding:0;margin:0;font-size:16px;z-index:-1;';
-      document.body.appendChild(tmp);
-    }
-    tmp.focus({preventScroll:true});
-  }catch(e){}
-}
+function primeKeyboard(){ try{ kbPrime(); }catch(e){} }
 function planForNewPet(){ primeKeyboard(); closeSheet(); proceedNewPet(); }
 function planForExistingPet(idx){
   var choice=(window.__petChoices||[])[idx];
