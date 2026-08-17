@@ -41,7 +41,7 @@ exports.handler = async (event) => {
       const testReq = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: MODEL, max_tokens: 8000, system: debugSys, messages: [{ role: 'user', content: 'Owner answers (JSON):\\n' + JSON.stringify(sample) }] })
+        body: JSON.stringify({ model: MODEL, max_tokens: 5000, system: debugSys, messages: [{ role: 'user', content: 'Owner answers (JSON):\\n' + JSON.stringify(sample) }] })
       });
       const td = await testReq.json();
       const stop = td.stop_reason;
@@ -143,7 +143,7 @@ Rules:
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: MODEL, max_tokens: previewOnly ? 1500 : 8000, system: sys, messages: [{ role: 'user', content: user }] })
+      body: JSON.stringify({ model: MODEL, max_tokens: previewOnly ? 1500 : 5000, system: sys, messages: [{ role: 'user', content: user }] })
     });
     if (!resp.ok) {
       const t = await resp.text();

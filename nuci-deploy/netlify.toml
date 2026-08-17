@@ -5,6 +5,12 @@
 [functions]
   node_bundler = "esbuild"
 
+# The plan generator makes a full 7-day AI call which can take longer than the default 10s
+# function limit. Give it the maximum synchronous budget so it isn't killed mid-generation
+# (which was leaving users with the fallback template plan instead of a real one).
+[functions."generate-plan"]
+  timeout = 26
+
 # index.html (the landing page) is served automatically at "/".
 # Clean URL for the app: /app (and its sub-paths) all serve app.html without changing
 # the address bar (status 200 = rewrite, not redirect). This keeps the URL clean while

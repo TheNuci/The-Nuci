@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-16 21:59";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-17 10:19";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -4899,7 +4899,45 @@ function openPetCard(i){
     +'<div style="font-size:0.8rem;color:var(--secondary)">'+esc(a.breed||tyL)+'</div></div></div>'
     +'<div class="d-eb" style="color:var(--sage);margin-bottom:4px">Profile</div>'
     +rows
+    +'<button class="btn btn-ghost" style="color:#b45454;margin-top:16px" onclick="deletePetByIndex('+i+')">Remove '+esc(a.petName||'this pet')+'</button>'
   );
+}
+// Remove a pet entirely (its current plan and its slot). Used from the pet card - lets the owner
+// clear out a pet that got stuck, e.g. one left with a broken/placeholder plan. Archived plans
+// for the same pet are also removed so it doesn't reappear in "My pets".
+function deletePetByIndex(petIndex){
+  var pets=state.pets||[]; var p=pets[petIndex]; if(!p) return;
+  var a=p.answers||{}; var nm=a.petName||'this pet';
+  var key=((a.petName||'')+'|'+(a.petType||'')).toLowerCase();
+  openSheet('<div style="text-align:center">'
+    +'<div class="d-eb" style="color:var(--sage)">Remove pet</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 10px">Remove '+esc(nm)+'?</h2>'
+    +'<p style="font-size:0.9rem;color:var(--secondary);line-height:1.55;margin-bottom:20px">This removes '+esc(nm)+' and their plans from your account. This can\u2019t be undone.</p>'
+    +'<button class="btn btn-primary" style="background:#b45454;margin-bottom:8px" onclick="confirmDeletePet('+petIndex+',\''+esc(key)+'\')">Yes, remove</button>'
+    +'<button class="btn btn-ghost" onclick="closeSheet()">Cancel</button>'
+    +'</div>');
+}
+function confirmDeletePet(petIndex, key){
+  var pets=state.pets||[];
+  var wasActive=(petIndex===state.activePet);
+  // drop the pets[] slot
+  if(pets[petIndex]) pets.splice(petIndex,1);
+  // drop any archived plans for the same identity
+  state.archive=(state.archive||[]).filter(function(ar){
+    var aa=ar.answers||{petName:ar.petName,petType:ar.petType};
+    return ((aa.petName||'')+'|'+(aa.petType||'')).toLowerCase()!==key;
+  });
+  // fix active pointer / top-level fields
+  if(state.pets.length===0){ state.activePet=0; state.answers={}; state.aiPlan=null; state.planComplete=false; }
+  else {
+    if(state.activePet>=state.pets.length) state.activePet=state.pets.length-1;
+    if(state.activePet<0) state.activePet=0;
+    if(wasActive && state.pets[state.activePet]) loadPet(state.pets[state.activePet]);
+  }
+  persistStateNow();
+  closeSheet();
+  try{ if(curTab) showTab(curTab); else showTab('profile'); }catch(e){}
+  toast('Pet removed');
 }
 // Change a specific pet's photo from the My-pets card (works whether or not that pet has an
 // active plan). petIndex points into state.pets; the image is resized like setPhoto does.
@@ -5706,12 +5744,11 @@ function primeKeyboard(){
 }
 function planForNewPet(){ primeKeyboard(); closeSheet(); proceedNewPet(); }
 function planForExistingPet(idx){
-  primeKeyboard();   // claim the keyboard synchronously, while we're still inside the tap
-  var choice=(window.__petChoices||[])[idx]; closeSheet();
-  if(!choice){ proceedNewPet(); return; }
-  // One active plan per pet. If this pet already has a plan running, don't start a second -
-  // encourage finishing one behaviour before the next.
-  if(petHasActivePlan(choice.answers.petName, choice.answers.petType)){
+  var choice=(window.__petChoices||[])[idx];
+  // One active plan per pet. Check this BEFORE priming the keyboard, otherwise the keyboard pops
+  // up over the "already has an active plan" message.
+  if(choice && petHasActivePlan(choice.answers.petName, choice.answers.petType)){
+    closeSheet();
     var nm=esc(choice.answers.petName||'This pet');
     openSheet('<div style="text-align:center">'
       +'<div style="width:56px;height:56px;border-radius:50%;background:rgba(107,143,113,.13);display:flex;align-items:center;justify-content:center;margin:4px auto 16px;color:var(--sage)">'+icon('sparkle','24px',1.6)+'</div>'
@@ -5722,6 +5759,9 @@ function planForExistingPet(idx){
       +'</div>');
     return;
   }
+  primeKeyboard();   // now safe: we're proceeding to a question, claim the keyboard in the tap
+  closeSheet();
+  if(!choice){ proceedNewPet(); return; }
   proceedNewPet(choice.answers, choice.answers.petName, choice.answers.petType, choice.petPhoto);
 }
 // Does a pet (matched by name+type) currently have a running, uncompleted plan?
