@@ -46,9 +46,13 @@ exports.handler = async (event) => {
       const td = await testReq.json();
       const stop = td.stop_reason;
       let raw = (td.content || []).map(b => b.text || '').join('').trim();
-      raw = raw.replace(/^```json\\s*/i, '').replace(/^```\\s*/i, '').replace(/```$/i, '').trim();
+      raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+      // Robust extraction: slice first { to last }.
+      let jsonText = raw;
+      var _fb = raw.indexOf('{'), _lb = raw.lastIndexOf('}');
+      if (_fb > -1 && _lb > _fb) jsonText = raw.slice(_fb, _lb + 1);
       let parses = false, dayCount = 0;
-      try { const pj = JSON.parse(raw); parses = true; dayCount = (pj.days || []).length; } catch (e) {}
+      try { const pj = JSON.parse(jsonText); parses = true; dayCount = (pj.days || []).length; } catch (e) {}
       return { statusCode: 200, headers: CORS, body: JSON.stringify({
         ai: parses ? 'OK' : 'PARSE-FAIL',
         model: MODEL,
@@ -56,6 +60,9 @@ exports.handler = async (event) => {
         truncated: stop === 'max_tokens',
         planParses: parses,
         dayCount: dayCount,
+        rawStart: raw.slice(0, 200),
+        rawEnd: raw.slice(-200),
+        rawLength: raw.length,
         note: parses ? 'Full plan generated and parsed - real plans are AI-generated.'
                      : 'AI responded but the JSON did not parse (likely truncated). Raising max_tokens fixes this.'
       }) };
