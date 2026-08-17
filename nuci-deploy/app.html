@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-17 22:23";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-17 22:58";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1373,7 +1373,19 @@ function petSvg(t,size){ return icon(PET_ICON[t]||'paw',size||'1em'); }
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
-function showDebugBanner(text){ /* diagnostics removed */ }
+function showDebugBanner(text){
+  try{
+    var old=document.getElementById('__nuciDebugBanner'); if(old) old.remove();
+    var d=document.createElement('div');
+    d.id='__nuciDebugBanner';
+    d.style.cssText='position:fixed;left:8px;right:8px;top:8px;z-index:99999;background:#1A211C;color:#DDE;font:12px/1.5 monospace;padding:12px;border-radius:10px;white-space:pre-wrap;word-break:break-word;box-shadow:0 8px 30px rgba(0,0,0,.4);max-height:78vh;overflow:auto';
+    d.innerHTML='<div style="font-weight:bold;color:#8FBF97;margin-bottom:6px">NUCI DIAGNOSTIKA</div>'
+      +'<div id="__nuciDbgText">'+text.replace(/</g,'&lt;')+'</div>'
+      +'<button onclick="try{var t=document.getElementById(\'__nuciDbgText\').innerText;navigator.clipboard&&navigator.clipboard.writeText(t);}catch(e){};this.textContent=\'kopirano\'" style="margin-top:10px;background:#6B8F71;color:#fff;border:0;padding:8px 14px;border-radius:8px;font:600 13px sans-serif">Kopiraj</button>'
+      +' <button onclick="document.getElementById(\'__nuciDebugBanner\').remove()" style="margin-top:10px;background:#3A403C;color:#fff;border:0;padding:8px 14px;border-radius:8px;font:600 13px sans-serif">Zapri</button>';
+    document.body.appendChild(d);
+  }catch(e){}
+}
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function yesterdayKey(){ const d=new Date(Date.now()-86400000); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 // ── Date-driven plan progression (all in the USER'S local time) ──
@@ -3320,6 +3332,79 @@ function proceedToPayment(pkg){
   // no link configured -> complete locally so the flow isn't blocked
   handlePaidReturn(true);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAID RETURN — one clean, sequential flow. Runs when the user comes back from
+// Stripe (?paid=true). Each step is explicit and ordered so nothing races:
+//   1. show the generating screen immediately (no blank wait)
+//   2. restore identity + parked checkout context from pendingState
+//   3. wait briefly for the Supabase session, then load the saved profile
+//   4. commit the plan (generate) and WAIT for it to finish
+//   5. only then, poll the DB for the webhook's credit/transaction write
+// A diagnostic banner records each step so we can see exactly where it stops.
+// ─────────────────────────────────────────────────────────────────────────────
+async function runPaidReturn(){
+  var D=[]; var log=function(s){ D.push(s); try{ showDebugBanner(D.join('\n')); }catch(e){} };
+  try{
+    // 1. instant feedback
+    try{ showScreen('screen-generating'); }catch(e){}
+    // don't let a refresh re-trigger payment
+    try{ history.replaceState({},'',location.pathname); }catch(e){}
+
+    // 2. read parked checkout state
+    var ps={};
+    try{ ps=JSON.parse(localStorage.getItem('pendingState')||'{}')||{}; }catch(e){}
+    if(ps.userEmail && !state.userEmail) state.userEmail=ps.userEmail;
+    log('1. return: email='+(state.userEmail||'?')+' parkedPets='+((ps.pets||[]).length)+' addPet='+(ps.addPetPending?(ps.addPetPending.forExistingPet?'existing':'new'):'none'));
+
+    // 3. wait for session (usually instant), then load profile from server
+    var sess=null;
+    if(supa){
+      for(var i=0;i<6 && !sess;i++){
+        try{ var r=await supa.auth.getSession(); sess=r&&r.data&&r.data.session; }catch(e){}
+        if(sess) break;
+        await new Promise(function(res){ setTimeout(res,200); });
+      }
+      if(sess && sess.user && sess.user.email) state.userEmail=sess.user.email;
+      if(state.userEmail){ try{ await loadStateForUser(state.userEmail); }catch(e){} }
+    }
+    log('2. profile: session='+(sess?'yes':'no')+' loadedPets='+((state.pets||[]).length)+' credits='+(state.planCredits||0));
+
+    // 3b. floor pets/archive from the parked snapshot so a not-yet-loaded profile can't wipe them
+    if(Array.isArray(ps.pets) && ps.pets.length > (Array.isArray(state.pets)?state.pets.length:0)){
+      state.pets = ps.pets.slice();
+    }
+    if(Array.isArray(ps.archive) && (!Array.isArray(state.archive) || ps.archive.length > state.archive.length)){
+      state.archive = ps.archive.slice();
+    }
+
+    // 4. commit the plan (generation happens inside) and WAIT for it
+    try{ await handlePaidReturn(false); }
+    catch(e){ log('commit ERROR: '+(e&&e.message)); try{ await handlePaidReturn(false); }catch(_){} }
+    log('3. committed: pets='+JSON.stringify((state.pets||[]).map(function(p){return (p.answers&&p.answers.petName)+(p.planComplete?'(done)':'(active)');}))+' hasPlan='+hasActivePlan());
+
+    // 5. poll DB for the webhook's credit/transaction write (arrives a few seconds later)
+    if(supa && state.userEmail){
+      for(var c=0;c<8;c++){
+        await new Promise(function(res){ setTimeout(res,1500); });
+        try{
+          var q=await supa.from('profiles').select('plan_credits,transactions').eq('email',state.userEmail.toLowerCase()).maybeSingle();
+          if(q && q.data){
+            var changed=false;
+            if(typeof q.data.plan_credits==='number' && q.data.plan_credits>(state.planCredits||0)){ state.planCredits=q.data.plan_credits; state.purchased=true; changed=true; }
+            if(Array.isArray(q.data.transactions) && q.data.transactions.length>((state.transactions||[]).length)){ state.transactions=q.data.transactions; changed=true; }
+            if(changed){ try{ if(curTab==='profile') showTab('profile'); if(curTab==='today') renderToday(); }catch(e){} persistStateNow(); log('4. billing synced: credits='+state.planCredits+' tx='+(state.transactions||[]).length); break; }
+          }
+        }catch(e){}
+      }
+    }
+    log('DONE');
+  }catch(e){
+    log('FATAL: '+(e&&e.message));
+    try{ enterApp(); }catch(_){}
+  }
+}
+
 async function handlePaidReturn(demo){
   window.__handlingPaidReturn=true;
   // The Stripe redirect reloads the page, so the in-memory add-pet context is gone. Restore it
@@ -3358,6 +3443,18 @@ async function handlePaidReturn(demo){
     if(_pp.userName && !state.userName) state.userName=_pp.userName;
     if(_pp.userEmail && !state.userEmail) state.userEmail=_pp.userEmail;
     if(typeof _pp.plansGenerated==='number'){ state.plansGenerated=Math.max(state.plansGenerated||0, _pp.plansGenerated); }
+    // CRITICAL: restore the EXISTING pets (and archive) before we scratch-in the new one. The
+    // Stripe redirect reloads the page; if the profile hasn't reloaded from the server yet,
+    // state.pets is empty, and appending the new pet to an empty list wipes the pet the user
+    // already had. pendingState carries the pets snapshot taken before checkout - use it as a
+    // floor so the new pet is ADDED alongside, never over the top.
+    if(Array.isArray(_pp.pets) && _pp.pets.length > (Array.isArray(state.pets)?state.pets.length:0)){
+      state.pets = _pp.pets.slice();
+    }
+    if(Array.isArray(_pp.archive) && (!Array.isArray(state.archive) || _pp.archive.length > state.archive.length)){
+      state.archive = _pp.archive.slice();
+    }
+    if(!Array.isArray(state.pets)) state.pets=[];
     // Load the NEW pet's answers into the top-level scratch fields. The plan is NOT in ap (it is
     // generated AFTER payment), so we run generation now and append the pet once it's ready.
     state.answers=ap.answers||{}; state.aiPlan=null; state.previewDay1=null;
@@ -6329,70 +6426,7 @@ async function adaptNextDay(nextDay){
   try{ var _ref=params.get('ref'); if(_ref){ localStorage.setItem('nuci_ref', _ref.slice(0,40)); } }catch(e){}
   const route=async()=>{
     if(isPaid){
-      // Show the generating screen straight away so the moment the user returns from Stripe they
-      // see progress - not a blank pause while we restore the session and profile in the
-      // background.
-      try{ showScreen('screen-generating'); }catch(e){}
-      // Clean the URL straight away: if the page is refreshed while we're loading the profile
-      // below, the payment must not be processed a second time (that caused double plan
-      // generation).
-      try{ history.replaceState({},'',location.pathname); }catch(e){}
-      // restore who we are if possible
-      try{ const raw=localStorage.getItem('pendingState'); if(raw){ const p=JSON.parse(raw); if(p&&p.userEmail) state.userEmail=p.userEmail; } }catch(e){}
-      // Load the saved profile FIRST. Stripe sends the user back on a fresh page load, so
-      // without this the app thinks there are no pets, no previous purchases and no credits -
-      // and then writes that empty picture over the database, wiping earlier pets and the
-      // billing history. CRUCIAL: the Supabase session is often NOT ready yet on this fresh load
-      // (the auth token is still being restored), so a single getSession() returns null and the
-      // profile load is skipped - which is exactly what wiped the pet/plan/credits. So we WAIT
-      // (poll) for the session for a few seconds, then load. Only if it truly never appears do we
-      // fall back to loading by the email we recovered from pendingState.
-      try{
-        if(supa){
-          var _sess=null;
-          // The session is almost always ready immediately after the Stripe redirect; only rarely
-          // is the auth token still restoring. Try fast and few times so we don't add a visible
-          // delay before generation starts (was up to 4s; now ~1.2s worst case, usually instant).
-          for(var _pi=0; _pi<6 && !_sess; _pi++){
-            try{ var _r=await supa.auth.getSession(); _sess=_r&&_r.data&&_r.data.session; }catch(e){}
-            if(_sess) break;
-            await new Promise(function(r){ setTimeout(r,200); });
-          }
-          if(_sess && _sess.user && _sess.user.email){ state.userEmail=_sess.user.email; }
-          if(state.userEmail){ try{ await loadStateForUser(state.userEmail); }catch(e){} }
-        }
-      }catch(e){}
-      // Commit the plan FIRST and wait for it, then poll for the webhook's credit write. Running
-      // the poll concurrently with handlePaidReturn caused a race: the poll's save could land
-      // mid-generation and overwrite the just-committed plan (plan lost), or the commit's save
-      // could land before the webhook credit arrived (billing lost). Sequencing them fixes both.
-      try{ await handlePaidReturn(false); }catch(e){ try{ handlePaidReturn(false); }catch(_){} }
-      // Now (plan safely saved) poll the plan_credits column for the webhook's delayed write.
-      if(supa && state.userEmail){
-        (async function(){
-          for(var _ci=0; _ci<8; _ci++){
-            await new Promise(function(r){ setTimeout(r,1500); });
-            try{
-              var _q=await supa.from('profiles').select('plan_credits,transactions').eq('email',state.userEmail.toLowerCase()).maybeSingle();
-              if(_q && _q.data){
-                var changed=false;
-                if(typeof _q.data.plan_credits==='number' && _q.data.plan_credits>(state.planCredits||0)){
-                  state.planCredits=_q.data.plan_credits; state.purchased=true; changed=true;
-                }
-                if(Array.isArray(_q.data.transactions) && _q.data.transactions.length>((state.transactions||[]).length)){
-                  state.transactions=_q.data.transactions; changed=true;
-                }
-                if(changed){
-                  // Merge the credit into the saved snapshot WITHOUT clobbering pets/plan: sync the
-                  // active pet first so the save includes the freshly committed plan.
-                  try{ if(curTab==='profile') showTab('profile'); if(curTab==='today') renderToday(); }catch(e){}
-                  persistStateNow();
-                }
-              }
-            }catch(e){}
-          }
-        })();
-      }
+      await runPaidReturn();
       return;
     }
     // Is there a live login session? (survives tab close via Supabase's own storage)
