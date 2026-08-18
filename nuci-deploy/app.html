@@ -972,7 +972,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-18 fixes-v5";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-18 fixes-v6";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -2857,11 +2857,10 @@ function renderPkgs(){
   const CKS='<svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
   const PAW='<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15.6" rx="4.1" ry="3.2"/><ellipse cx="6.6" cy="11" rx="1.7" ry="2"/><ellipse cx="10" cy="8" rx="1.6" ry="2"/><ellipse cx="14" cy="8" rx="1.6" ry="2"/><ellipse cx="17.4" cy="11" rx="1.7" ry="2"/></svg>';
   const feats=['A personalized 7-day plan for '+esc(pet),'Likely causes - and what not to do',"Daily check-ins that adapt the plan"];
-  var multiNote = state.__multiPet
-    ? '<div style="background:rgba(107,143,113,.10);border:1px solid var(--border);border-radius:14px;padding:13px 15px;margin-bottom:14px;font-size:.86rem;line-height:1.5;color:var(--text)">'
-      +'You mentioned other pets at home. Each plan covers <b style="font-weight:500">one pet</b> - a pack lets you run a separate plan for each, whenever you are ready.</div>'
-    : '';
-  $('pkgList').innerHTML=multiNote+PACKAGES.map((p,i)=>{
+  // (The "you mentioned other pets at home" note used to sit here - removed on request: it
+  // added noise without adding information. The triple-pack pre-selection for multi-pet
+  // households stays, since that IS useful.)
+  $('pkgList').innerHTML=PACKAGES.map((p,i)=>{
     const sel=selectedPackage&&selectedPackage.id===p.id;
     const disc=discountActive();
     const shown=pkgPrice(p);
@@ -3393,8 +3392,20 @@ async function generatePlanAI(){
     return;
   }
   try{
-    const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({answers:state.answers,lang:appLang()})});
+    // Use the request fired at paid-return (parallel with the profile load) if it was for
+    // these exact answers - the plan is then often already done or nearly done by now.
+    var res=null;
+    try{
+      var _pf=window.__genPrefetch;
+      if(_pf && _pf.promise && _pf.answersJson===JSON.stringify(state.answers)){
+        window.__genPrefetch=null;
+        try{ res=await _pf.promise; }catch(e){ res=null; }
+      }
+    }catch(e){}
+    if(!res){
+      res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({answers:state.answers,lang:appLang()})});
+    }
     if(!res.ok) throw new Error('ai '+res.status);
     const plan=await res.json();
     if(plan&&plan.days&&plan.days.length){
@@ -3569,6 +3580,20 @@ async function runPaidReturn(){
     var ps={};
     try{ ps=JSON.parse(localStorage.getItem('pendingState')||'{}')||{}; }catch(e){}
     if(ps.userEmail && !state.userEmail) state.userEmail=ps.userEmail;
+    // SPEED: the AI call is by far the longest step after payment (5-15s), and the answers it
+    // needs are already here in pendingState - so fire it NOW, in parallel with the session
+    // wait + profile load below, instead of only after them. generatePlanAI picks this
+    // in-flight request up when the answers match. Skipped when a full plan is already cached
+    // from the preview (nothing to generate) - except for add-pet, which always regenerates.
+    try{
+      var _needGen = !!ps.addPetPending || !(ps.aiPlan && ps.aiPlan.days && ps.aiPlan.days.length>=(ps.planLength||7));
+      var _pfAns = ps.addPetPending ? (ps.addPetPending.answers||ps.answers) : ps.answers;
+      if(_needGen && _pfAns && _pfAns.petName){
+        window.__genPrefetch={ answersJson:JSON.stringify(_pfAns),
+          promise: fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({answers:_pfAns, lang:appLang()})}) };
+      }
+    }catch(e){}
     log('1. return: email='+(state.userEmail||'?')+' parkedPets='+((ps.pets||[]).length)+' addPet='+(ps.addPetPending?(ps.addPetPending.forExistingPet?'existing':'new'):'none'));
 
     // 3. wait for session (usually instant), then load profile from server.
@@ -3790,6 +3815,21 @@ async function handlePaidReturn(demo){
           _existingTarget={ name:state.answers.petName, type:state.answers.petType||'' };
         }
       });
+    }
+    // A purchase for a pet that ALREADY exists is by definition a NEW plan - the user cannot
+    // buy the plan they already have. But some doors to the offer (maintenance "Start a fresh
+    // plan", plan-end paths) skip the questionnaire, so the OLD plan and its signature are
+    // still in state: generatePlanAI then "reuses" the cached old plan, the old start date
+    // survives, and the very next syncPlanDay archives the expired corpse - "I paid, payment
+    // registered, but no plan was created". Reset everything plan-related here so generation
+    // is forced and the plan starts fresh today.
+    if(_existingTarget){
+      state.aiPlan=null; state.__planSig=null; state.previewDay1=null; state.__previewSig=null;
+      state.planOverrides={}; state.dayInsights={}; state.dayNotes={}; state.tasksDone={}; state.taskOverrides={};
+      state.checkins=[]; state.streak=0; state.lastCheckinDate=null; state.lastCheckinDay=0;
+      state.planComplete=false; state.frozenSince=null; state.freezeUsed=false;
+      state.planStartDate=planStartFromPurchase(); state.currentDay=computedDay(); state.viewDay=state.currentDay;
+      state.aiBehaviorExplain=null; state.aiAssessment=null; state.aiCauses=null; state.aiWhatNotToDo=null;
     }
     // Second safety net: the add-pet context was lost AND this pet matches NO existing pet.
     // Without this, the post-generation persist (syncActivePet) would write the new pet over
