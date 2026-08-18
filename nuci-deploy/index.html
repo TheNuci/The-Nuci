@@ -340,7 +340,7 @@ footer .brand .g{color:var(--sage)}
   <div class="wrap" id="bandWrap">
     <div class="stat"><div class="n" data-count="7">0</div><div class="l">days, each one written around your pet and adjusted every evening.</div></div>
     <div class="rule"></div>
-    <div class="stat"><div class="n" data-count="126" id="liveUsers">0</div><div class="l">early users are testing The Nuci during our beta.</div></div>
+    <div class="stat"><div class="n" data-count="1">0</div><div class="l">pet per plan - every day written around your animal, not a template.</div></div>
     <div class="rule"></div>
     <div class="stat" id="lastStat"><div class="n">&#8734;</div><div class="l">languages. Write or speak however feels natural.</div></div>
   </div>
@@ -348,7 +348,7 @@ footer .brand .g{color:var(--sage)}
     <div class="wrap">
       <div class="stat"><div class="n">7</div><div class="l">days, each one written around your pet and adjusted every evening.</div></div>
       <div class="rule"></div>
-      <div class="stat"><div class="n" id="liveUsers2">126</div><div class="l">early users are testing The Nuci during our beta.</div></div>
+      <div class="stat"><div class="n">1</div><div class="l">pet per plan - every day written around your animal, not a template.</div></div>
       <div class="rule"></div>
       <div class="stat"><div class="n">&#8734;</div><div class="l">languages. Write or speak however feels natural.</div></div>
     </div>
@@ -393,7 +393,6 @@ footer .brand .g{color:var(--sage)}
     <div class="big reveal">Calmer homes,<br><span class="accent">one week in.</span></div>
     <div class="trust-line reveal">
       <span class="beta-pill">Beta</span>
-      <span>Feedback from <b id="liveUsers3">126</b> early users</span>
       <span class="star-row" id="starRow" aria-label="User rating">
         <span class="sr-stars"><i>&#9733;</i><i>&#9733;</i><i>&#9733;</i><i>&#9733;</i><i>&#9733;</i></span>
         <span class="sr-txt" id="srTxt"></span>
@@ -479,12 +478,6 @@ footer .brand .g{color:var(--sage)}
 (function liveStats(){
   try{
     fetch('/.netlify/functions/public-stats').then(function(r){ return r.json(); }).then(function(d){
-      if(d && typeof d.users==='number' && d.users>0){
-        var lu=document.getElementById('liveUsers');
-        if(lu){ lu.dataset.count=String(d.users); if(parseInt(lu.textContent,10)>0){ lu.textContent=String(d.users); } }
-        var l2=document.getElementById('liveUsers2'); if(l2) l2.textContent=String(d.users);
-        var l3=document.getElementById('liveUsers3'); if(l3) l3.textContent=String(d.users);
-      }
       if(d && d.ratingCount>=20 && d.ratingAvg>=4.0){
         var sr=document.getElementById('starRow'), st=document.getElementById('srTxt');
         if(st) st.textContent=d.ratingAvg.toFixed(1)+' \u00b7 '+d.ratingCount+' ratings';

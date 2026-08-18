@@ -972,7 +972,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-18 fixes-v8";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-18 fixes-v9";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -1281,6 +1281,7 @@ function serializeState(){
     transactions:state.transactions||[],
     paid:state.paid||false, assessments:state.assessments||[], checkinHour:state.checkinHour||20,
     pets:state.pets||[], archive:state.archive||[], activePet:state.activePet||0,
+    savedAt:Date.now(),
     frozenSince:state.frozenSince||null, freezeUsed:state.freezeUsed||false,
     badges:(state.badges&&state.badges.length?state.badges:(state.__badges||[])),
     plansGenerated:state.plansGenerated||0,
@@ -1369,8 +1370,40 @@ async function loadStateForUser(email){
     if(error||!data) return false;
     if(data.email_reminders!=null) state.emailReminders=data.email_reminders!==false;
     if(data.marketing_consent!=null) state.marketingConsent=data.marketing_consent===true;
-    if(data.data) restoreState(data.data);
-    state.purchased=(data.purchased===true);
+    // FRESHNESS GUARD. Every saved snapshot carries savedAt. If THIS device holds a NEWER
+    // snapshot of the SAME account than the server does, restoring the server copy would
+    // erase the newer local work. That is exactly how a freshly paid + generated plan kept
+    // vanishing: right after the Stripe round-trip the auth session is often still
+    // refreshing, so the post-generation save silently failed under RLS - the plan lived
+    // only on the device - and the next app open "restored" the older server copy over it,
+    // while the webhook-credited purchase made the payment look registered. Plan gone.
+    // Newer-local wins and is pushed UP instead; the server's billing columns still apply.
+    var _localNewer=false;
+    try{
+      var _inc=data.data; if(typeof _inc==='string') _inc=JSON.parse(_inc);
+      var _srvAt=(_inc && typeof _inc.savedAt==='number') ? _inc.savedAt : 0;
+      // Newer local can live in two places: the in-memory state (same tab), or the
+      // localStorage snapshot written by the last save (fresh boot - memory is empty then).
+      // localStorage on this device always belongs to the last signed-in account (it is
+      // cleared on sign-out), so a same-or-unlabelled snapshot is this account's.
+      var _memAt=(typeof state.savedAt==='number' && state.userEmail
+                  && state.userEmail.toLowerCase()===email.toLowerCase()) ? state.savedAt : 0;
+      var _ls=null, _lsAt=0;
+      try{ var _lr=localStorage.getItem('nuciState'); if(_lr) _ls=JSON.parse(_lr); }catch(e){}
+      if(_ls && typeof _ls.savedAt==='number'
+         && (!_ls.userEmail || String(_ls.userEmail).toLowerCase()===email.toLowerCase())){ _lsAt=_ls.savedAt; }
+      var _bestAt=Math.max(_memAt,_lsAt);
+      if(_srvAt && _bestAt > _srvAt + 2000){
+        _localNewer=true;
+        if(_lsAt>_memAt){ restoreState(_ls); }   // adopt the newer on-device snapshot
+      }
+    }catch(e){}
+    if(_localNewer){
+      console.warn('loadStateForUser: local snapshot is newer than the server copy - keeping local and uploading it');
+      persistState();
+    } else if(data.data){ restoreState(data.data); }
+    if(_localNewer){ state.purchased = state.purchased || (data.purchased===true); }
+    else { state.purchased=(data.purchased===true); }
     // The Stripe webhook writes plan_credits / transactions server-side, so they are the
     // trustworthy record of what was actually paid for. The COLUMN is the source of truth: the
     // webhook increments it on every purchase. We take it whenever it's present and at least as
@@ -3616,10 +3649,13 @@ async function runPaidReturn(){
     var _savedPendingBlank = state.__pendingBlankPet;
     var sess=null;
     if(supa){
-      for(var i=0;i<6 && !sess;i++){
+      // Up to ~4s: on mobile the token refresh after the Stripe round-trip regularly takes
+      // longer than the old 1.2s budget, and a missing session here is what made the
+      // post-generation save fail silently.
+      for(var i=0;i<10 && !sess;i++){
         try{ var r=await supa.auth.getSession(); sess=r&&r.data&&r.data.session; }catch(e){}
         if(sess) break;
-        await new Promise(function(res){ setTimeout(res,200); });
+        await new Promise(function(res){ setTimeout(res,400); });
       }
       if(sess && sess.user && sess.user.email) state.userEmail=sess.user.email;
       if(state.userEmail){ try{ await loadStateForUser(state.userEmail); }catch(e){} }
@@ -3658,6 +3694,9 @@ async function runPaidReturn(){
         }catch(e){}
       }
     }
+    // Final save attempt: by now (generation + webhook poll = 10-20s) the session has almost
+    // always recovered, so this turns an earlier silent RLS failure into a successful upload.
+    try{ await persistStateNow(); }catch(e){}
     log('DONE');
   }catch(e){
     log('FATAL: '+(e&&e.message));
@@ -6654,12 +6693,77 @@ function ratePlan(n){
   try{ nuciTrack('rating', n); }catch(e){}
   for(var i=1;i<=5;i++){ var el=document.getElementById('rateS'+i); if(el){ el.style.color=(i<=n)?'#D6A84E':'rgba(214,168,78,.25)'; el.style.transform=(i<=n)?'scale(1.15)':''; el.style.transition='all .2s'; el.disabled=true; } }
   try{ haptic(10); }catch(e){}
-  setTimeout(function(){ var r=document.getElementById('rateRow'); if(r){ r.innerHTML='<div style="font-size:.85rem;color:var(--sage);margin-bottom:14px">Thank you! \u2764\uFE0E</div>'; } },650);
+  setTimeout(function(){ var r=document.getElementById('rateRow'); if(r){
+    r.innerHTML='<div style="font-size:.85rem;color:var(--sage);margin-bottom:10px">Thank you! \u2764\uFE0E</div>'
+      +'<button class="btn btn-primary" style="margin:0 0 4px" onclick="claimRatingBonus()">Add my 3 bonus days</button>';
+  } },650);
+}
+// The rating thank-you: 3 extra AI-written days appended to the just-finished plan (they
+// start tomorrow). Handles the multi-pet case where the active pointer already switched to
+// another running pet: we first switch back to the pet that was just completed.
+async function claimRatingBonus(){
+  if(state.__bonusClaimed){ closePlanEnd(); return; }
+  state.__bonusClaimed=true;
+  var who=state.__justCompletedPet||null;
+  try{
+    var curKey=((state.answers&&state.answers.petName||'')+'|'+(state.answers&&state.answers.petType||'')).toLowerCase();
+    var whoKey=who?((who.name+'|'+(who.type||'')).toLowerCase()):curKey;
+    if(whoKey!==curKey && Array.isArray(state.pets)){
+      try{ syncActivePet(); }catch(e){}
+      for(var i=0;i<state.pets.length;i++){
+        var a=(state.pets[i]&&state.pets[i].answers)||{};
+        if(((a.petName+'|'+(a.petType||'')).toLowerCase())===whoKey){ state.activePet=i; loadPet(state.pets[i]); break; }
+      }
+    }
+  }catch(e){}
+  // Un-archive the entry planEndWorked just created for this pet, so finishing the bonus
+  // days later archives it exactly once (no duplicate archive rows).
+  try{
+    var k2=((state.answers.petName||'')+'|'+(state.answers.petType||'')).toLowerCase();
+    for(var j=(state.archive||[]).length-1;j>=0;j--){
+      var ar=state.archive[j]; var aa=(ar&&ar.answers)||{petName:ar&&ar.petName,petType:ar&&ar.petType};
+      if((((aa.petName||'')+'|'+(aa.petType||'')).toLowerCase())===k2){ state.archive.splice(j,1); break; }
+    }
+  }catch(e){}
+  var el=document.getElementById('planEndScreen');
+  var oldLen=state.planLength||7, newLen=oldLen+3;
+  if(el){ el.innerHTML='<div class="pe-inner" style="text-align:center">'
+    +'<div style="width:70px;height:70px;margin:10px auto 18px" class="micbtn busy">'+icon('sparkle','30px',1.6)+'</div>'
+    +'<h2 style="font-size:1.4rem;letter-spacing:-0.03em;margin-bottom:8px">Building your bonus days\u2026</h2>'
+    +'<p style="font-size:0.9rem;color:var(--secondary)">Days '+(oldLen+1)+'\u2013'+newLen+', shaped around your week.</p></div>'; }
+  try{
+    const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({answers:state.answers, lang:appLang(), extend:true, fromDay:oldLen+1, days:3,
+        priorCheckins:(state.checkins||[]).slice(-7)})});
+    if(res.ok){
+      const plan=await res.json();
+      var nd=(plan&&plan.days)?plan.days:null;
+      if(nd&&nd.length){
+        state.aiPlan=state.aiPlan||{days:[]};
+        if(!Array.isArray(state.aiPlan.days)) state.aiPlan.days=[];
+        nd.slice(0,3).forEach(function(d,i){
+          var dayNum=oldLen+1+i;
+          state.aiPlan.days[dayNum-1]={day:dayNum,title:d.title,sub:d.sub,desc:d.desc,tasks:d.tasks};
+          if(!state.planOverrides) state.planOverrides={};
+          state.planOverrides[dayNum]={title:d.title,sub:d.sub,desc:d.desc,tasks:d.tasks};
+        });
+      }
+    }
+  }catch(e){ /* template days fill in if the AI call fails */ }
+  state.planLength=newLen;
+  state.planComplete=false;
+  try{ nuciTrack('bonus_days_claimed'); }catch(e){}
+  try{ syncActivePet(); }catch(e){}
+  persistStateNow();
+  closePlanEnd();
+  showTab('today');
+  toast('3 bonus days added \u2013 they start tomorrow');
 }
 function planEndWorked(){
   // They're happy -> archive the plan and tell them where to find it.
   try{ archiveCurrentPlan(); }catch(e){}
   state.planComplete=true;
+  state.__justCompletedPet={ name:state.answers.petName||'', type:state.answers.petType||'' };
   try{ syncActivePet(); }catch(e){}   // store the now-complete plan into pets[]
   try{ checkNewBadges(); }catch(e){}  // 'Plan complete' could never fire before - planComplete is set only here
   persistStateNow();
@@ -6673,6 +6777,7 @@ function planEndWorked(){
     +'<div style="width:110px;height:110px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage);margin:10px auto 22px">'+icon('check','52px',1.7)+'</div>'
     +'<h1 style="font-size:1.9rem;letter-spacing:-0.04em;line-height:1.16;margin:0 0 18px">Thank you for<br><span class="accent">trusting the plan.</span></h1>'
     +(state.__ratedThisPlan?'':'<div id="rateRow" style="margin:0 0 22px"><div style="font-size:.82rem;color:var(--secondary);margin-bottom:8px">How was the plan?</div>'
+    +'<div style="font-size:.72rem;color:var(--secondary);opacity:.85;margin:-2px 0 8px">As a thank-you for any rating \u2013 1\u2605 or 5\u2605 \u2013 you get 3 bonus days.</div>'
     +'<div style="display:flex;gap:10px;justify-content:center">'
     +[1,2,3,4,5].map(function(n){ return '<button onclick="ratePlan('+n+')" style="background:none;border:none;font-size:1.9rem;line-height:1;color:rgba(214,168,78,.35);cursor:pointer;padding:4px" id="rateS'+n+'">\u2605</button>'; }).join('')
     +'</div></div>')

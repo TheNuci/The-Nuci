@@ -19,19 +19,12 @@ exports.handler = async (event) => {
   if (CACHE && Date.now() - CACHE_AT < 10 * 60 * 1000) {
     return { statusCode: 200, headers: CORS, body: JSON.stringify(CACHE) };
   }
-  if (!SERVICE_KEY) return { statusCode: 200, headers: CORS, body: JSON.stringify({ users: null, ratingAvg: null, ratingCount: 0 }) };
+  if (!SERVICE_KEY) return { statusCode: 200, headers: CORS, body: JSON.stringify({ ratingAvg: null, ratingCount: 0 }) };
 
   const H = { 'apikey': SERVICE_KEY, 'Authorization': 'Bearer ' + SERVICE_KEY };
-  const out = { users: null, ratingAvg: null, ratingCount: 0 };
-
-  try {
-    // exact row count without pulling rows
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=email`, {
-      headers: Object.assign({ 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' }, H)
-    });
-    const cr = r.headers.get('content-range');           // e.g. "0-0/126"
-    if (cr && cr.includes('/')) out.users = parseInt(cr.split('/')[1], 10) || null;
-  } catch (e) {}
+  // Ratings only. The user count is no longer displayed anywhere, so it is not exposed
+  // publicly either - business metrics stay private.
+  const out = { ratingAvg: null, ratingCount: 0 };
 
   try {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/analytics_events?select=extra&event=eq.rating`, {
