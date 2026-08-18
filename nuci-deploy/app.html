@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-17 23:07";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-18 08:20";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1784,6 +1784,24 @@ function adaptiveFollowups(mi, t, name){
   return out;
 }
 
+// The "where does it happen?" options are the pet's default (mostly indoor) places, but if the
+// owner said the pet lives outdoors or comes and goes, add outdoor locations too - otherwise an
+// outdoor cat is only offered indoor rooms, which doesn't fit.
+function placesFor(cfg, environment){
+  var base=(cfg && Array.isArray(cfg.places)) ? cfg.places.slice() : [];
+  var env=(environment||'').toLowerCase();
+  var outdoorish = env.indexOf('outdoor')>-1 || env.indexOf('outside')>-1 || env.indexOf('yard')>-1 || env.indexOf('+')>-1 || env.indexOf('comes and goes')>-1;
+  if(outdoorish){
+    ['In the garden / yard','Outside the home','In the wider neighbourhood'].forEach(function(p){
+      if(base.indexOf(p)===-1){
+        // insert before a trailing "Everywhere"/"Only when alone" so those stay last
+        var tailIdx=base.findIndex(function(x){ return /everywhere|only when alone/i.test(x); });
+        if(tailIdx>-1) base.splice(tailIdx,0,p); else base.push(p);
+      }
+    });
+  }
+  return base;
+}
 function getQuestions(){
   const name=state.answers.petName||'your pet';
   const t=state.answers.petType;
@@ -1806,7 +1824,7 @@ function getQuestions(){
     {id:'mainIssue',title:'What is the <span class=\"accent\">main issue</span><br>you are noticing?',type:'textarea',placeholder:cfg.issueEg},
     {id:'duration',title:'How long has this<br><span class=\"accent\">been happening?</span>',type:'pills',options:['Just started','A few days','1-2 weeks','1-3 months','Over 3 months'],subs:{'Just started':'Within the last day or two'}},
     {id:'frequency',title:'How often<br>does it <span class=\"accent\">happen?</span>',type:'pills',options:['Multiple times daily','Once a day','A few times a week','Once a week','Occasionally']},
-    {id:'location',title:'Where does it<br><span class=\"accent\">usually happen?</span>',type:'multi',options:cfg.places}
+    {id:'location',title:'Where does it<br><span class=\"accent\">usually happen?</span>',type:'multi',options:placesFor(cfg, state.answers.environment)}
   );
   // ── Adaptive follow-ups ──
   // Read the free-text issue and add targeted questions so the assessment feels like it
@@ -3357,7 +3375,13 @@ async function runPaidReturn(){
     if(ps.userEmail && !state.userEmail) state.userEmail=ps.userEmail;
     log('1. return: email='+(state.userEmail||'?')+' parkedPets='+((ps.pets||[]).length)+' addPet='+(ps.addPetPending?(ps.addPetPending.forExistingPet?'existing':'new'):'none'));
 
-    // 3. wait for session (usually instant), then load profile from server
+    // 3. wait for session (usually instant), then load profile from server.
+    // CRUCIAL: loadStateForUser -> restoreState -> loadPet OVERWRITES the top-level scratch fields
+    // (answers/aiPlan) and can drop the add-pet context. Save the new-pet scratch BEFORE loading
+    // the profile, and restore it AFTER, so the pet we're paying to add survives the profile load.
+    var _savedAddPet = state.__addPetPending || (ps.addPetPending||null);
+    var _savedAnswers = (state.answers && state.answers.petName) ? JSON.parse(JSON.stringify(state.answers)) : (ps.answers||null);
+    var _savedPendingBlank = state.__pendingBlankPet;
     var sess=null;
     if(supa){
       for(var i=0;i<6 && !sess;i++){
@@ -3368,7 +3392,10 @@ async function runPaidReturn(){
       if(sess && sess.user && sess.user.email) state.userEmail=sess.user.email;
       if(state.userEmail){ try{ await loadStateForUser(state.userEmail); }catch(e){} }
     }
-    log('2. profile: session='+(sess?'yes':'no')+' loadedPets='+((state.pets||[]).length)+' credits='+(state.planCredits||0));
+    // restore the add-pet scratch that the profile load may have clobbered
+    if(_savedAddPet){ state.__addPetPending = _savedAddPet; }
+    if(_savedAddPet && _savedAnswers){ state.answers = _savedAnswers; state.__pendingBlankPet = (_savedPendingBlank!==undefined? _savedPendingBlank : true); }
+    log('2. profile: session='+(sess?'yes':'no')+' loadedPets='+((state.pets||[]).length)+' credits='+(state.planCredits||0)+' addPet='+(state.__addPetPending?(state.answers&&state.answers.petName):'none'));
 
     // 4. commit the plan (generation happens inside) and WAIT for it. handlePaidReturn owns ALL
     // pet restore/commit logic - runPaidReturn must NOT touch state.pets itself, or the two race
@@ -3378,7 +3405,11 @@ async function runPaidReturn(){
     try{ dedupePets(); }catch(e){}
     log('3. committed: pets='+JSON.stringify((state.pets||[]).map(function(p){return (p.answers&&p.answers.petName)+(p.planComplete?'(done)':'(active)');}))+' hasPlan='+hasActivePlan());
 
-    // 5. poll DB for the webhook's credit/transaction write (arrives a few seconds later)
+    // 5. poll DB for the webhook's credit/transaction write (arrives a few seconds later).
+    // The webhook is the source of truth. The app may have already added this purchase locally,
+    // so the DB value can EQUAL the local one - we must still adopt it (>=), otherwise a real
+    // purchase looks unregistered. Same for the transaction list: take the server's whenever it's
+    // at least as long, so the Billing screen shows every webhook-recorded purchase.
     if(supa && state.userEmail){
       for(var c=0;c<8;c++){
         await new Promise(function(res){ setTimeout(res,1500); });
@@ -3386,9 +3417,11 @@ async function runPaidReturn(){
           var q=await supa.from('profiles').select('plan_credits,transactions').eq('email',state.userEmail.toLowerCase()).maybeSingle();
           if(q && q.data){
             var changed=false;
-            if(typeof q.data.plan_credits==='number' && q.data.plan_credits>(state.planCredits||0)){ state.planCredits=q.data.plan_credits; state.purchased=true; changed=true; }
-            if(Array.isArray(q.data.transactions) && q.data.transactions.length>((state.transactions||[]).length)){ state.transactions=q.data.transactions; changed=true; }
+            if(typeof q.data.plan_credits==='number' && q.data.plan_credits>=(state.planCredits||0) && q.data.plan_credits!==(state.planCredits)){ state.planCredits=q.data.plan_credits; state.purchased=true; changed=true; }
+            if(Array.isArray(q.data.transactions) && q.data.transactions.length>=((state.transactions||[]).length) && JSON.stringify(q.data.transactions)!==JSON.stringify(state.transactions)){ state.transactions=q.data.transactions; changed=true; }
             if(changed){ try{ if(curTab==='profile') showTab('profile'); if(curTab==='today') renderToday(); }catch(e){} persistStateNow(); log('4. billing synced: credits='+state.planCredits+' tx='+(state.transactions||[]).length); break; }
+            // Even if nothing changed, once the DB shows the purchase recorded we can stop early.
+            if(Array.isArray(q.data.transactions) && q.data.transactions.length>=((state.transactions||[]).length) && q.data.plan_credits>=(state.planCredits||0)){ log('4. billing already in sync: credits='+state.planCredits+' tx='+(state.transactions||[]).length); break; }
           }
         }catch(e){}
       }
@@ -3467,6 +3500,7 @@ async function handlePaidReturn(demo){
     state.paid=true; state.purchased=true;
     return new Promise(function(resolve){
       runGenerating(function(){
+        try{ showDebugBanner('COMMIT: answers.petName='+(state.answers&&state.answers.petName)+' pendingBlank='+state.__pendingBlankPet+' planDays='+(state.aiPlan&&state.aiPlan.days?state.aiPlan.days.length:0)+'\npetsBefore='+JSON.stringify((state.pets||[]).map(function(p){return p.answers&&p.answers.petName;}))); }catch(e){}
         commitScratchPet();
         if(_forExisting){ state.__planForExistingPet=_forExisting; try{ mergePlanIntoExistingPet(); }catch(e){} }
         try{ localStorage.removeItem('pendingState'); }catch(e){}
