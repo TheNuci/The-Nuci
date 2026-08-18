@@ -20,6 +20,13 @@
   to = "/app.html"
   status = 200
 
+# Admin dashboard - clean /admin path. The page itself is public but shows nothing
+# without the THE_NUCI_DEBUG_KEY; all data comes from the key-protected admin-stats function.
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
 # Password reset page - works on phone AND desktop (people often reset on a computer).
 # Served from the clean /reset path; the recovery token arrives in the URL hash.
 [[redirects]]

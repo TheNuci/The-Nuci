@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>The Nuci · Admin</title>
+<style>
+:root{--bg:#F2F1EC;--card:#FBFAF7;--text:#1A211C;--secondary:#5C6660;--forest:#3E5A47;--sage:#6B8F71;--border:rgba(26,33,28,.09);--amber:#D6A84E;--danger:#B4553F;--blue:#5C87A8}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;min-height:100vh;padding:calc(env(safe-area-inset-top) + 18px) 14px 60px}
+.wrap{max-width:880px;margin:0 auto}
+h1{font-size:1.5rem;letter-spacing:-.03em;font-weight:500}
+.eb{font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--sage);margin-bottom:6px}
+.sub{font-size:.8rem;color:var(--secondary);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px}
+.big{font-size:1.7rem;font-weight:500;letter-spacing:-.02em}
+.lbl{font-size:.72rem;color:var(--secondary);margin-top:2px;line-height:1.35}
+.sec{margin-top:26px}
+.sec h2{font-size:1.02rem;font-weight:500;letter-spacing:-.01em;margin-bottom:10px}
+.frow{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.fname{width:132px;font-size:.76rem;color:var(--secondary);text-align:right;flex-shrink:0}
+.fbarw{flex:1;background:rgba(26,33,28,.05);border-radius:8px;height:26px;position:relative;overflow:hidden}
+.fbar{height:100%;background:var(--sage);border-radius:8px;min-width:2px;transition:width .5s ease}
+.fnum{position:absolute;right:8px;top:0;line-height:26px;font-size:.74rem;color:var(--text)}
+.fdrop{width:64px;font-size:.7rem;color:var(--danger);flex-shrink:0}
+.spark{display:flex;align-items:flex-end;gap:3px;height:64px;margin-top:6px}
+.spark i{flex:1;background:var(--sage);border-radius:4px 4px 0 0;min-height:2px;opacity:.85}
+.spark i.mut{background:var(--blue)}
+.sparklbl{display:flex;justify-content:space-between;font-size:.66rem;color:var(--secondary);margin-top:5px}
+.pill{display:inline-block;font-size:.68rem;background:rgba(107,143,113,.14);color:var(--forest);padding:3px 10px;border-radius:99px;margin-left:8px}
+.err{font-size:.76rem;line-height:1.5;padding:9px 0;border-bottom:1px solid var(--border)}
+.err b{color:var(--danger);font-weight:500}
+.err span{color:var(--secondary)}
+button{font-family:inherit;cursor:pointer}
+.btn{background:var(--forest);color:#F2F1E9;border:none;border-radius:14px;padding:13px 22px;font-size:.92rem;width:100%}
+.ghost{background:none;border:none;color:var(--secondary);font-size:.78rem;padding:10px;text-decoration:underline}
+input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;font-size:1rem;font-family:inherit;color:var(--text)}
+input:focus{outline:none;border-color:var(--sage)}
+#gate{max-width:360px;margin:16vh auto 0;text-align:center}
+#dash{display:none}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.muted{color:var(--secondary);font-size:.74rem}
+@media(max-width:520px){.fname{width:96px;font-size:.68rem}.fdrop{width:52px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="gate">
+    <div class="eb">The Nuci</div>
+    <h1>Admin dashboard</h1>
+    <p class="sub" style="margin-bottom:18px">Enter the admin key (THE_NUCI_DEBUG_KEY).</p>
+    <input type="password" id="keyInput" placeholder="Admin key" autocomplete="off">
+    <div id="gateErr" style="color:var(--danger);font-size:.8rem;min-height:20px;margin:8px 0 2px"></div>
+    <button class="btn" onclick="unlock()">Open dashboard</button>
+  </div>
+
+  <div id="dash">
+    <div class="topbar">
+      <div>
+        <div class="eb">The Nuci</div>
+        <h1>Admin dashboard</h1>
+        <div class="sub" id="genAt"></div>
+      </div>
+      <div style="text-align:right">
+        <button class="ghost" onclick="load()">Refresh</button>
+        <button class="ghost" onclick="lock()">Lock</button>
+      </div>
+    </div>
+
+    <div class="grid" id="cards"></div>
+
+    <div class="sec card">
+      <h2>Funnel <span class="pill" id="funnelRange">last 7 days</span>
+        <button class="ghost" style="padding:2px 6px" onclick="toggleRange()">switch 7/30</button></h2>
+      <div class="muted" style="margin-bottom:10px">Unique sessions per step. Red = drop-off from the previous step — this is where people get stuck.</div>
+      <div id="funnel"></div>
+    </div>
+
+    <div class="sec card">
+      <h2>Where are active plans right now?</h2>
+      <div class="muted" style="margin-bottom:8px">How many users are on each plan day. A pile-up on one day = people stall there.</div>
+      <div class="spark" id="dayDist"></div>
+      <div class="sparklbl" id="dayDistLbl"></div>
+    </div>
+
+    <div class="sec card">
+      <h2>Last 14 days</h2>
+      <div class="muted">App opens per day (green) and check-ins per day (blue)</div>
+      <div class="spark" id="opensSpark"></div>
+      <div class="sparklbl" id="opensLbl"></div>
+      <div class="spark" id="ciSpark" style="margin-top:14px"></div>
+      <div class="sparklbl" id="ciLbl"></div>
+    </div>
+
+    <div class="sec card">
+      <h2>Signups per day <span class="pill" id="signupTotals"></span></h2>
+      <div class="spark" id="signupSpark"></div>
+      <div class="sparklbl" id="signupLbl"></div>
+    </div>
+
+    <div class="sec card">
+      <h2>Client errors <span class="pill" id="errCount"></span></h2>
+      <div id="errList" class="muted">No errors in the last 7 days 🎉</div>
+    </div>
+  </div>
+</div>
+
+<script>
+var KEY=null;
+function unlock(){
+  var v=document.getElementById('keyInput').value.trim();
+  if(!v){ document.getElementById('gateErr').textContent='Enter the key.'; return; }
+  KEY=v; try{ sessionStorage.setItem('nuci_admin_key', v); }catch(e){}
+  load();
+}
+function lock(){ KEY=null; try{ sessionStorage.removeItem('nuci_admin_key'); }catch(e){} location.reload(); }
+var RANGE=7, DATA=null;
+function toggleRange(){ RANGE=(RANGE===7?30:7); document.getElementById('funnelRange').textContent='last '+RANGE+' days'; if(DATA) renderFunnel(DATA); }
+
+async function load(){
+  var gErr=document.getElementById('gateErr'); if(gErr) gErr.textContent='';
+  try{
+    var r=await fetch('/.netlify/functions/admin-stats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY})});
+    if(r.status===403){ if(gErr) gErr.textContent='Wrong key.'; lockUIOnly(); return; }
+    if(!r.ok){ if(gErr) gErr.textContent='Server error ('+r.status+'). Try again.'; return; }
+    DATA=await r.json();
+    document.getElementById('gate').style.display='none';
+    document.getElementById('dash').style.display='block';
+    render(DATA);
+  }catch(e){ if(gErr) gErr.textContent='Network error - are you online?'; }
+}
+function lockUIOnly(){ try{ sessionStorage.removeItem('nuci_admin_key'); }catch(e){} KEY=null; }
+
+function card(big,lbl,color){ return '<div class="card"><div class="big"'+(color?' style="color:'+color+'"':'')+'>'+big+'</div><div class="lbl">'+lbl+'</div></div>'; }
+function fmtDay(k){ return k? k.slice(8,10)+'.'+k.slice(5,7)+'.':''; }
+
+function render(d){
+  document.getElementById('genAt').textContent='Generated '+new Date(d.generatedAt).toLocaleString();
+  var conv=d.users.total? Math.round(d.users.purchased/d.users.total*100):0;
+  var c='';
+  c+=card(d.users.total,'Total users');
+  c+=card(d.users.purchased,'Purchased <b>('+conv+'%)</b>');
+  c+=card(d.plans.active,'Active plans','var(--forest)');
+  c+=card(d.plans.checkedInToday,'Checked in today');
+  c+=card(d.activity.activeSessionsToday,'Active sessions today');
+  c+=card(d.activity.activeSessions7,'Active sessions · 7d');
+  c+=card(d.plans.stalled,'Stalled plans <b>(no check-in 2+ days)</b>', d.plans.stalled?'var(--amber)':null);
+  c+=card(d.plans.frozen,'Frozen ❄️','var(--blue)');
+  c+=card(d.plans.completed,'Completed plans');
+  c+=card(d.users.newLast7+' / '+d.users.newLast30,'New users · 7d / 30d');
+  c+=card('€'+(d.revenue.total||0).toFixed(2),'Recorded revenue · '+d.revenue.transactions+' purchases');
+  c+=card(d.users.creditsOutstanding,'Unused plan credits');
+  c+=card(d.emails.remindersOn,'Reminder emails on');
+  c+=card(d.emails.marketingConsent,'Tips consent');
+  c+=card(d.emails.optedOut,'Opted out of marketing');
+  document.getElementById('cards').innerHTML=c;
+  renderFunnel(d);
+  bars('dayDist','dayDistLbl',(function(){ var o={},L=7; for(var i=1;i<=L;i++) o['Day '+i]=d.plans.dayDistribution[i]||0; return o; })(),false,true);
+  var days14=[]; for(var i=13;i>=0;i--){ var k=new Date(Date.now()-i*86400000).toISOString().slice(0,10); days14.push(k); }
+  bars('opensSpark','opensLbl',mapDays(days14,d.activity.appOpensByDay),false);
+  bars('ciSpark','ciLbl',mapDays(days14,d.activity.checkinsByDay),true);
+  bars('signupSpark','signupLbl',mapDays(days14,d.users.signupsByDay),false);
+  document.getElementById('signupTotals').textContent=(d.users.newLast7)+' this week';
+  document.getElementById('errCount').textContent=d.errors.last7+' in 7 days';
+  if(d.errors.recent && d.errors.recent.length){
+    document.getElementById('errList').innerHTML=d.errors.recent.map(function(e){
+      return '<div class="err"><b>'+esc(e.msg||'(no message)')+'</b><br><span>'+esc(e.where||'')+' · '+esc(e.build||'')+' · '+new Date(e.ts).toLocaleString()+'</span></div>';
+    }).join('');
+  }
+}
+function mapDays(keys,src){ var o={}; keys.forEach(function(k){ o[fmtDay(k)]=(src&&src[k])||0; }); return o; }
+function bars(id,lblId,obj,blue,showAll){
+  var ks=Object.keys(obj), max=1; ks.forEach(function(k){ if(obj[k]>max) max=obj[k]; });
+  document.getElementById(id).innerHTML=ks.map(function(k){
+    return '<i class="'+(blue?'mut':'')+'" style="height:'+Math.round(obj[k]/max*100)+'%" title="'+k+': '+obj[k]+'"></i>';
+  }).join('');
+  var lbl=document.getElementById(lblId);
+  if(showAll){ lbl.innerHTML=ks.map(function(k){ return '<span>'+k.replace('Day ','D')+'·'+obj[k]+'</span>'; }).join(''); }
+  else { lbl.innerHTML='<span>'+ks[0]+'</span><span>'+ks[Math.floor(ks.length/2)]+'</span><span>'+ks[ks.length-1]+'</span>'; }
+}
+var STEPS=[['landing_view','Landing seen'],['landing_cta','Get started click'],['app_open','App opened'],['assessment_start','Assessment started'],['assessment_done','Assessment finished'],['offer_view','Offer seen'],['checkout_click','Checkout click'],['paid_return','Paid'],['checkin_done','Did a check-in'],['plan_end','Finished plan']];
+function renderFunnel(d){
+  var src=(RANGE===7? d.funnelSessions7 : d.funnelSessions30)||{};
+  var max=1; STEPS.forEach(function(s){ if((src[s[0]]||0)>max) max=src[s[0]]||0; });
+  var prev=null,h='';
+  STEPS.forEach(function(s){
+    var v=src[s[0]]||0;
+    var drop=(prev!=null&&prev>0&&v<prev)? Math.round((1-v/prev)*100):null;
+    h+='<div class="frow"><div class="fname">'+s[1]+'</div>'
+      +'<div class="fbarw"><div class="fbar" style="width:'+Math.max(1,Math.round(v/max*100))+'%"></div><div class="fnum">'+v+'</div></div>'
+      +'<div class="fdrop">'+(drop!=null&&drop>0?('−'+drop+'%'):'')+'</div></div>';
+    prev=v;
+  });
+  document.getElementById('funnel').innerHTML=h;
+}
+function esc(s){ return String(s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+document.getElementById('keyInput').addEventListener('keydown',function(e){ if(e.key==='Enter') unlock(); });
+try{ var sk=sessionStorage.getItem('nuci_admin_key'); if(sk){ KEY=sk; load(); } }catch(e){}
+</script>
+</body>
+</html>
