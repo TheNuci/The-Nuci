@@ -156,6 +156,7 @@ function render(d){
   c+=card(d.emails.remindersOn,'Reminder emails on');
   c+=card(d.emails.marketingConsent,'Tips consent');
   c+=card(d.emails.optedOut,'Opted out of marketing');
+  if(d.ratings){ c+=card((d.ratings.avg!=null?('\u2605 '+d.ratings.avg):'\u2013'),'Plan rating \u00b7 '+(d.ratings.count||0)+' ratings'+((d.ratings.count||0)<20?' (stars show on landing at 20+)':''), d.ratings.avg>=4?'var(--forest)':null); }
   document.getElementById('cards').innerHTML=c;
   renderFunnel(d);
   bars('dayDist','dayDistLbl',(function(){ var o={},L=7; for(var i=1;i<=L;i++) o['Day '+i]=d.plans.dayDistribution[i]||0; return o; })(),false,true);

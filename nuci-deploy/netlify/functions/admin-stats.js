@@ -130,6 +130,20 @@ exports.handler = async (event) => {
     }
   } catch (e) { /* analytics table may not exist yet - dashboard shows zeros */ }
 
+  // ── plan ratings (all time): the real numbers behind the landing-page stars ──
+  stats.ratings = { avg: null, count: 0 };
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/analytics_events?select=extra&event=eq.rating`, {
+      headers: Object.assign({ 'Range-Unit': 'items', 'Range': '0-4999' }, H)
+    });
+    if (r.ok) {
+      const rows = await r.json();
+      const vals = rows.map(x => parseInt(x.extra, 10)).filter(n => n >= 1 && n <= 5);
+      stats.ratings.count = vals.length;
+      if (vals.length) stats.ratings.avg = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100;
+    }
+  } catch (e) {}
+
   // ── client errors: last 7 days count + 5 most recent ──
   try {
     const since = new Date(Date.now() - 7 * 86400000).toISOString();

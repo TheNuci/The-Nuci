@@ -149,6 +149,15 @@ section{position:relative}
 .tr-btn{margin-top:14px;background:rgba(107,143,113,.12);color:var(--forest);border:none;border-radius:10px;
   padding:7px 13px;font-size:.78rem;font-family:inherit;cursor:pointer;align-self:flex-start}
 .tr-tag{font-family:'Inter',sans-serif;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);margin:10px 0 4px}
+.star-row{display:none;align-items:center;gap:7px}
+.star-row.on{display:inline-flex}
+.sr-stars i{display:inline-block;font-style:normal;color:#D6A84E;font-size:1rem;line-height:1;opacity:0;transform:scale(.3) rotate(-14deg);animation:starPop .45s cubic-bezier(.34,1.56,.64,1) forwards}
+.sr-stars i:nth-child(1){animation-delay:.10s}.sr-stars i:nth-child(2){animation-delay:.22s}
+.sr-stars i:nth-child(3){animation-delay:.34s}.sr-stars i:nth-child(4){animation-delay:.46s}
+.sr-stars i:nth-child(5){animation-delay:.58s}
+@keyframes starPop{to{opacity:1;transform:scale(1) rotate(0)}}
+.sr-txt{font-size:.8rem;color:var(--secondary)}
+@media(prefers-reduced-motion:reduce){.sr-stars i{animation:none;opacity:1;transform:none}}
 .beta-pill{display:inline-block;background:rgba(107,143,113,.16);color:var(--forest);font-size:.68rem;letter-spacing:.14em;
   text-transform:uppercase;font-weight:600;padding:4px 10px;border-radius:99px;margin-right:9px}
 .rcard .who{margin-top:16px;font-size:.78rem;color:var(--secondary);display:flex;align-items:center;gap:9px}
@@ -331,7 +340,7 @@ footer .brand .g{color:var(--sage)}
   <div class="wrap" id="bandWrap">
     <div class="stat"><div class="n" data-count="7">0</div><div class="l">days, each one written around your pet and adjusted every evening.</div></div>
     <div class="rule"></div>
-    <div class="stat"><div class="n" data-count="126">0</div><div class="l">early users are testing The Nuci during our beta.</div></div>
+    <div class="stat"><div class="n" data-count="126" id="liveUsers">0</div><div class="l">early users are testing The Nuci during our beta.</div></div>
     <div class="rule"></div>
     <div class="stat" id="lastStat"><div class="n">&#8734;</div><div class="l">languages. Write or speak however feels natural.</div></div>
   </div>
@@ -339,7 +348,7 @@ footer .brand .g{color:var(--sage)}
     <div class="wrap">
       <div class="stat"><div class="n">7</div><div class="l">days, each one written around your pet and adjusted every evening.</div></div>
       <div class="rule"></div>
-      <div class="stat"><div class="n">126</div><div class="l">early users are testing The Nuci during our beta.</div></div>
+      <div class="stat"><div class="n" id="liveUsers2">126</div><div class="l">early users are testing The Nuci during our beta.</div></div>
       <div class="rule"></div>
       <div class="stat"><div class="n">&#8734;</div><div class="l">languages. Write or speak however feels natural.</div></div>
     </div>
@@ -384,7 +393,11 @@ footer .brand .g{color:var(--sage)}
     <div class="big reveal">Calmer homes,<br><span class="accent">one week in.</span></div>
     <div class="trust-line reveal">
       <span class="beta-pill">Beta</span>
-      <span>Feedback from <b>126</b> early users</span>
+      <span>Feedback from <b id="liveUsers3">126</b> early users</span>
+      <span class="star-row" id="starRow" aria-label="User rating">
+        <span class="sr-stars"><i>&#9733;</i><i>&#9733;</i><i>&#9733;</i><i>&#9733;</i><i>&#9733;</i></span>
+        <span class="sr-txt" id="srTxt"></span>
+      </span>
     </div>
   </div>
   <div class="tscroll" id="tscroll"></div>
@@ -460,6 +473,26 @@ footer .brand .g{color:var(--sage)}
 // phone. On a computer the app itself doesn't run (it's phone-shaped); instead we show the
 // QR code so the person can open it on their phone. Stripe's ?paid return always hands off
 // (it must complete regardless of device).
+// Live social proof: REAL numbers from the database (user count, and the average of real
+// in-app plan ratings). The star row only appears once at least 20 genuine ratings exist
+// with an average of 4.0+, so everything shown here is always true.
+(function liveStats(){
+  try{
+    fetch('/.netlify/functions/public-stats').then(function(r){ return r.json(); }).then(function(d){
+      if(d && typeof d.users==='number' && d.users>0){
+        var lu=document.getElementById('liveUsers');
+        if(lu){ lu.dataset.count=String(d.users); if(parseInt(lu.textContent,10)>0){ lu.textContent=String(d.users); } }
+        var l2=document.getElementById('liveUsers2'); if(l2) l2.textContent=String(d.users);
+        var l3=document.getElementById('liveUsers3'); if(l3) l3.textContent=String(d.users);
+      }
+      if(d && d.ratingCount>=20 && d.ratingAvg>=4.0){
+        var sr=document.getElementById('starRow'), st=document.getElementById('srTxt');
+        if(st) st.textContent=d.ratingAvg.toFixed(1)+' \u00b7 '+d.ratingCount+' ratings';
+        if(sr) sr.classList.add('on');
+      }
+    }).catch(function(){});
+  }catch(e){}
+})();
 // Anonymous first-party counts (no cookies, no personal data) - same collector as the app.
 function nuciTrack(ev){
   try{
