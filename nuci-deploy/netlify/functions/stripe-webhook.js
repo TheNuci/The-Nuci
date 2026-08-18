@@ -112,13 +112,24 @@ exports.handler = async (event) => {
     const PACKS = [
       { cents: 995,  id: 'single', credits: 1 },
       { cents: 1995, id: 'triple', credits: 3 },
-      { cents: 495,  id: 'single', credits: 1 },   // 50% off
-      { cents: 995,  id: 'triple', credits: 3 }    // 50% off (same price as full single)
+      { cents: 2995, id: 'five',   credits: 5 },   // 5-pack full price
+      { cents: 495,  id: 'single', credits: 1 },   // 50% off single
+      { cents: 995,  id: 'triple', credits: 3 },   // 50% off triple (same price as full single)
+      { cents: 1495, id: 'five',   credits: 5 }    // 50% off five
     ];
     // 995 is ambiguous (full single vs discounted triple). Prefer the single - the safer,
     // smaller grant - unless Stripe tells us otherwise via the link/product name.
+    // TODO: the clean fix is to stop matching by amount entirely - put a `credits` value in
+    // each Payment Link's metadata (Stripe Dashboard > Payment Link > Metadata) and read
+    // session.metadata.credits here. Then discounts and future prices can never mis-grant.
     let pack = null;
-    if (cents === 1995) pack = { id: 'triple', credits: 3 };
+    const metaCredits = session.metadata && parseInt(session.metadata.credits, 10);
+    if (metaCredits >= 1 && metaCredits <= 10) {
+      pack = { id: session.metadata.packageId || 'meta', credits: metaCredits };
+    }
+    else if (cents === 1995) pack = { id: 'triple', credits: 3 };
+    else if (cents === 2995) pack = { id: 'five', credits: 5 };
+    else if (cents === 1495) pack = { id: 'five', credits: 5 };
     else if (cents === 495) pack = { id: 'single', credits: 1 };
     else if (cents === 995) pack = { id: 'single', credits: 1 };
     else if (cents != null) {
@@ -159,11 +170,31 @@ exports.handler = async (event) => {
     };
     if (sessionId) patch.last_stripe_session = sessionId;
 
-    await sb(`profiles?email=eq.${encodeURIComponent(email)}`, {
-      method: 'PATCH',
-      headers: { 'Prefer': 'return=minimal' },
-      body: JSON.stringify(patch)
-    });
+    if (row) {
+      // Profile exists -> update it.
+      await sb(`profiles?email=eq.${encodeURIComponent(email)}`, {
+        method: 'PATCH',
+        headers: { 'Prefer': 'return=minimal' },
+        body: JSON.stringify(patch)
+      });
+    } else {
+      // No profile row for this email (buyer used a different email at Stripe checkout, or
+      // paid before the app ever wrote their row). A PATCH would match 0 rows, return 200,
+      // and the purchase would be recorded NOWHERE. Create the row instead, so the payment
+      // is always on record and the credit is granted the moment they sign in with this email.
+      const ins = Object.assign({ email: email.toLowerCase(), signup_at: new Date().toISOString() }, patch);
+      const insRes = await sb('profiles', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(ins)
+      });
+      if (!insRes.ok) {
+        const t = await insRes.text().catch(() => '');
+        console.error('webhook insert failed', insRes.status, t.slice(0, 200));
+        // Non-2xx makes Stripe retry the event, which is what we want here.
+        return { statusCode: 500, body: 'insert failed' };
+      }
+    }
 
     return { statusCode: 200, body: 'ok' };
   } catch (e) {

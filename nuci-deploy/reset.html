@@ -95,23 +95,40 @@ function show(id){ ['checking','invalid','form','done'].forEach(function(s){ doc
   catch(e){ show('invalid'); return; }
 
   // Supabase puts the recovery token in the URL hash (#access_token=...&type=recovery) or,
-  // for the newer PKCE flow, as ?code=... The client library parses it automatically; we
-  // just wait for it to establish a recovery session, then show the form.
+  // for the newer PKCE flow, as ?code=... The client library parses the hash automatically;
+  // a ?code= we exchange explicitly below. Then we wait for a recovery session and show the form.
   var settled=false;
   supa.auth.onAuthStateChange(function(evt, session){
     if(settled) return;
     if(evt==='PASSWORD_RECOVERY' || (session && session.user)){ settled=true; show('form'); }
   });
 
-  // Fallback: give the library a moment to process the URL, then check for a session.
-  setTimeout(async function(){
+  // If the link arrived as ?code=... (PKCE-style), try exchanging it explicitly - the
+  // implicit-flow client does not do this on its own. Harmless if it fails; the hash
+  // path and the polling fallback below still cover the other link formats.
+  try{
+    var _code=new URLSearchParams(window.location.search).get('code');
+    if(_code){ supa.auth.exchangeCodeForSession(_code).catch(function(){}); }
+  }catch(e){}
+
+  // Fallback: give the library time to process the URL, then check for a session.
+  // Checked repeatedly for up to ~5s: on a slow connection the token exchange can easily
+  // take more than a second, and the old single 1.4s check wrongly showed "invalid link"
+  // to people whose link was perfectly fine.
+  var tries=0;
+  (function poll(){
     if(settled) return;
-    try{
-      var r=await supa.auth.getSession();
-      if(r && r.data && r.data.session){ settled=true; show('form'); }
-      else { settled=true; show('invalid'); }
-    }catch(e){ settled=true; show('invalid'); }
-  }, 1400);
+    setTimeout(async function(){
+      if(settled) return;
+      tries++;
+      try{
+        var r=await supa.auth.getSession();
+        if(r && r.data && r.data.session){ settled=true; show('form'); return; }
+      }catch(e){}
+      if(tries>=6){ settled=true; show('invalid'); return; }
+      poll();
+    }, 800);
+  })();
 })();
 
 function togglePw(){

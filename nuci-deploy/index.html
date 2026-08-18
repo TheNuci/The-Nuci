@@ -462,6 +462,11 @@ footer .brand .g{color:var(--sage)}
 // (it must complete regardless of device).
 (function appHandoff(){
   var q=new URLSearchParams(location.search);
+  // Legacy unsubscribe links: emails sent before the fix pointed at /?unsubscribe=EMAIL,
+  // which this page never handled - the click silently did nothing (a GDPR problem).
+  // Forward those clicks to the working app.html handler so old emails unsubscribe too.
+  var legacyUnsub=q.get('unsubscribe');
+  if(legacyUnsub){ location.replace('app.html?unsub=all&e='+encodeURIComponent(legacyUnsub)); return; }
   var isPaid = q.get('paid')==='true'||q.get('paid')==='1';
   var wantsApp = q.get('login')==='1'||q.get('start')==='1'||q.get('checkin')==='1';
   function isDesktopEarly(){ try{ return window.matchMedia('(min-width:900px)').matches && !('ontouchstart' in window); }catch(e){ return false; } }

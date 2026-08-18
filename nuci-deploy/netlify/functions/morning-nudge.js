@@ -68,7 +68,7 @@ function localParts(tz) {
 }
 
 function emailHtml(petName, toEmail) {
-  const unsubUrl = toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
+  const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   const pet = petName || 'your pet';
   return nuciShell({
       preheader: "Today's small steps are waiting.",
@@ -78,11 +78,12 @@ function emailHtml(petName, toEmail) {
         + nuciPara(`<b style="color:${NUCI.ink};font-weight:600">1. Jot down what you notice.</b> Add quick notes through the day: when the behaviour happens, what triggered it, what helped. These notes shape how tomorrow's plan is built.`,14)
         + nuciPara(`<b style="color:${NUCI.ink};font-weight:600">2. Do today's tasks.</b> Small, concrete steps for ${nuciEsc(pet)}. A few minutes is all it takes.`,10)
         + nuciBtn("See today's plan","https://thenuci.com/"),
-      unsubUrl: toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/'
+      unsubUrl: toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/'
     });
 }
 
 async function sendEmail(apiKey, to, petName) {
+  const unsubUrl = `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(to)}`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -90,7 +91,8 @@ async function sendEmail(apiKey, to, petName) {
       from: FROM,
       to: [to],
       subject: `Don't forget today's notes & tasks for ${petName || 'your pet'} 🐾`,
-      html: emailHtml(petName, to)
+      html: emailHtml(petName, to),
+      headers: { 'List-Unsubscribe': `<${unsubUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
     })
   });
   if (!res.ok) {
@@ -158,8 +160,12 @@ export default async (req) => {
   }
 
   let sent = 0, skipped = 0, failed = 0;
+  // Time budget: stop cleanly before the 26s function limit kills us mid-send. Anyone left
+  // over is picked up by the next hourly run (per-day de-dupe makes re-runs safe).
+  const DEADLINE = Date.now() + 24000;
 
   for (const p of profiles) {
+    if (Date.now() > DEADLINE) { console.warn(`morning-nudge: time budget reached, ${profiles.length - sent - skipped - failed} profile(s) deferred to next run`); break; }
     const lp = localParts(p.timezone);
     if (!lp) { skipped++; continue; }
     if (lp.hour !== MORNING_HOUR) { skipped++; continue; }     // only the 09:00 hour

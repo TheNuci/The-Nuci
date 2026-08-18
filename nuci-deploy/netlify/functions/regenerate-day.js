@@ -14,6 +14,13 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
 
+  // Rate limit + size cap: this endpoint makes a real AI call and previously had neither,
+  // making it the cheapest way to burn Anthropic credit from a script.
+  const { rateLimit } = require('./_ratelimit');
+  const rl = rateLimit(event, { max: 12, windowMs: 60000 });
+  if (!rl.ok) return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: 'rate_limited' }) };
+  if ((event.body || '').length > 30000) return { statusCode: 413, headers: CORS, body: JSON.stringify({ error: 'too_large' }) };
+
   let b = {};
   try { b = JSON.parse(event.body || '{}'); } catch (e) { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Bad JSON' }) }; }
   const { answers = {}, checkins = [], notes = {}, nextDay = 2, planLength = 7, nextDayPlan = null, lang = 'en' } = b;

@@ -17,10 +17,16 @@ const MODEL = process.env.TRANSCRIBE_MODEL || 'gpt-4o-transcribe';
 // Keep clips small - this is short-form voice input, not podcast transcription.
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 
+const { rateLimit } = require('./_ratelimit');
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
+  // This is the most expensive endpoint per call (OpenAI audio) and previously the ONLY paid
+  // one with no rate limit at all - an easy way for someone to run up the bill.
+  const rl = rateLimit(event, { max: 10, windowMs: 60000 });
+  if (!rl.ok) return { statusCode: 429, body: JSON.stringify({ error: 'rate_limited' }) };
   if (!OPENAI_API_KEY) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Transcription is not configured' }) };
   }

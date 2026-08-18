@@ -87,14 +87,14 @@ const SCHEDULE = {
 // ── email shell ─────────────────────────────────────────────────────
 function wrapEmail(title, bodyHtml, footerNote, toEmail) {
   const unsub = toEmail
-    ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}`
+    ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}`
     : 'https://thenuci.com/';
   return nuciShell({
       preheader: 'A note from The Nuci.',
       eyebrow: 'Weekly',
       titleHtml: title,
       bodyHtml: `<div style="font-size:15px;line-height:1.6;color:${NUCI.sec};font-family:Arial,sans-serif">${bodyHtml}</div>` + nuciBtn("Open the app","https://thenuci.com/"),
-      unsubUrl: toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/'
+      unsubUrl: toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/'
     });
 }
 
@@ -108,7 +108,7 @@ async function aiText(apiKey, system, user, maxTokens) {
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
+      model: process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001',
       max_tokens: maxTokens || 400,
       system,
       messages: [{ role: 'user', content: user }]
@@ -206,10 +206,12 @@ function escapeHtml(s) {
 }
 
 async function sendEmail(apiKey, to, subject, html) {
+  const unsubUrl = `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(to)}`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: FROM, to: [to], subject, html })
+    body: JSON.stringify({ from: FROM, to: [to], subject, html,
+      headers: { 'List-Unsubscribe': `<${unsubUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } })
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
@@ -230,11 +232,13 @@ export default async (req) => {
   }
 
   // Pull profiles with a timezone, not opted out. We need `data` for species/check-ins.
+  // NOTE: no `purchased=eq.true` here anymore - that filter made the Tuesday "noplan" email
+  // (which by definition targets people who have NOT purchased) unreachable, so it never sent
+  // to anyone. Purchase requirements are now enforced per-theme inside the loop instead.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
     `?select=email,timezone,email_reminders,marketing_opt_out,last_weekly_sent,pet_name_pending,data,purchased` +
     `&timezone=not.is.null` +
-    `&marketing_opt_out=not.eq.true` +
-    `&purchased=eq.true`;
+    `&marketing_opt_out=not.eq.true`;
 
   let profiles;
   try {
@@ -253,8 +257,13 @@ export default async (req) => {
   }
 
   let sent = 0, skipped = 0, failed = 0;
+  // Time budget: each send can include an AI call (~2-4s), so stop well before the 26s
+  // limit. Users left over are logged; per-day de-dupe means a partial run never
+  // double-sends to anyone already handled.
+  const DEADLINE = Date.now() + 21000;
 
   for (const p of profiles) {
+    if (Date.now() > DEADLINE) { console.warn(`weekly-emails: time budget reached, ${profiles.length - sent - skipped - failed} profile(s) not processed this run`); break; }
     const lp = localParts(p.timezone);
     if (!lp) { skipped++; continue; }
     if (lp.hour !== SEND_HOUR) { skipped++; continue; }            // only 13:00 local
@@ -266,8 +275,15 @@ export default async (req) => {
     const data = p.data || {};
     const hasPlan = !!((Array.isArray(data.assessments) && data.assessments.length) ||
                        data.currentAssessmentId || (data.answers && data.answers.petName));
-    if (slot.planOnly && !hasPlan) { skipped++; continue; }        // plan-only theme, no plan
-    if (slot.noPlanOnly && hasPlan) { skipped++; continue; }       // no-plan nudge, but user HAS a plan
+    const bought = p.purchased === true;
+    // Tuesday "noplan" nudge goes ONLY to people without a purchase/plan; every other theme
+    // goes ONLY to buyers (this preserves the previous audience for Mon/Wed/Fri/Sun exactly).
+    if (slot.noPlanOnly) {
+      if (bought || hasPlan) { skipped++; continue; }
+    } else {
+      if (!bought) { skipped++; continue; }
+      if (slot.planOnly && !hasPlan) { skipped++; continue; }      // plan-only theme, no plan
+    }
 
     try {
       if (slot.theme === 'noplan') data.pet_name_pending = p.pet_name_pending;

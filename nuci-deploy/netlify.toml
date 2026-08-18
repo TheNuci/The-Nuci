@@ -20,11 +20,6 @@
   to = "/app.html"
   status = 200
 
-[[redirects]]
-  from = "/app.html"
-  to = "/app.html"
-  status = 200
-
 # Password reset page - works on phone AND desktop (people often reset on a computer).
 # Served from the clean /reset path; the recovery token arrives in the URL hash.
 [[redirects]]
@@ -65,23 +60,37 @@
 # ============ SCHEDULED EMAIL JOBS ============
 # Netlify runs these on a cron schedule (UTC). Each function decides internally
 # whether a given user is actually due an email, so frequent runs are safe.
+# Each table below appears exactly ONCE (TOML forbids duplicate tables) and carries both
+# the schedule and the timeout. timeout = 26 gives every cron the maximum synchronous
+# budget - the default 10s could kill a run mid-loop once there are more than a handful
+# of users (weekly-emails makes an AI call per user). Each function also has an internal
+# time-budget guard that stops cleanly and logs how many users were left over.
 
 # Daily check-in reminder - runs hourly so it can hit each user's local evening
 [functions."checkin-reminder"]
   schedule = "0 * * * *"
+  timeout = 26
 
 # Morning nudge - runs hourly, function matches the user's local morning
 [functions."morning-nudge"]
   schedule = "0 * * * *"
+  timeout = 26
 
-# Weekly summary - Mondays at 08:00 UTC
+# Weekly themed emails - MUST run hourly: the function itself matches each user's LOCAL
+# 13:00 and picks the weekday theme (Mon/Tue/Wed/Fri/Sun). The old "Mondays 08:00 UTC"
+# value here contradicted the in-file hourly schedule - if this value won, four of the
+# five weekly themes could never send to anyone.
 [functions."weekly-emails"]
-  schedule = "0 8 * * 1"
+  schedule = "0 * * * *"
+  timeout = 26
 
-# Abandoned cart - twice a day
+# Abandoned cart - every 5 minutes, matching the in-file `export const config` schedule:
+# the first nudge fires "15 minutes after signup", which needs a frequent cadence.
 [functions."abandoned-cart"]
-  schedule = "0 10,18 * * *"
+  schedule = "*/5 * * * *"
+  timeout = 26
 
 # Educational tips (consent only) - weekly run, function enforces a 14-day gap
 [functions."behaviour-tips"]
   schedule = "0 9 * * 3"
+  timeout = 26

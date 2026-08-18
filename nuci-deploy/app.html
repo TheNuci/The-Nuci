@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-18 09:11";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-18 fixes-v2";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1230,8 +1230,8 @@ function serializeState(){
     aiCauses:state.aiCauses||null, aiWhatNotToDo:state.aiWhatNotToDo||null,
     dayInsights:state.dayInsights||{}, dayNotes:state.dayNotes||{}, tasksDone:state.tasksDone||{},
     streak:state.streak||0, lastCheckinDate:state.lastCheckinDate||null,
-    petPhoto:state.petPhoto||null, userName:state.userName||null,
-    planCredits:state.planCredits||0, transactions:state.transactions||[],
+    petPhoto:state.petPhoto||null,
+    transactions:state.transactions||[],
     paid:state.paid||false, assessments:state.assessments||[], checkinHour:state.checkinHour||20,
     pets:state.pets||[], archive:state.archive||[], activePet:state.activePet||0,
     plansGenerated:state.plansGenerated||0,
@@ -2295,7 +2295,14 @@ function finishAssessment(){
     state.__addPetPending={ answers:JSON.parse(JSON.stringify(state.answers||{})), aiPlan:null, previewDay1:null,
       petPhoto:state.__carryPetPhoto||state.petPhoto||null,
       forExistingPet: state.__planForExistingPet||null };
-    state.__pendingBlankPet=false;
+    // CRITICAL: keep __pendingBlankPet TRUE here. The new pet's answers are still sitting in
+    // the top-level scratch fields while activePet points at the EXISTING pet. Clearing the
+    // flag now (as this used to do) meant the very next persistState() -> syncActivePet()
+    // wrote the half-built new pet OVER the existing pet's entry in pets[] - before payment
+    // even happened. The corrupted pets[] then got snapshotted into pendingState at checkout,
+    // so after Stripe the "restore" restored the corruption and dedupePets collapsed the two
+    // copies of the new pet, deleting the original pet entirely. The flag is cleared only by
+    // commitScratchPet() (after successful payment + generation) or cancelNewPet().
     buildOffer(); showScreen('screen-offer'); persistState(); return;
   }
   // New pet paid from an existing credit: skip offer + registration, go straight to plan.
@@ -3490,6 +3497,15 @@ async function handlePaidReturn(demo){
     var addCredits=(typeof _pp.planCredits==='number')?_pp.planCredits:0;
     if(addCredits>0){ state.planCredits=(state.planCredits||0)+addCredits; }
     state.paid=true; state.purchased=true;
+    // Record THIS purchase in the billing history. This branch never did, so buying a plan
+    // for an additional pet was invisible in Billing unless the Stripe webhook happened to
+    // write it server-side. The later webhook poll still adopts the server list whenever it
+    // is at least as complete, so nothing is double-counted.
+    if(!Array.isArray(state.transactions)) state.transactions=[];
+    state.transactions.push({date:new Date().toISOString(),
+      packageId:_pp.packageId||'single',
+      price:(_pp.pricePaid!=null)?_pp.pricePaid:9.95,
+      credits:addCredits||1});
     return new Promise(function(resolve){
       runGenerating(function(){
         commitScratchPet();
@@ -3524,6 +3540,11 @@ async function handlePaidReturn(demo){
       __planSig:p.__planSig||null});
   }
   state.paid=true; state.purchased=true;
+  // Safety net: if pendingState was missing (cleared storage, different device, private mode)
+  // we don't know which package was bought, but the user DID pay - grant at least 1 credit so
+  // spareCredits() can't go negative and block them. The webhook poll that follows corrects
+  // this to the exact purchased amount as soon as the server-side ledger is readable.
+  if(!p && (state.planCredits||0)<1){ state.planCredits=1; }
   // Count the very first plan of a fresh purchase as one credit used (the add-pet path above
   // already counts its own, so skip if it ran).
   if(!window.__addPetCounted){ state.plansGenerated=(state.plansGenerated||0)+1; }
@@ -3552,6 +3573,15 @@ async function handlePaidReturn(demo){
         }
       });
     }
+    // Second safety net: the add-pet context was lost AND this pet matches NO existing pet.
+    // Without this, the post-generation persist (syncActivePet) would write the new pet over
+    // pets[activePet] - the same overwrite bug through a different door. Mark it as a scratch
+    // pet and park activePet past the end, so it can only be APPENDED, never written over an
+    // existing entry. (A true first purchase has pets=[] and is unaffected.)
+    if(!_existingTarget && _an && Array.isArray(state.pets) && state.pets.length){
+      state.__pendingBlankPet=true;
+      state.activePet=state.pets.length;
+    }
   }catch(e){}
   return new Promise(function(resolve){
     runGenerating(()=>{
@@ -3568,6 +3598,9 @@ async function handlePaidReturn(demo){
           mergePlanIntoExistingPet();
         }catch(e){}
       }
+      // New pet (no existing match) whose add-pet context was lost across the redirect:
+      // commit it as its own appended entry now that generation succeeded.
+      else if(state.__pendingBlankPet){ try{ commitScratchPet(); }catch(e){} }
       enterApp(); toast(demo?'Plan unlocked':'Payment successful - your plan is ready'); persistStateNow(); window.__handlingPaidReturn=false; resolve();
     });
   });
@@ -6427,23 +6460,30 @@ async function adaptNextDay(nextDay){
   const wantCheckin=params.get('checkin')==='1';
   const wantDemo=params.get('demo')==='1';
   const wantResume=params.get('resume')==='1';
-  // One-click unsubscribe from the tips email (GDPR Art. 7(3) - as easy as opting in)
+  // One-click unsubscribe from any Nuci email (GDPR Art. 7(3) - as easy as opting in).
+  // kind 'tips' = only behaviour-tips consent; anything else ('all') = every email including
+  // plan reminders. The kind is forwarded so the server switches off exactly the right flags.
   const unsubKind=params.get('unsub');
-  if(unsubKind==='tips'){
+  if(unsubKind){
     var unsubEmail=params.get('e')||'';
     (async function(){
       try{
         if(unsubEmail){
           // Server-side (service role): the person clicking an email link isn't logged in,
           // so the browser can't update their row under ownership RLS.
-          await fetch('/.netlify/functions/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:unsubEmail.toLowerCase()})});
+          await fetch('/.netlify/functions/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:unsubEmail.toLowerCase(), kind:unsubKind})});
         }
       }catch(e){}
+      var isTips = unsubKind==='tips';
+      var headline = isTips ? 'You will not receive behaviour tips again.' : 'You will not receive emails from The Nuci again.';
+      var subline = isTips
+        ? 'Emails that are part of a plan you purchased are unaffected. You can turn tips back on any time in your profile.'
+        : 'This switches off reminders and all other emails. You can turn them back on any time in your profile.';
       document.body.innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px;background:#F2F1EC;font-family:Inter,-apple-system,sans-serif">'
         +'<div style="max-width:380px;text-align:center">'
         +'<div style="font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:#6B8F71;margin-bottom:10px">Unsubscribed</div>'
-        +'<h1 style="font-size:1.6rem;font-weight:400;letter-spacing:-.03em;color:#1A211C;margin-bottom:10px">You will not receive behaviour tips again.</h1>'
-        +'<p style="font-size:.92rem;color:#5C6660;line-height:1.6;margin-bottom:22px">Emails that are part of a plan you purchased are unaffected. You can turn tips back on any time in your profile.</p>'
+        +'<h1 style="font-size:1.6rem;font-weight:400;letter-spacing:-.03em;color:#1A211C;margin-bottom:10px">'+headline+'</h1>'
+        +'<p style="font-size:.92rem;color:#5C6660;line-height:1.6;margin-bottom:22px">'+subline+'</p>'
         +'<a href="/" style="display:inline-block;background:#3E5A47;color:#F2F1EC;text-decoration:none;padding:13px 26px;border-radius:14px;font-size:.95rem">Back to The Nuci</a>'
         +'</div></div>';
     })();

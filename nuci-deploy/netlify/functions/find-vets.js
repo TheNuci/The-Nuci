@@ -20,8 +20,11 @@ exports.handler = async (event) => {
 
   const KEY = process.env.GOOGLE_PLACES_API_KEY;
 
-  // Health check: GET ...find-vets?debug=1
+  // Health check: GET ...find-vets?debug=1&key=SECRET (gated behind THE_NUCI_DEBUG_KEY)
   if (event.httpMethod === 'GET' && /[?&]debug=1/.test(event.rawUrl || event.path || '')) {
+    const qp = event.queryStringParameters || {};
+    const DK = process.env.THE_NUCI_DEBUG_KEY;
+    if (!DK || qp.key !== DK) return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: 'not_found' }) };
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: !!KEY, keyPresent: !!KEY, note: KEY ? 'Key is set.' : 'GOOGLE_PLACES_API_KEY missing in Netlify env.' }) };
   }
 

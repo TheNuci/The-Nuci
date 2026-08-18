@@ -8,6 +8,11 @@ const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode:204, headers:CORS, body:'' };
   if (event.httpMethod !== 'POST') return { statusCode:405, headers:CORS, body:JSON.stringify({error:'Method not allowed'}) };
+  // Rate limit + size cap: real AI call per request, previously completely unprotected.
+  const { rateLimit } = require('./_ratelimit');
+  const rl = rateLimit(event, { max: 12, windowMs: 60000 });
+  if (!rl.ok) return { statusCode:429, headers:CORS, body:JSON.stringify({ error:'rate_limited' }) };
+  if ((event.body || '').length > 20000) return { statusCode:413, headers:CORS, body:JSON.stringify({ error:'too_large' }) };
   let b={}; try{ b=JSON.parse(event.body||'{}'); }catch(e){ return {statusCode:400,headers:CORS,body:JSON.stringify({error:'Bad JSON'})}; }
   const { question='', answers={}, plan='', lang='en' } = b;
   if (!question.trim()) return { statusCode:400, headers:CORS, body:JSON.stringify({error:'No question'}) };

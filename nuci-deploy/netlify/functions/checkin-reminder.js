@@ -69,7 +69,7 @@ function localParts(tz) {
 }
 
 function emailHtml(toEmail) {
-  const unsubUrl = toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
+  const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   return nuciShell({
       preheader: 'A quick check-in keeps the plan on track.',
       eyebrow: 'Evening check-in',
@@ -78,11 +78,12 @@ function emailHtml(toEmail) {
         + nuciPara("Tomorrow's steps adapt to your answer.",10)
         + nuciBtn("Check in for today","https://thenuci.com/?checkin=1")
         + nuciBox(`<div style="text-align:center"><div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${NUCI.sec};font-family:Arial,sans-serif">Your check-in window</div><div style="font-family:Georgia,serif;font-size:26px;color:${NUCI.forest};margin-top:4px">20:00 - 23:00</div></div>`),
-      unsubUrl: toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/'
+      unsubUrl: toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/'
     });
 }
 
 async function sendEmail(apiKey, to) {
+  const unsubUrl = `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(to)}`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -93,7 +94,8 @@ async function sendEmail(apiKey, to) {
       from: FROM,
       to: [to],
       subject: '🐾 Your daily check-in is waiting',
-      html: emailHtml(to)
+      html: emailHtml(to),
+      headers: { 'List-Unsubscribe': `<${unsubUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
     })
   });
   if (!res.ok) {
@@ -124,6 +126,20 @@ export default async (req) => {
     `&marketing_opt_out=not.eq.true` +
     `&purchased=eq.true`;
 
+  // Does this profile have an active (started, not completed) plan? Without this check,
+  // someone who finished their plan months ago would keep getting a 20:00 reminder forever.
+  function hasActivePlan(data) {
+    try {
+      const d = typeof data === 'string' ? JSON.parse(data) : data;
+      if (!d) return false;
+      const started = !!d.planStartDate || (Array.isArray(d.assessments) && d.assessments.length > 0) ||
+                      (d.planOverrides && Object.keys(d.planOverrides).length > 0);
+      return started && !d.planComplete;
+    } catch (e) {
+      return false;
+    }
+  }
+
   let profiles;
   try {
     const r = await fetch(url, {
@@ -145,11 +161,22 @@ export default async (req) => {
 
   let sent = 0, skipped = 0, failed = 0;
   const diag = [];
+  // Time budget: stop cleanly before the 26s function limit kills us mid-send. Anyone left
+  // over is picked up by the next hourly run (per-day de-dupe makes re-runs safe).
+  const DEADLINE = Date.now() + 24000;
   diag.push(`filter matched ${Array.isArray(profiles) ? profiles.length : 0} profile(s) (needs: timezone set, purchased=true, reminders on)`);
+  // Debug output lists user emails, so it must never be publicly reachable. It only works
+  // when THE_NUCI_DEBUG_KEY is set in Netlify env AND the caller passes the same value:
+  //   ...checkin-reminder?debug=1&key=YOURSECRET
   let wantDebug = false;
-  try{ wantDebug = new URL(req.url).searchParams.get('debug') === '1'; }catch(e){}
+  try{
+    const sp = new URL(req.url).searchParams;
+    const DK = process.env.THE_NUCI_DEBUG_KEY;
+    wantDebug = sp.get('debug') === '1' && !!DK && sp.get('key') === DK;
+  }catch(e){}
 
   for (const p of profiles) {
+    if (Date.now() > DEADLINE) { console.warn(`checkin-reminder: time budget reached, ${profiles.length - sent - skipped - failed} profile(s) deferred to next run`); break; }
     const lp = localParts(p.timezone);
     if (!lp) { skipped++; diag.push(`${p.email}: bad/no timezone (${p.timezone})`); continue; }
 
@@ -161,6 +188,9 @@ export default async (req) => {
 
     // Already reminded today? Don't double-send (cron runs hourly).
     if (p.last_reminder_sent === lp.date) { skipped++; diag.push(`${p.email}: already reminded today`); continue; }
+
+    // Reminders only make sense while a plan is actually running.
+    if (!hasActivePlan(p.data)) { skipped++; diag.push(`${p.email}: no active plan`); continue; }
 
     if (wantDebug) { diag.push(`${p.email}: WOULD SEND (local ${lp.hour}:xx, tz=${p.timezone})`); continue; }
 

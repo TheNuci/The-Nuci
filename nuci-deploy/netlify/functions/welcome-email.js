@@ -45,7 +45,7 @@ function nuciBox(inner){ return `<table role="presentation" width="100%" style="
 const FROM = 'The Nuci <hello@thenuci.com>';
 
 function welcomeHtml(name, toEmail) {
-  const unsubUrl = toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
+  const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   return nuciShell({
       preheader: 'Your 7-day plan is ready.',
       eyebrow: 'Welcome',
@@ -61,11 +61,13 @@ function welcomeHtml(name, toEmail) {
 export default async (req) => {
   const RESEND_API_KEY = process.env.THE_NUCI_RESEND_API_KEY;
 
-  // Health check: GET ...welcome-email?debug=1  (and optionally &to=you@email.com)
+  // Health check: GET ...welcome-email?debug=1&key=SECRET  (and optionally &to=you@email.com)
   // Tells you if the key is present and, with &to=, actually sends a test welcome email.
+  // Gated behind THE_NUCI_DEBUG_KEY so strangers can't use it to send emails to anyone.
   try {
     const url = new URL(req.url);
-    if (req.method === 'GET' && url.searchParams.get('debug') === '1') {
+    const DK = process.env.THE_NUCI_DEBUG_KEY;
+    if (req.method === 'GET' && url.searchParams.get('debug') === '1' && DK && url.searchParams.get('key') === DK) {
       if (!RESEND_API_KEY) {
         return new Response(JSON.stringify({ ok:false, reason:'THE_NUCI_RESEND_API_KEY missing in Netlify env' }), { status:200, headers:{'Content-Type':'application/json'} });
       }

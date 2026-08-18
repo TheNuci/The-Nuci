@@ -15,11 +15,17 @@ const CORS = {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
 
-  // ── HEALTH CHECK ──  GET ...generate-plan?debug=1
+  // ── HEALTH CHECK ──  GET ...generate-plan?debug=1&key=SECRET
   // Tells you, without spending a real plan, whether the AI path is actually working.
+  // Gated behind THE_NUCI_DEBUG_KEY: this check makes a REAL (max 5000 token) AI request,
+  // so leaving it publicly callable let anyone repeatedly spend Anthropic credit.
   var isDebug = false;
-  try { isDebug = /[?&]debug=1/.test(event.rawUrl || event.path || '') ||
-                 (event.queryStringParameters && event.queryStringParameters.debug === '1'); } catch(e){}
+  try {
+    var _qp = event.queryStringParameters || {};
+    var _dk = process.env.THE_NUCI_DEBUG_KEY;
+    var _wants = /[?&]debug=1/.test(event.rawUrl || event.path || '') || _qp.debug === '1';
+    isDebug = _wants && !!_dk && _qp.key === _dk;
+  } catch(e){}
   if (event.httpMethod === 'GET' && isDebug) {
     if (!ANTHROPIC_API_KEY) {
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ ai: 'DOWN', reason: 'ANTHROPIC_API_KEY is not set in Netlify environment variables', model: MODEL }) };

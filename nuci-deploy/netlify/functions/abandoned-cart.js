@@ -59,7 +59,7 @@ function escapeHtml(s) {
 
 function emailHtml(petName, toEmail, stage) {
   const pet = petName ? escapeHtml(petName) : 'your pet';
-  const unsubUrl = toEmail ? `https://thenuci.com/?unsubscribe=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
+  const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   const cta = `https://thenuci.com/app.html?resume=1`;
   const tick = (x) => `<div style="font-size:14px;color:${NUCI.ink};font-family:Arial,sans-serif;padding:5px 0"><span style="color:${NUCI.sage}">&#10003;</span>&nbsp;&nbsp;${x}</div>`;
 
@@ -124,10 +124,12 @@ async function sendEmail(apiKey, to, petName, stage) {
     3: petName ? `Still here whenever you are, for ${petName}` : `Still here whenever you are`
   };
   const subject = subjects[stage] || subjects[1];
+  const unsubUrl = `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(to)}`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: FROM, to: [to], subject, html: emailHtml(petName, to, stage || 1) })
+    body: JSON.stringify({ from: FROM, to: [to], subject, html: emailHtml(petName, to, stage || 1),
+      headers: { 'List-Unsubscribe': `<${unsubUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } })
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
@@ -146,11 +148,21 @@ export default async (req) => {
     return new Response('Missing configuration', { status: 500 });
   }
 
+  // The test-send and debug dumps below can email arbitrary addresses and list every user's
+  // email + signup data, so they must never be publicly reachable. They only work when
+  // THE_NUCI_DEBUG_KEY is set in Netlify env AND the caller passes the same value as &key=.
+  let debugKeyOk = false;
+  try{
+    const sp0 = new URL(req.url).searchParams;
+    const DK = process.env.THE_NUCI_DEBUG_KEY;
+    debugKeyOk = !!DK && sp0.get('key') === DK;
+  }catch(e){}
+
   // test=EMAIL : send one abandoned-cart email right now to that address,
   // bypassing all timing/DB filters. Proves the email pipeline works.
   let testEmail = null;
   try{ testEmail = new URL(req.url).searchParams.get('test'); }catch(e){}
-  if (testEmail) {
+  if (testEmail && debugKeyOk) {
     try{
       await sendEmail(RESEND_API_KEY, testEmail, 'your pet');
       return new Response('[test] Sent abandoned-cart email to ' + testEmail + '. Check inbox + spam.', { status: 200 });
@@ -164,7 +176,7 @@ export default async (req) => {
   let debugAll = false;
   try{
     const sp = new URL(req.url).searchParams;
-    debugAll = sp.get('debug') === '2' || sp.get('all') === '1';
+    debugAll = (sp.get('debug') === '2' || sp.get('all') === '1') && debugKeyOk;
   }catch(e){}
   if (debugAll) {
     try {
@@ -218,6 +230,9 @@ export default async (req) => {
   const THIRD_NUDGE_MIN  = 7200;   // 5 days
   let sent = 0, skipped = 0, failed = 0;
   const diag = [];
+  // Time budget: stop cleanly before the 26s limit; the every-5-minutes cadence and the
+  // per-user sent-flags mean anyone left over is picked up on the very next run.
+  const DEADLINE = Date.now() + 24000;
 
   async function markFlag(email, field){
     await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(email)}`, {
@@ -228,6 +243,7 @@ export default async (req) => {
   }
 
   for (const p of profiles) {
+    if (Date.now() > DEADLINE) { console.warn(`abandoned-cart: time budget reached, ${profiles.length - sent - skipped - failed} profile(s) deferred to next run`); break; }
     const t = Date.parse(p.signup_at);
     if (isNaN(t)) { skipped++; diag.push(`${p.email}: bad/empty signup_at (${p.signup_at})`); continue; }
     const ageMin = Math.round((now - t) / 60000);
@@ -271,13 +287,11 @@ export default async (req) => {
     else { skipped++; diag.push(`${p.email}: all three nudges already sent`); }
   }
 
-  const OLD_LOOP_DISABLED = false;
-
   const summary = `Cart nudge run: sent=${sent} skipped=${skipped} failed=${failed} total=${profiles.length}`;
   console.log(summary);
-  // When called manually with ?debug=1, return a detailed per-profile report.
+  // When called manually with ?debug=1&key=SECRET, return a detailed per-profile report.
   let wantDebug = false;
-  try{ wantDebug = new URL(req.url).searchParams.get('debug') === '1'; }catch(e){}
+  try{ wantDebug = new URL(req.url).searchParams.get('debug') === '1' && debugKeyOk; }catch(e){}
   if (wantDebug) {
     return new Response(
       summary + '\n\n' + (diag.length ? diag.join('\n') : 'No candidate profiles matched the query (signup_at not null, not purchased, not nudged, not opted out).'),
