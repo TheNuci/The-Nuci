@@ -460,6 +460,16 @@ footer .brand .g{color:var(--sage)}
 // phone. On a computer the app itself doesn't run (it's phone-shaped); instead we show the
 // QR code so the person can open it on their phone. Stripe's ?paid return always hands off
 // (it must complete regardless of device).
+// Anonymous first-party counts (no cookies, no personal data) - same collector as the app.
+function nuciTrack(ev){
+  try{
+    var sid=null;
+    try{ sid=sessionStorage.getItem('nuci_sid'); if(!sid){ sid=Math.random().toString(36).slice(2,12); sessionStorage.setItem('nuci_sid', sid); } }catch(e){}
+    var payload=JSON.stringify({ e:ev, p:location.pathname, r:(document.referrer||'').slice(0,200), s:sid, x:null });
+    if(navigator.sendBeacon){ navigator.sendBeacon('/.netlify/functions/track', payload); }
+    else { fetch('/.netlify/functions/track',{method:'POST',headers:{'Content-Type':'application/json'},body:payload,keepalive:true}).catch(function(){}); }
+  }catch(e){}
+}
 (function appHandoff(){
   var q=new URLSearchParams(location.search);
   // Legacy unsubscribe links: emails sent before the fix pointed at /?unsubscribe=EMAIL,
@@ -512,7 +522,8 @@ function openQR(dest, title){
   document.getElementById('qrModal').classList.add('open');
 }
 function closeQR(){ document.getElementById('qrModal').classList.remove('open'); }
-function goApp(){ if(isDesktop()){ openQR('start=1','Start on your phone'); return; } window.location.href='app.html?start=1'; }
+function goApp(){ try{ nuciTrack('landing_cta'); }catch(e){} if(isDesktop()){ openQR('start=1','Start on your phone'); return; } window.location.href='app.html?start=1'; }
+try{ nuciTrack('landing_view'); }catch(e){}
 function goLogin(){ if(isDesktop()){ openQR('login=1','Log in on your phone'); return; } window.location.href='app.html?login=1'; }
 // If a desktop visitor arrived from an app link (e.g. the "Check in" button in an email),
 // show the QR straight away so they can continue on their phone.

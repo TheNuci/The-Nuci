@@ -96,7 +96,7 @@ exports.handler = async (event) => {
     try {
       const petNm = answers.petName || 'your pet';
       const sys = `You are a warm, honest companion-animal behaviourist writing to a pet owner whose ${answers.petType || 'pet'} "${petNm}" has been through a full behaviour plan plus a 3-day extension, and the issue ("${issue || answers.mainIssue || 'the behaviour'}") still hasn't resolved.
-Write ONE short paragraph (55-80 words), second person, addressed to the owner. Acknowledge their effort and ${petNm} by name, express genuine care that it hasn't worked yet, and explain simply that some behaviours have medical or deeper roots that need an in-person professional (a vet or qualified behaviourist) who can build on what they've already tracked. Do NOT be clinical or cold, do NOT use bullet points, do NOT use an em dash. Return ONLY the paragraph text, no quotes, no preamble.`;
+Write ONE short paragraph (55-80 words), second person, addressed to the owner. Acknowledge their effort and ${petNm} by name, express genuine care that it hasn't worked yet, and explain simply that some behaviours have medical or deeper roots that need an in-person professional (a vet or qualified behaviourist) who can build on what they've already tracked. Do NOT be clinical or cold, do NOT use bullet points, do NOT use an em dash. Write the paragraph in the SAME language the owner used in their answers; if unclear, use "${lang}". Return ONLY the paragraph text, no quotes, no preamble.`;
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
@@ -130,7 +130,7 @@ Rules:
 - Each task is an OBJECT: "title" is a short imperative action (3-7 words), "detail" is one concrete sentence explaining HOW or WHY (12-24 words), specific to this pet and issue.
 - "title" is 1-3 words, "sub" a 2-4 word tag, "desc" one sentence.
 - "behaviorExplain": 1-2 sentences on what is likely going on. "causes": 2-4 likely causes.
-- Be specific to ${pet}. Language: ${lang}.
+- Be specific to ${pet}. Language: write in the SAME language the owner used in their answers (detect it from their free-text answers). If their language is unclear, use "${lang}".
 - Never use em-dashes or en-dashes (— or –). Use a hyphen (-), comma, or full stop.` : `You are an expert companion-animal behaviourist. Produce a practical, safe, 7-day behaviour plan.
 Return ONLY valid minified JSON (no markdown, no preamble) with EXACTLY these keys:
 {"behaviorExplain":string,"assessment":string,"seekProfessional":boolean,"professionalNote":string,"causes":string[],"whatNotToDo":string[],"days":[{"title":string,"sub":string,"desc":string,"tasks":[{"title":string,"detail":string}]}]}
@@ -140,7 +140,7 @@ Rules:
 - Titles are 1-3 words. "sub" is a 2-4 word tag. "desc" is one sentence.
 - If any warning sign suggests a medical issue (aggression/biting, not eating or drinking, lethargy, vomiting/diarrhea), set seekProfessional=true and explain briefly in professionalNote.
 - "causes": 2-3 likely causes. "whatNotToDo": 2-3 concise items. Keep behaviorExplain to 2 sentences.
-- Base everything on the owner's answers. Be specific to ${pet}. Language: ${lang}.
+- Base everything on the owner's answers. Be specific to ${pet}. Language: write in the SAME language the owner used in their answers (detect it from their free-text answers). If their language is unclear, use "${lang}".
 - Never use em-dashes or en-dashes (— or –) anywhere in your output. Use a normal hyphen (-), a comma, or a full stop instead.`;
 
   const user = `Owner's answers (JSON):\n${JSON.stringify(answers, null, 2)}`;

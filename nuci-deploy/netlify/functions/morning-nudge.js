@@ -107,6 +107,7 @@ function hasActivePlan(data) {
   try {
     const d = typeof data === 'string' ? JSON.parse(data) : data;
     if (!d) return false;
+    if (d.frozenSince) return false;   // plan frozen (holiday mode) - no emails until unfrozen
     // Active if there's a plan start date or assessments with progress, and not complete.
     const started = !!d.planStartDate || (Array.isArray(d.assessments) && d.assessments.length > 0) ||
                     (d.planOverrides && Object.keys(d.planOverrides).length > 0);

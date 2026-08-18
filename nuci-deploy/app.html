@@ -246,9 +246,23 @@ input.age-range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:
 input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--forest);border:3px solid #FBFBF8;cursor:pointer}
 .age-ylab{position:relative;height:16px;margin-top:8px}
 .age-ylab span{position:absolute;transform:translateX(-50%);font-size:0.72rem;color:var(--secondary)}
-.planend{position:fixed;inset:0;z-index:150;background:var(--bg);display:none;overflow-y:auto;opacity:0;transition:opacity .35s ease}
-.planend.open{display:block;opacity:1}
+.planend{position:fixed;inset:0;z-index:1600;background:var(--bg);overflow-y:auto;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,visibility 0s linear .3s}
+.planend.open{visibility:visible;pointer-events:auto;opacity:1;transition:opacity .3s ease}
 .planend .pe-inner{min-height:100%;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:calc(env(safe-area-inset-top) + 40px) 30px 40px}
+/* ── frozen plan (holiday mode) ── */
+.frz-wrap{position:relative;min-height:62vh;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:24px;
+  background:linear-gradient(170deg,#E7F2FA 0%,#F0F7FC 45%,#F5FAFD 100%);border:1px solid rgba(92,135,168,.18);margin-top:6px}
+.frz-card{position:relative;z-index:2;text-align:center;padding:34px 26px}
+.frz-ava{position:relative;width:112px;height:112px;border-radius:50%;overflow:hidden;margin:0 auto;border:3px solid rgba(255,255,255,.9);
+  box-shadow:0 14px 40px rgba(92,135,168,.28)}
+.frz-ice{position:absolute;inset:0;background:linear-gradient(160deg,rgba(197,228,248,.55),rgba(255,255,255,.15) 55%,rgba(176,214,240,.45));
+  backdrop-filter:blur(1.2px);border-radius:50%}
+.frz-ice::after{content:"";position:absolute;left:-20%;top:-30%;width:60%;height:160%;transform:rotate(24deg);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent)}
+.frz-flake{position:absolute;top:-24px;color:#9FC4DD;opacity:.8;z-index:1;pointer-events:none;animation:frzFall linear infinite}
+@keyframes frzFall{0%{transform:translateY(-30px) rotate(0deg)}100%{transform:translateY(72vh) rotate(200deg)}}
+.frz-btn{width:100%;max-width:260px;background:#5C87A8;box-shadow:0 12px 30px rgba(92,135,168,.35)}
+@media(prefers-reduced-motion:reduce){.frz-flake{animation:none;display:none}}
 /* warning modal (centered popup) */
 .warnmodal{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;padding:28px}
 .warnmodal.open{display:flex}
@@ -559,6 +573,11 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 .sheet{position:fixed;inset:0;z-index:1500;display:none;align-items:flex-end;justify-content:center}
 .sheet.open{display:flex}
 .sheet .dim{position:absolute;inset:0;background:rgba(26,33,28,0.35);backdrop-filter:blur(3px)}
+.sheet.open .dim{animation:dimIn .25s ease}
+@keyframes dimIn{from{opacity:0}}
+.sheet.closing .dim{opacity:0;transition:opacity .2s ease}
+.sheet.closing .panel{animation:sheetDown .22s ease forwards}
+@keyframes sheetDown{to{transform:translateY(48px);opacity:0}}
 .sheet .panel{position:relative;width:100%;max-width:520px;background:var(--card);border-radius:26px 26px 0 0;
   padding:22px 24px max(30px,env(safe-area-inset-bottom));max-height:82dvh;overflow-y:auto;animation:sheetUp .32s var(--ease)}
 @keyframes sheetUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
@@ -866,7 +885,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 </div>
 
 <div class="planend" id="planEndScreen"></div>
-<canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:200;display:none"></canvas>
+<canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:1700;display:none"></canvas>
 <div id="celebrateToast" style="position:fixed;left:50%;top:24%;transform:translateX(-50%) translateY(-8px);z-index:201;
   background:var(--forest);color:#F4F1E9;padding:14px 22px;border-radius:99px;font-size:0.95rem;box-shadow:0 14px 34px rgba(62,90,71,0.4);
   opacity:0;transition:opacity .3s ease,transform .3s cubic-bezier(.32,.9,.28,1);pointer-events:none"></div>
@@ -953,8 +972,35 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-18 fixes-v2";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-18 fixes-v4";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
+// ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
+// not just to the user. Capped per session; payload contains no personal data.
+var __errSent=0;
+function reportError(msg, src, line, col, stack){
+  try{
+    if(__errSent>=5) return; __errSent++;
+    var payload=JSON.stringify({ msg:String(msg||'').slice(0,500), src:String(src||'').slice(0,300),
+      line:line||0, col:col||0, stack:String(stack||'').slice(0,2000),
+      ua:navigator.userAgent.slice(0,300), build:BUILD_STAMP, path:location.pathname });
+    if(navigator.sendBeacon){ navigator.sendBeacon('/.netlify/functions/log-error', payload); }
+    else { fetch('/.netlify/functions/log-error',{method:'POST',headers:{'Content-Type':'application/json'},body:payload,keepalive:true}).catch(function(){}); }
+  }catch(e){}
+}
+window.addEventListener('error', function(ev){ try{ reportError(ev.message, ev.filename, ev.lineno, ev.colno, ev.error&&ev.error.stack); }catch(e){} });
+window.addEventListener('unhandledrejection', function(ev){ try{ var r=ev.reason||{}; reportError('unhandledrejection: '+(r.message||String(r)), '', 0, 0, r.stack); }catch(e){} });
+// ── Anonymous first-party analytics: event counts only, no cookies, no personal data,
+// no third-party scripts. Session id lives in sessionStorage (gone when the tab closes).
+function nuciTrack(ev, extra){
+  try{
+    var sid=null;
+    try{ sid=sessionStorage.getItem('nuci_sid'); if(!sid){ sid=Math.random().toString(36).slice(2,12); sessionStorage.setItem('nuci_sid', sid); } }catch(e){}
+    var payload=JSON.stringify({ e:String(ev||'').slice(0,40), p:location.pathname,
+      r:(document.referrer||'').slice(0,200), s:sid, x:extra!=null?String(extra).slice(0,80):null });
+    if(navigator.sendBeacon){ navigator.sendBeacon('/.netlify/functions/track', payload); }
+    else { fetch('/.netlify/functions/track',{method:'POST',headers:{'Content-Type':'application/json'},body:payload,keepalive:true}).catch(function(){}); }
+  }catch(e){}
+}
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
 
@@ -1206,6 +1252,7 @@ const state={
   aiCauses:null, aiWhatNotToDo:null, dayInsights:{}, dayNotes:{}, taskOverrides:{}, tasksDone:{},
   userEmail:null, userName:null, userPhoto:null, units:'metric', timeFmt:'24h', purchased:false, paid:false, planCredits:0, transactions:[],
   petPhoto:null, emailReminders:true, checkinHour:20, assessments:[],
+  frozenSince:null, freezeUsed:false,
   pets:[], archive:[], activePet:0, plansGenerated:0
 };
 function serializeState(){
@@ -1234,6 +1281,7 @@ function serializeState(){
     transactions:state.transactions||[],
     paid:state.paid||false, assessments:state.assessments||[], checkinHour:state.checkinHour||20,
     pets:state.pets||[], archive:state.archive||[], activePet:state.activePet||0,
+    frozenSince:state.frozenSince||null, freezeUsed:state.freezeUsed||false,
     plansGenerated:state.plansGenerated||0,
     __planSig:state.__planSig||null, __previewSig:state.__previewSig||null,
     _newDesign:true
@@ -1302,7 +1350,13 @@ async function persistStateNow(){
     // If they are giving consent now, clear any old opt-out flag (e.g. from a previous
     // delete-profile or unsubscribe) so a returning user actually receives emails again.
     if(state.marketingConsent){ _rec.marketing_opt_out=false; }
-    await supa.from('profiles').upsert(_rec,{onConflict:'email'});
+    var _pr=await supa.from('profiles').upsert(_rec,{onConflict:'email'});
+    // If the write failed AND there is no auth session, the user's login has expired: every
+    // save silently goes nowhere while they keep using the app. Tell them, once, and offer
+    // a quick re-login that pushes the LOCAL (newer) state up - never the other way round.
+    if(_pr && _pr.error){
+      if(!_uid){ showSyncWarn(); }
+    } else { hideSyncWarn(); }
   }catch(e){ console.warn('persist',e); }
 }
 async function loadStateForUser(email){
@@ -1374,6 +1428,9 @@ function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
 function showDebugBanner(text){ /* diagnostics disabled */ return; }
+// Language hint sent to the AI. The server now instructs the model to MATCH the language
+// of the owner's written answers; this hint is only the fallback when that's ambiguous.
+function appLang(){ try{ var l=(navigator.language||'en').slice(0,2).toLowerCase(); return /^[a-z]{2}$/.test(l)?l:'en'; }catch(e){ return 'en'; } }
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function yesterdayKey(){ const d=new Date(Date.now()-86400000); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 // ── Date-driven plan progression (all in the USER'S local time) ──
@@ -1390,6 +1447,72 @@ function computedDay(){
   var L=state.planLength||7;
   if(d>L) d=L;
   return d;
+}
+function addDaysKey(k,n){ var t=dateKeyToNum(k); if(t==null) return k; var d=new Date(t+n*86400000); return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); }
+function keyDaysAgo(n){ var d=new Date(Date.now()-n*86400000); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// ── PLAN FREEZE (holiday mode) ──
+// One freeze per plan. While frozen: days do not advance, no check-ins, reminder emails
+// pause (server checks frozenSince in the data blob), and only Today + Profile are
+// reachable. Unfreezing shifts planStartDate forward by the frozen days, so the plan
+// resumes on EXACTLY the day it was frozen on, and the streak is preserved.
+function planFrozen(){ return !!state.frozenSince && !!state.purchased && !state.planComplete && !state.maintenance; }
+function canFreeze(){ return state.purchased && !state.planComplete && !state.maintenance && !state.frozenSince && !state.freezeUsed && hasActivePlan(); }
+function openFreezeSheet(){
+  if(!canFreeze()){ toast(state.freezeUsed?'The freeze was already used for this plan':'Freeze is only available during an active plan'); return; }
+  var pet=state.answers.petName||'your pet';
+  openSheet('<div style="text-align:center;padding:4px 0 2px">'
+    +'<div style="width:58px;height:58px;border-radius:50%;background:linear-gradient(160deg,#DBEFFB,#EAF6FF);display:flex;align-items:center;justify-content:center;margin:2px auto 14px;font-size:26px">\u2744\uFE0F</div>'
+    +'<h2 style="font-size:1.35rem;letter-spacing:-.02em;margin:0 0 8px">Freeze '+esc(pet)+'\u2019s plan?</h2>'
+    +'<p style="font-size:.9rem;color:var(--secondary);line-height:1.55;max-width:32ch;margin:0 auto 16px">Going away? The plan pauses on today\u2019s day and your streak is kept safe. Unfreeze any time from the Today screen - the plan continues right where it stopped.</p>'
+    +'<p style="font-size:.78rem;color:var(--secondary);margin:0 0 16px">You can freeze <b>once</b> per plan.</p>'
+    +'<button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="doFreeze()">Freeze the plan \u2744\uFE0F</button>'
+    +'<button class="btn btn-ghost" style="width:100%" onclick="closeSheet()">Not now</button></div>');
+}
+function doFreeze(){
+  if(!canFreeze()) { closeSheet(); return; }
+  state.frozenSince=todayKey();
+  state.freezeUsed=true;
+  closeSheet(); haptic(16);
+  persistStateNow();
+  showTab('today');
+  toast('Plan frozen - enjoy the break \u2744\uFE0F');
+}
+function doUnfreeze(){
+  if(!state.frozenSince){ return; }
+  var frozenDays=Math.max(0, daysBetween(state.frozenSince, todayKey()));
+  if(frozenDays>0 && state.planStartDate){ state.planStartDate=addDaysKey(state.planStartDate, frozenDays); }
+  // Streak stays alive: if the last check-in was the evening before (or the day of) the
+  // freeze, pretend it was yesterday so tonight's check-in continues the streak.
+  if(state.lastCheckinDate){
+    var gap=daysBetween(state.lastCheckinDate, state.frozenSince);
+    if(gap>=0 && gap<=1){ state.lastCheckinDate=yesterdayKey(); }
+  }
+  state.frozenSince=null;
+  haptic(16);
+  persistStateNow();
+  try{ syncPlanDay(); }catch(e){}
+  renderToday();
+  toast('Welcome back - the plan continues');
+}
+// ── LATE CHECK-IN ──
+// Missed last night's 20:00-23:00 window? Until 12:00 the next day, yesterday's check-in
+// can still be logged (marked as late). Keeps the streak and the plan adaptation working
+// for people with real lives.
+function lateCheckinDay(){
+  if(!state.purchased || state.planComplete || state.maintenance || planFrozen()) return 0;
+  if(!state.planStartDate) return 0;
+  if(new Date().getHours()>=12) return 0;                 // mornings only
+  var today=computedDay();
+  var y=today-1;
+  if(y<1) return 0;
+  if((state.checkins||[]).some(function(c){ return c.day===y; })) return 0;   // yesterday done
+  if(state.lastCheckinDate===todayKey()) return 0;
+  return y;
+}
+function openLateCheckin(){
+  var d=lateCheckinDay(); if(!d){ toast('The late check-in window has closed'); renderToday(); return; }
+  window.__lateCI=d;
+  ciData={}; ciStep=0; renderCI(); $('ciOverlay').classList.add('open');
 }
 // The correct Day-1 date given the purchase time: same day if bought before 15:00 local,
 // otherwise the next day.
@@ -1428,6 +1551,7 @@ function missedCheckinDays(){
 // user skipped one or more days, remember that so we can show the gentle nudge once.
 function syncPlanDay(){
   if(!state.purchased || state.planComplete) return;
+  if(state.frozenSince) return;   // frozen: days do not advance, nothing auto-completes
   if(planNotStartedYet()){ return; }   // bought after 15:00 - starts tomorrow
   var target=computedDay();
   var prev=state.currentDay||1;
@@ -1552,8 +1676,28 @@ function toggleEye(inputId,el){
   i.type=(i.type==='password')?'text':'password';
   el.style.opacity=(i.type==='password')?'1':'0.45';
 }
-function openSheet(html){ var pn=$('sheetPanel'); pn.innerHTML='<div class="grab"></div>'+html; $('sheet').classList.add('open'); pn.scrollTop=0; requestAnimationFrame(function(){ pn.scrollTop=0; }); }
-function closeSheet(){ $('sheet').classList.remove('open'); }
+var __sheetCloseT=null;
+function openSheet(html){
+  var sh=$('sheet'), pn=$('sheetPanel');
+  // A close animation may be in flight (chained closeSheet();openX() calls) - cancel it and
+  // keep the sheet up, so the new content swaps IN PLACE instead of the sheet vanishing,
+  // the page flashing through, and a new sheet sliding up again.
+  clearTimeout(__sheetCloseT); __sheetCloseT=null;
+  var wasOpen = sh.classList.contains('open');
+  sh.classList.remove('closing');
+  pn.innerHTML='<div class="grab"></div>'+html;
+  if(!wasOpen){ sh.classList.add('open'); }   // fresh open -> slide-up animation plays
+  pn.scrollTop=0; requestAnimationFrame(function(){ pn.scrollTop=0; });
+}
+function closeSheet(){
+  var sh=$('sheet');
+  if(!sh.classList.contains('open')) return;
+  // Animate out (panel slides down, dim fades) and only then actually hide - the old
+  // instant display:none vanish is what made every closing window feel like a glitch.
+  sh.classList.add('closing');
+  clearTimeout(__sheetCloseT);
+  __sheetCloseT=setTimeout(function(){ sh.classList.remove('open'); sh.classList.remove('closing'); __sheetCloseT=null; },230);
+}
 // keyboard-aware CTA lift (visualViewport)
 function liftWithKeyboard(el){
   if(!window.visualViewport||!el) return;
@@ -1578,6 +1722,7 @@ function welcomeNew(){ introIdx=0; renderIntro(); showScreen('screen-intro'); }
 // Entry from "Get started": show the tap game first (once), then the carousel. If the game
 // shouldn't show (already played, discount already unlocked), go straight to the carousel.
 function startFlow(){
+  try{ nuciTrack('assessment_start'); }catch(e){}
   // The tap game must never be able to blank the whole app (it did on some Safari builds).
   // Each step is guarded so a failure in one part can't stop the app from rendering; if the
   // game can't show, we always fall through to the carousel.
@@ -2278,6 +2423,7 @@ function cancelNewPet(){
   enterApp(); showTab('profile');   // return to profile where they started
 }
 function finishAssessment(){
+  try{ nuciTrack('assessment_done'); }catch(e){}
   state.answers.initialDescription=state.answers.mainIssue||'';
   // Editing existing answers -> save and go straight back to the offer with updated answers.
   if(state.__editReturn==='offer'){
@@ -2531,6 +2677,7 @@ function chooseAddPetToAccount(){
     state.answers=np.answers; state.aiPlan=np.aiPlan; state.previewDay1=np.previewDay1;
     state.currentDay=1; state.viewDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
     state.lastCheckinDate=null; state.planComplete=false; state.planStartDate=null;
+    state.frozenSince=null; state.freezeUsed=false;
     state.__planSig=null; state.__previewSig=null;
     window.__pendingNewPet=null;
     state.planCredits=(state.planCredits||1)-1;
@@ -2576,6 +2723,7 @@ function startFreshState(){
   state.aiPlan=null; state.aiBehaviorExplain=null; state.aiCauses=null; state.aiWhatNotToDo=null;
   state.planOverrides={}; state.taskOverrides={}; state.dayInsights={}; state.dayNotes={}; state.tasksDone={};
   state.petPhoto=null; state.purchased=false; state.planCredits=0; state.paid=false;
+  state.frozenSince=null; state.freezeUsed=false;
   state.__planSig=null; state.__previewSig=null; state.previewDay1=null;
   state.pets=[]; state.archive=[]; state.activePet=0;
   state.userEmail=keepEmail; state.userName=keepName;
@@ -2598,6 +2746,39 @@ async function forgotPass(){
   catch(e){ centerNotice('Could not send', 'Something went wrong sending the reset email. Please try again in a moment.'); }
 }
 // A centered, dismissible notice (used where a bottom toast would be too easy to miss).
+// ── "your progress isn't syncing" banner (expired session) ──
+var __syncWarnOn=false;
+function showSyncWarn(){
+  if(__syncWarnOn || !state.purchased) return;
+  __syncWarnOn=true;
+  var d=document.createElement('div');
+  d.id='syncWarn';
+  d.style.cssText='position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:12px;right:12px;z-index:2500;background:#B4553F;color:#fff;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(26,33,28,.25);font-size:.86rem;line-height:1.4';
+  d.innerHTML='<span style="flex:1">Your session expired - progress is only saved on this phone. Log in again to sync it.</span>'
+    +'<button onclick="openReauth()" style="background:#fff;color:#B4553F;border:none;border-radius:10px;padding:8px 12px;font-family:inherit;font-size:.82rem;cursor:pointer;white-space:nowrap">Log in</button>';
+  document.body.appendChild(d);
+}
+function hideSyncWarn(){ __syncWarnOn=false; var d=document.getElementById('syncWarn'); if(d) d.remove(); }
+function openReauth(){
+  openSheet('<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin-bottom:6px">Log back in</h2>'
+    +'<p style="font-size:.88rem;color:var(--secondary);line-height:1.5;margin-bottom:14px">Enter your password for <b>'+esc(state.userEmail||'')+'</b>. Your progress on this phone is kept and synced up.</p>'
+    +'<div class="field"><input type="password" id="reauthPass" placeholder="Password" style="width:100%"></div>'
+    +'<div id="reauthErr" style="color:#B4553F;font-size:.82rem;min-height:18px;margin:6px 0"></div>'
+    +'<button class="btn btn-primary" style="width:100%" onclick="doReauth()">Log in and sync</button>'
+    +'<button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="closeSheet()">Not now</button>');
+}
+async function doReauth(){
+  var p=document.getElementById('reauthPass'); var err=document.getElementById('reauthErr');
+  if(!p || !p.value){ if(err) err.textContent='Enter your password.'; return; }
+  try{
+    var r=await supa.auth.signInWithPassword({email:(state.userEmail||'').toLowerCase(), password:p.value});
+    if(r && r.error){ if(err) err.textContent='Wrong password - try again.'; return; }
+    // IMPORTANT: do NOT loadStateForUser here - the local state is NEWER than the server's
+    // (that is exactly why we are re-authenticating). Push local up instead.
+    closeSheet(); hideSyncWarn(); toast('Logged in - syncing');
+    persistStateNow();
+  }catch(e){ if(err) err.textContent='Could not log in - check your connection.'; }
+}
 function centerNotice(title, html){
   var ex=document.getElementById('centerNotice'); if(ex) ex.remove();
   var d=document.createElement('div');
@@ -2614,7 +2795,7 @@ function centerNotice(title, html){
 var T_TERMS="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Terms &amp; Conditions</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: August 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>1. Who we are.</b> The Nuci is operated by <b>Urban Rus s.p.</b>, a sole proprietor registered in Slovenia (the \u201cProvider\u201d, \u201cwe\u201d, \u201cus\u201d). Contact: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>2. The service.</b> The Nuci generates a personalised 7-day behaviour plan for your pet based on the information you provide, and lets you track daily check-ins. Plans are produced with the help of AI and general behavioural principles. The app also includes optional tools to help you find nearby veterinary clinics (using your device location, only when you choose) and to draft a message you can send or read to a vet in your chosen language.</p><p style=\"margin-bottom:12px\"><b>3. Not veterinary advice.</b> The Nuci provides educational behavioural guidance only. It is <b>not</b> veterinary advice, diagnosis or treatment, and is not a substitute for an in-person examination by a qualified veterinarian. The vet-finder and vet-message tools are conveniences to help you reach a professional; clinic listings come from a third-party map service and we do not endorse or vet them, and any drafted message is a starting point for you to review before sending. If your pet shows signs of illness, pain, aggression or distress, consult a vet. You use the plan and these tools at your own responsibility.</p><p style=\"margin-bottom:12px\"><b>4. Purchases.</b> Access to a plan is a one-time purchase (no subscription). One purchase provides one plan for one pet; multi-plan packages provide credits for additional pets. Prices are shown at checkout and include any applicable tax. Any promotional discount you unlock (for example through an in-app game) is applied automatically at checkout and has no cash value. Payments are processed by <b>Stripe</b>; we never receive or store your full card details.</p><p style=\"margin-bottom:12px\"><b>5. Digital content &amp; right of withdrawal.</b> Your plan is digital content supplied immediately after purchase. Under Article 43\u010d of the Slovenian Consumer Protection Act (ZVPot-1) and Article 16(m) of EU Directive 2011/83/EU, by completing your purchase you <b>expressly request immediate delivery</b> of the digital content and <b>acknowledge that you thereby lose your 14-day right of withdrawal</b>. Because the plan is generated and delivered instantly, <b>purchases are non-refundable</b>. If a plan fails to generate or has a genuine technical fault, our remedy is to generate a new plan for you at no extra cost, rather than a refund. This does not affect statutory rights that cannot be waived, such as correcting a genuine billing error.</p><p style=\"margin-bottom:12px\"><b>6. Your account.</b> You are responsible for the accuracy of the information you provide and for keeping your account secure. When you create an account we send a confirmation link to your email address, and you confirm it before your account becomes active. You must be at least 16 years old (or the age of digital consent in your country) to use The Nuci.</p><p style=\"margin-bottom:12px\"><b>7. Acceptable use.</b> You may use The Nuci only for your own pets and for lawful, personal purposes. You may not resell, copy or redistribute the generated plans.</p><p style=\"margin-bottom:12px\"><b>8. Liability.</b> To the extent permitted by law, the Provider is not liable for any indirect or consequential loss, or for outcomes arising from how behavioural guidance is applied. Nothing in these terms limits liability that cannot be limited under Slovenian or EU law.</p><p style=\"margin-bottom:12px\"><b>9. Changes.</b> We may update these terms; the current version is always available in the app. Continued use after changes means you accept them.</p><p style=\"margin-bottom:0\"><b>10. Governing law.</b> These terms are governed by the law of the Republic of Slovenia, with the courts of Slovenia having jurisdiction. For consumer disputes you may also use the EU ODR platform at ec.europa.eu/consumers/odr. Questions: hello@thenuci.com.</p></div>";
 var T_PRIV="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Privacy Policy</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: August 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>Controller.</b> The controller of your personal data is <b>Urban Rus s.p.</b> (Slovenia). Contact for any privacy request: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>What we collect.</b> Your account email (which you confirm via a link we email you when you sign up); the pet and behaviour details you enter; your daily check-ins and notes; your plan and progress; email preferences and consent records; and basic technical data needed to run the service. If you use the microphone button, the short audio clip you record is sent for transcription and is <b>not stored by us</b> - only the resulting text is saved with your answer. If you use the \u201cFind a vet\u201d tool, your device location is used <b>once</b> to search for nearby clinics and is <b>not stored</b>; if you decline the location prompt, the tool simply links you to a map search instead. If you ask Nuci to draft a vet message, the relevant details from your answers are used to write it. We do <b>not</b> collect or store your full payment card details.</p><p style=\"margin-bottom:12px\"><b>Why, and legal basis.</b> We process this data to provide the service and your plan (performance of a contract, Art. 6(1)(b) GDPR); to send emails that are part of the service you bought, such as check-in reminders while a plan is active (contract, Art. 6(1)(b)), which you can switch off at any time; to send optional educational emails <b>only where you have separately ticked the box</b> (consent, Art. 6(1)(a)), which you may withdraw at any time in Profile \u2192 Email preferences; and to keep the service secure and comply with law (legitimate interest / legal obligation, Art. 6(1)(f)/(c)).</p><p style=\"margin-bottom:12px\"><b>Processors we use.</b> <b>Supabase</b> (database hosting), <b>Netlify</b> (site and server functions), <b>Stripe</b> (payments), <b>Resend</b> (emails), <b>Anthropic</b> (AI plan generation and vet-message drafting), <b>OpenAI</b> (speech-to-text, only when you use the microphone) and <b>Google</b> (Places, only when you use the \u201cFind a vet\u201d tool, to return nearby clinics for the coordinates sent). Each acts under a data-processing agreement or its own terms and only for the purpose described.</p><p style=\"margin-bottom:12px\"><b>International transfers.</b> Some processors may process data outside the EU/EEA (e.g. in the United States). Where they do, transfers are protected by the European Commission\u2019s <b>Standard Contractual Clauses (SCC)</b> and appropriate safeguards, so your data receives an equivalent level of protection.</p><p style=\"margin-bottom:12px\"><b>Retention.</b> We keep your data while your account is active. You can delete your profile at any time from Profile \u2192 Delete profile. This <b>permanently erases</b> your account and profile data from our database and removes your login, so you are no longer a registered user and receive no further emails. Invoicing and tax records are kept for the period Slovenian tax law requires (currently 10 years). Consent records are kept for as long as needed to prove the consent was validly given.</p><p style=\"margin-bottom:12px\"><b>Your rights.</b> Under the GDPR you have the right to access, rectify, erase, restrict or object to processing, and to data portability, and to withdraw consent at any time. To exercise these, email hello@thenuci.com. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski poobla\u0161\u010denec, ip-rs.si).</p><p style=\"margin-bottom:12px\"><b>Automated processing.</b> Your plan is generated with AI from the answers you provide. This is not a decision that produces legal or similarly significant effects on you within the meaning of Art. 22 GDPR, and a human can review any plan on request.</p><p style=\"margin-bottom:12px\"><b>We do not sell your data.</b> We never sell or rent personal data, and we do not use it for advertising profiling.</p><p style=\"margin-bottom:12px\"><b>Children.</b> The service is not directed at children under 16. If you believe a child has provided us data, contact us and we will delete it.</p><p style=\"margin-bottom:0\"><b>Contact.</b> For any question about your data, contact hello@thenuci.com.</p></div>";
 var T_IMPRESSUM=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Legal notice (Impressum)</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>Service provider.</b> This website and the The Nuci service are operated by:</p><p style="margin-bottom:12px"><b>Prodaja spletnih storitev, Urban Rus s.p.</b><br>Sole proprietor (samostojni podjetnik) registered in the Republic of Slovenia<br>Registered as a flat-rate sole proprietor (normiranec).</p><p style="margin-bottom:12px"><b>Contact.</b> Email: hello@thenuci.com<br>Website: thenuci.com</p><p style="margin-bottom:12px"><b>Registration.</b> Registered in the Slovenian Business Register (PRS) kept by AJPES.<br>Registration number (matična številka): 7538863000<br>Tax number (davčna številka): 27831469<br>Not liable for VAT under the flat-rate scheme (small business exemption).</p><p style="margin-bottom:12px"><b>Responsible for content.</b> Urban Rus, in the capacity of sole proprietor.</p><p style="margin-bottom:0"><b>Online dispute resolution.</b> The European Commission provides a platform for online dispute resolution for consumers at ec.europa.eu/consumers/odr. We can be reached for such matters at hello@thenuci.com.</p></div>`;
-var T_COOKIES=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Cookies &amp; local storage</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>The short version.</b> The Nuci does <b>not</b> use advertising or tracking cookies, and does not build advertising profiles. We use only what is technically necessary to run the service.</p><p style="margin-bottom:12px"><b>What we store on your device.</b> We use your browser\u2019s local storage (not third-party cookies) to keep you signed in and to remember your plan and progress between visits. This includes a saved copy of your current answers and plan, your sign-in session, and a note that you have seen the intro. This information stays on your device and is needed for the app to work.</p><p style="margin-bottom:12px"><b>Authentication.</b> Our authentication provider (Supabase) sets storage strictly necessary to keep your login session active. Without it you could not stay signed in.</p><p style="margin-bottom:12px"><b>Payments.</b> When you pay, Stripe may set its own strictly-necessary cookies on its checkout page to process the transaction securely and prevent fraud. These are governed by Stripe\u2019s own privacy policy.</p><p style="margin-bottom:12px"><b>No analytics or ad trackers.</b> We do not load Google Analytics, advertising pixels, or similar cross-site trackers. Because we only use strictly-necessary storage, no cookie-consent banner is required under the ePrivacy rules - but we tell you anyway, in the interest of transparency.</p><p style="margin-bottom:0"><b>Clearing it.</b> You can clear this storage at any time by signing out (Profile \u2192 Sign out), deleting your profile, or clearing site data in your browser settings.</p></div>`;
+var T_COOKIES=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Cookies &amp; local storage</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>The short version.</b> The Nuci does <b>not</b> use advertising or tracking cookies, and does not build advertising profiles. We use only what is technically necessary to run the service.</p><p style="margin-bottom:12px"><b>What we store on your device.</b> We use your browser\u2019s local storage (not third-party cookies) to keep you signed in and to remember your plan and progress between visits. This includes a saved copy of your current answers and plan, your sign-in session, and a note that you have seen the intro. This information stays on your device and is needed for the app to work.</p><p style="margin-bottom:12px"><b>Authentication.</b> Our authentication provider (Supabase) sets storage strictly necessary to keep your login session active. Without it you could not stay signed in.</p><p style="margin-bottom:12px"><b>Payments.</b> When you pay, Stripe may set its own strictly-necessary cookies on its checkout page to process the transaction securely and prevent fraud. These are governed by Stripe\u2019s own privacy policy.</p><p style="margin-bottom:12px"><b>No analytics or ad trackers.</b> We do not load Google Analytics, advertising pixels, or similar cross-site trackers. We keep only anonymous, first-party usage counts (for example, how many visitors opened the app) - with no cookies, no persistent identifiers and no personal data. Because we only use strictly-necessary storage, no cookie-consent banner is required under the ePrivacy rules - but we tell you anyway, in the interest of transparency.</p><p style="margin-bottom:0"><b>Clearing it.</b> You can clear this storage at any time by signing out (Profile \u2192 Sign out), deleting your profile, or clearing site data in your browser settings.</p></div>`;
 var T_REFUND=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">No-refund policy</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>All sales are final.</b> The Nuci sells a personalised digital behaviour plan that is generated and delivered to you instantly. Because the plan is created for you and delivered in full at the moment of purchase, <b>all purchases are final and non-refundable.</b></p><p style="margin-bottom:12px"><b>If something goes wrong, we fix the plan - not refund it.</b> If your plan fails to generate, arrives incomplete, or has a genuine technical problem, we will <b>generate a new plan for you at no extra cost</b>. Our remedy for any issue with the plan is a replacement plan, not a return of money. In practice this means you always end up with a working plan.</p><p style="margin-bottom:12px"><b>You agree to this at checkout.</b> Before paying, you expressly request immediate delivery of your digital plan and acknowledge that you therefore <b>lose the 14-day right of withdrawal</b> that would otherwise apply to distance purchases (Article 43č of the Slovenian Consumer Protection Act ZVPot-1, implementing Article 16(m) of Directive 2011/83/EU). Changing your mind after purchase is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Please decide before you buy.</b> You can read exactly what the plan includes on this site before purchasing. If you are unsure whether The Nuci is right for you, contact us <b>before</b> paying and we will gladly answer.</p><p style="margin-bottom:12px"><b>Not veterinary advice.</b> The plan is educational behavioural guidance, not a cure or a guarantee of any outcome. A plan that did not produce the result you hoped for is not a faulty product; we can generate a fresh plan, but this is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Genuine billing errors.</b> The one thing a replacement plan cannot fix is a payment mistake - for example being charged twice for the same purchase. Consumer law does not let us waive that, so in a true billing error we will correct the charge. This does not apply to change-of-mind or dissatisfaction with the guidance.</p><p style="margin-bottom:0"><b>Contact.</b> Email <b>hello@thenuci.com</b> with your account email and Stripe receipt and we will sort it out - a new plan for any plan problem, or a corrected charge for a genuine billing error. Please reach out before opening a bank chargeback; we can usually resolve things faster.</p></div>`;
 function openLegal(kind){
   var map={terms:T_TERMS, privacy:T_PRIV, impressum:T_IMPRESSUM, cookies:T_COOKIES, refund:T_REFUND};
@@ -2816,7 +2997,7 @@ async function renderDayOnePreview(){
 
   try{
     const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({answers:state.answers, planLength:state.planLength||7, previewOnly:true, lang:'en'})});
+      body:JSON.stringify({answers:state.answers, planLength:state.planLength||7, previewOnly:true, lang:appLang()})});
     if(!res.ok) throw new Error('bad');
     const plan=await res.json();
     var d1 = (plan && plan.days && plan.days[0]) ? plan.days[0] : null;
@@ -3138,6 +3319,7 @@ function testJumpToOffer(){
   showScreen('screen-offer');
 }
 function buildOffer(){
+  try{ nuciTrack('offer_view'); }catch(e){}
   // Third tab wording depends on context: a signed-in user adding a pet should be able to
   // bail back into the app, not wipe everything to the start screen.
   try{
@@ -3195,7 +3377,7 @@ async function generatePlanAI(){
   }
   try{
     const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({answers:state.answers,lang:'en'})});
+      body:JSON.stringify({answers:state.answers,lang:appLang()})});
     if(!res.ok) throw new Error('ai '+res.status);
     const plan=await res.json();
     if(plan&&plan.days&&plan.days.length){
@@ -3312,6 +3494,7 @@ function completePayment(){
   proceedToPayment(pkg);
 }
 function proceedToPayment(pkg){
+  try{ nuciTrack('checkout_click', pkg&&pkg.id); }catch(e){}
   try{
     // The Stripe redirect reloads the page, so ANYTHING not written here is lost. That
     // includes the pets array and the "I'm adding another pet" context - without them the
@@ -3357,6 +3540,7 @@ function proceedToPayment(pkg){
 // A diagnostic banner records each step so we can see exactly where it stops.
 // ─────────────────────────────────────────────────────────────────────────────
 async function runPaidReturn(){
+  try{ nuciTrack('paid_return'); }catch(e){}
   var D=[]; var log=function(s){ D.push(s); try{ showDebugBanner(D.join('\n')); }catch(e){} };
   try{
     // 1. instant feedback
@@ -3483,6 +3667,7 @@ async function handlePaidReturn(demo){
     state.answers=ap.answers||{}; state.aiPlan=null; state.previewDay1=null;
     state.currentDay=1; state.viewDay=1; state.planLength=7; state.checkins=[]; state.streak=0;
     state.lastCheckinDate=null; state.planComplete=false; state.planStartDate=todayKey();
+    state.frozenSince=null; state.freezeUsed=false;
     state.__planSig=null; state.__previewSig=null; state.petPhoto=ap.petPhoto||null;
     state.dayNotes={}; state.dayInsights={}; state.tasksDone={}; state.planOverrides={};
     state.__pendingBlankPet=true;   // scratch until generated + committed
@@ -3640,6 +3825,10 @@ function positionNavPill(t){
   pill.style.transform='translateX('+(ir.left-nr.left)+'px)';
 }
 function showTab(t){
+  // While the plan is frozen, only Today (the frozen screen) and Profile are reachable.
+  if(typeof planFrozen==='function' && planFrozen() && t!=='today' && t!=='profile'){
+    haptic(10); toast('Plan is frozen \u2744\uFE0F - unfreeze on Today'); t='today';
+  }
   var prevTab=curTab;
   curTab=t;
   // Record tab changes for the browser back button, but ONLY while the main app is
@@ -4108,9 +4297,37 @@ function startPlanFromEmpty(){
   if(state.purchased){ startAnotherPet(); return; }
   startFreshState(); startFlow();
 }
+// The frozen Today screen: an icy overlay over the pet. The plan is paused; the only
+// action here is the Unfreeze button. (Profile stays reachable via the tab bar.)
+function renderFrozenToday(){
+  var pet=state.answers.petName||'Your pet';
+  var t=state.answers.petType||'other';
+  var since=state.frozenSince||todayKey();
+  var days=Math.max(0, daysBetween(since, todayKey()));
+  var sinceStr=(function(){ try{ var p=since.split('-'); return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('en-GB',{day:'numeric',month:'long'}); }catch(e){ return since; } })();
+  var avatar=state.petPhoto
+    ? '<img src="'+state.petPhoto+'" style="width:100%;height:100%;object-fit:cover;filter:saturate(.55) brightness(1.06)">'
+    : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.85">'+petSvg(t,'64px')+'</div>';
+  var flakes='';
+  for(var i=0;i<9;i++){
+    flakes+='<span class="frz-flake" style="left:'+(6+i*10.5)+'%;animation-duration:'+(7+(i%4)*2)+'s;animation-delay:-'+(i*1.3)+'s;font-size:'+(11+(i%3)*4)+'px">\u2744</span>';
+  }
+  $('tab-today').innerHTML=
+    '<div class="frz-wrap">'
+    + flakes
+    +'<div class="frz-card">'
+    +  '<div class="frz-ava">'+avatar+'<div class="frz-ice"></div></div>'
+    +  '<div class="d-eb" style="color:#5C87A8;margin-top:16px">Plan frozen \u2744\uFE0F</div>'
+    +  '<h2 style="font-size:1.6rem;letter-spacing:-.03em;margin:6px 0 8px">'+esc(pet)+' is on a break</h2>'
+    +  '<p style="font-size:.9rem;color:var(--secondary);line-height:1.55;max-width:30ch;margin:0 auto 6px">Frozen since '+sinceStr+(days>0?' \u00b7 '+days+' day'+(days===1?'':'s'):'')+'. Days don\u2019t pass and your <b>'+(state.streak||0)+'-day streak is safe</b>.</p>'
+    +  '<p style="font-size:.78rem;color:var(--secondary);margin:0 auto 20px;max-width:30ch">The plan continues on Day '+(state.currentDay||1)+' the moment you unfreeze.</p>'
+    +  '<button class="btn btn-primary frz-btn" onclick="doUnfreeze()">Unfreeze \u2600\uFE0F</button>'
+    +'</div></div>';
+}
 function renderToday(){
   if(state.maintenance){ renderMaintenanceToday(); return; }
   if(!hasActivePlan()){ $('tab-today').innerHTML=emptyTabHtml('today'); return; }
+  if(planFrozen()){ renderFrozenToday(); return; }
   // Advance the plan by the calendar (user's local date), independent of check-ins.
   syncPlanDay();
   // If days were skipped without a check-in, gently let them know (once).
@@ -4120,6 +4337,12 @@ function renderToday(){
   var pct=Math.round(((day-1)+(done.length/Math.max(1,d.tasks.length)))/(state.planLength||7)*100);
   var checkedIn=state.lastCheckinDate===todayKey();
   var t=state.answers.petType||'other';
+  // Late check-in banner: missed last night's window -> can still log it until noon.
+  var __lateD=lateCheckinDay();
+  var lateBanner=__lateD?('<div onclick="openLateCheckin()" style="display:flex;align-items:center;gap:11px;background:rgba(214,168,78,.13);border:1px solid rgba(214,168,78,.4);border-radius:16px;padding:12px 14px;margin:6px 0 12px;cursor:pointer">'
+    +'<span style="font-size:20px">\uD83C\uDF19</span>'
+    +'<span style="flex:1;font-size:.84rem;line-height:1.45;color:var(--text)">You missed yesterday\u2019s check-in. You can still log it <b>until 12:00</b>.</span>'
+    +'<span style="font-size:.8rem;color:var(--forest);white-space:nowrap">Log it \u2192</span></div>'):'';
   var avatar=state.petPhoto?('<img src="'+state.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(t,'44px');
   // split tasks into thirds as morning/day/evening ritual
   var tasks=d.tasks.map(function(x,i){ return {label:taskLabel(x),detail:taskDetail(x),done:done.indexOf(i)>-1,i:i}; });
@@ -4187,7 +4410,7 @@ function renderToday(){
     h+='<div style="text-align:center;margin-top:14px">'
       +'<button onclick="testJumpToPlanEnd()" style="background:rgba(0,0,0,.05);border:1px dashed var(--border);border-radius:10px;color:var(--secondary);font-family:inherit;font-size:.72rem;cursor:pointer;padding:9px 14px">\ud83d\udd27 Test: jump to plan end</button></div>';
   }
-  $('tab-today').innerHTML=h;
+  $('tab-today').innerHTML=lateBanner+h;
   hookGrow('todayNote');
 }
 function testJumpToPlanEnd(){
@@ -4362,7 +4585,7 @@ async function submitAskAI(){
   ans.innerHTML='<div class="a-card" style="margin-top:0"><div style="color:var(--secondary);font-size:.9rem">Nuci is thinking\u2026</div></div>';
   try{
     var resp=await fetch('/.netlify/functions/ask-followup',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({question:q,answers:state.answers,plan:state.aiBehaviorExplain||'',lang:'en'})});
+      body:JSON.stringify({question:q,answers:state.answers,plan:state.aiBehaviorExplain||'',lang:appLang()})});
     var data=await resp.json();
     var text=data && data.answer ? data.answer : 'I could not answer that right now. Please try again.';
     ans.innerHTML='<div class="a-card" style="margin-top:0"><div class="d-eb" style="color:var(--sage);margin-bottom:6px">Nuci says</div><div class="a-quote">'+esc(text)+'</div></div>';
@@ -5029,6 +5252,7 @@ function renderProfileTab(){
   h+='<div class="card" style="margin-top:12px;padding:4px 18px">'
     +prow('Download a plan (PDF)','choosePlanToDownload()')
     +prow('Billing','openBilling()',(spareCredits()>0?' <span style="font-size:0.66rem;background:rgba(107,143,113,0.14);color:var(--forest);padding:2px 8px;border-radius:99px;margin-left:6px">'+spareCredits()+' credits</span>':''))
+    +(canFreeze()?prow('Freeze plan \u2744\uFE0F','openFreezeSheet()',''):'')
     +((state.archive||[]).length?prow('Archive','openArchive()','<span style="float:right;color:var(--secondary);font-size:0.8rem;margin-right:10px">'+state.archive.length+'</span>',true):prow('Archive','openArchive()','',true))
     +'</div>';
 
@@ -5442,7 +5666,8 @@ function renderProfileTab_OLD(){
     +'<div class="card" style="margin-top:14px;padding:4px 18px">'
     +prow('Assessment answers','openAnswers()')
     +prow('Download plan (PDF)','exportCurrentPDF()')
-    +prow('Billing','openBilling()',(spareCredits()>0?' <span style="font-size:0.66rem;background:rgba(107,143,113,0.14);color:var(--forest);padding:2px 8px;border-radius:99px;margin-left:6px">'+spareCredits()+' credits</span>':''),true)
+    +prow('Billing','openBilling()',(spareCredits()>0?' <span style="font-size:0.66rem;background:rgba(107,143,113,0.14);color:var(--forest);padding:2px 8px;border-radius:99px;margin-left:6px">'+spareCredits()+' credits</span>':''),!canFreeze())
+    +(canFreeze()?prow('Freeze plan \u2744\uFE0F','openFreezeSheet()','',true):'')
     +'</div>'
     +petSwitcherHtml()
     +'<button class="btn btn-ghost" style="margin-top:10px" onclick="signOut()">Sign out</button>'
@@ -5629,6 +5854,7 @@ function ciFlow(){ return ciData.occurred==='No'?CI_STEPS.filter(s=>s.id==='occu
 var CHECKIN_OPEN_HOUR=20, CHECKIN_CLOSE_HOUR=23;  // 20:00 - 22:59 local
 function checkinWindowOpen(){ var h=new Date().getHours(); return h>=CHECKIN_OPEN_HOUR && h<CHECKIN_CLOSE_HOUR; }
 function openCheckin(){
+  if(planFrozen()){ toast('Plan is frozen \u2744\uFE0F'); return; }
   if(state.lastCheckinDate===todayKey()){ toast('Already checked in today'); return; }
   if(!checkinWindowOpen()){ toast('Check-in opens at 20:00'); return; }
   ciData={}; ciStep=0; renderCI(); $('ciOverlay').classList.add('open');
@@ -5750,21 +5976,34 @@ function ciNext(){
   ciStep++; renderCI();
 }
 async function finishCheckin(){
+  try{ nuciTrack('checkin_done'); }catch(e){}
   state.checkins=state.checkins||[];
-  state.checkins.push({...ciData,day:state.currentDay,ts:Date.now()});
-  state.lastCheckinDay=state.currentDay;
-  const tk=todayKey();
-  if(state.lastCheckinDate!==tk){
-    state.streak=(state.lastCheckinDate===yesterdayKey())?(state.streak||0)+1:1;
+  // A LATE check-in belongs to YESTERDAY's plan day: it is stored under that day, counts
+  // for the streak as if done last night, and does not block tonight's normal check-in.
+  var lateDay=window.__lateCI||0; window.__lateCI=0;
+  var ciDay=lateDay||state.currentDay;
+  state.checkins.push({...ciData,day:ciDay,ts:Date.now(),late:!!lateDay});
+  state.lastCheckinDay=ciDay;
+  if(lateDay){
+    // Streak continuity: this check-in "happened" yesterday evening.
+    if(state.lastCheckinDate!==yesterdayKey()){
+      state.streak=(state.lastCheckinDate===keyDaysAgo(2))?(state.streak||0)+1:1;
+    }
+    state.lastCheckinDate=yesterdayKey();
+  } else {
+    const tk=todayKey();
+    if(state.lastCheckinDate!==tk){
+      state.streak=(state.lastCheckinDate===yesterdayKey())?(state.streak||0)+1:1;
+    }
+    state.lastCheckinDate=tk;
   }
-  state.lastCheckinDate=tk;
-  if(ciData.notes){ var arr=getDayNotes(state.currentDay); arr.push({text:ciData.notes,ts:Date.now()}); state.dayNotes[state.currentDay]=arr; }
+  if(ciData.notes){ var arr=getDayNotes(ciDay); arr.push({text:ciData.notes,ts:Date.now()}); state.dayNotes[ciDay]=arr; }
   closeCheckin();
-  const finished=(state.currentDay||1)>=(state.planLength||7);
+  const finished=!lateDay && (state.currentDay||1)>=(state.planLength||7);
   if(!finished){
     // Check-in saved. The day does NOT advance here anymore - the calendar advances it
     // (tomorrow becomes Day n+1 automatically). We just adapt the upcoming day's plan.
-    var nextDay=Math.min((state.currentDay||1)+1,state.planLength||7);
+    var nextDay=Math.min(ciDay+1,state.planLength||7);
     openSheet('<div style="text-align:center;padding:8px 0 4px">'+icon('moon','54px',1.6,'var(--sage)')
       +'<h2 style="font-size:1.5rem;letter-spacing:-0.03em;margin:14px 0 8px">Check-in saved</h2>'
       +'<p style="font-size:0.92rem;color:var(--secondary);line-height:1.5;max-width:32ch;margin:0 auto 18px">'
@@ -5777,13 +6016,17 @@ async function finishCheckin(){
     // Final check-in done. Don't archive or mark complete yet - the plan-end screen asks the
     // user whether it worked, and THAT choice archives (worked) or extends (not yet).
     persistStateNow();
+    // Open the plan-end screen FIRST (it now sits above the sheet and fades in), and only
+    // then swap the tab underneath. The old order - showTab, wait 300ms, then open - showed
+    // the plan for a third of a second before the thank-you screen appeared (the "glitch").
+    openPlanEnd();
+    closeSheet();
     showTab('today');
-    setTimeout(openPlanEnd,300);
   }
 }
 
 // ═══════ MULTI-PET ═══════
-var PET_FIELDS=['answers','currentDay','planLength','checkins','streak','lastCheckinDate','lastCheckinDay','planComplete','planStartDate','planOverrides','aiPlan','aiBehaviorExplain','aiAssessment','aiSeekProfessional','aiProfessionalNote','aiCauses','aiWhatNotToDo','dayInsights','dayNotes','taskOverrides','tasksDone','petPhoto'];
+var PET_FIELDS=['answers','currentDay','planLength','checkins','streak','lastCheckinDate','lastCheckinDay','planComplete','planStartDate','planOverrides','aiPlan','aiBehaviorExplain','aiAssessment','aiSeekProfessional','aiProfessionalNote','aiCauses','aiWhatNotToDo','dayInsights','dayNotes','taskOverrides','tasksDone','petPhoto','frozenSince','freezeUsed'];
 function snapshotPet(){ var o={}; PET_FIELDS.forEach(function(k){ o[k]=state[k]; }); return o; }
 // After a plan is generated for a pet the owner ALREADY has, fold it into that pet's single
 // entry instead of leaving a second row with the same name. Keeps My pets = one row per pet.
@@ -6080,6 +6323,7 @@ function beginBlankPet(){
   state.planOverrides={}; state.aiPlan=null; state.aiBehaviorExplain=null; state.aiCauses=null; state.aiWhatNotToDo=null;
   state.__planSig=null; state.__previewSig=null;   // clear stale signatures so the new pet always regenerates
   state.dayInsights={}; state.dayNotes={}; state.tasksDone={}; state.taskOverrides={}; state.petPhoto=null;
+  state.frozenSince=null; state.freezeUsed=false;
 }
 function archivedActiveCount(){ return 0; }
 // Archive the finished plan
@@ -6170,7 +6414,7 @@ async function rebuildRemainingPlan(mode){
     const res=await fetch(AI_ADAPT_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({answers:state.answers,checkins:state.checkins,notes:state.dayNotes,
         tasksDone:state.tasksDone,nextDay:from,planLength:L,nextDayPlan:dayData(from),
-        rebuild:true, lighter:(mode==='lighter'), lang:'en'})});
+        rebuild:true, lighter:(mode==='lighter'), lang:appLang()})});
     if(res.ok){
       const out=await res.json();
       if(out&&out.day){
@@ -6262,6 +6506,7 @@ function saveMaintenance(val){
   }
 }
 function openPlanEnd(){
+  try{ nuciTrack('plan_end'); }catch(e){}
   // The plan's final check-in is done. If that last check-in already reported NO incident
   // (the behaviour didn't happen), the owner has effectively told us it's better - so skip the
   // "did it work?" question and go straight to the simple thank-you / archive screen. Only when
@@ -6320,7 +6565,7 @@ async function planEndNotYet(){
     var msg=null;
     try{
       const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({answers:state.answers, lang:'en', sorryMessage:true,
+        body:JSON.stringify({answers:state.answers, lang:appLang(), sorryMessage:true,
           issue:state.answers.mainIssue||'', priorCheckins:(state.checkins||[]).slice(-10)})});
       if(res.ok){ var data=await res.json(); msg=data.message||data.text||(data.days?null:null); }
     }catch(e){}
@@ -6362,7 +6607,7 @@ async function extendPlanThreeDays(){
     +'<p style="font-size:0.9rem;color:var(--secondary)">Shaping them around what you\u2019ve told us.</p></div>';
   try{
     const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({answers:state.answers, lang:'en', extend:true, fromDay:oldLen+1, days:3,
+      body:JSON.stringify({answers:state.answers, lang:appLang(), extend:true, fromDay:oldLen+1, days:3,
         priorCheckins:(state.checkins||[]).slice(-7)})});
     if(!res.ok) throw new Error('ai '+res.status);
     const plan=await res.json();
@@ -6423,7 +6668,7 @@ async function adaptNextDay(nextDay){
   try{
     const res=await fetch(AI_ADAPT_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({answers:state.answers,checkins:state.checkins,notes:state.dayNotes,tasksDone:state.tasksDone,
-        nextDay,planLength:state.planLength||7,nextDayPlan:dayData(nextDay),lang:'en'})});
+        nextDay,planLength:state.planLength||7,nextDayPlan:dayData(nextDay),lang:appLang()})});
     if(!res.ok) return;
     const out=await res.json();
     if(out&&out.day){
@@ -6490,6 +6735,7 @@ async function adaptNextDay(nextDay){
     return;
   }
   try{ var _ref=params.get('ref'); if(_ref){ localStorage.setItem('nuci_ref', _ref.slice(0,40)); } }catch(e){}
+  try{ nuciTrack('app_open'); }catch(e){}
   const route=async()=>{
     if(isPaid){
       await runPaidReturn();

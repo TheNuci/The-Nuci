@@ -37,7 +37,7 @@ Return ONLY valid minified JSON with EXACTLY these keys:
 Rules:
 - Adapt day ${nextDay} of ${planLength} for ${pet} based on the latest check-in and notes.
 - 5-7 tasks. Each task is an object with "title" (short imperative, 3-7 words) and "detail" (one concrete how/why sentence, 12-24 words), specific to the pet. Title 1-3 words, sub 2-4 words, desc one sentence.
-- "insight" is one warm, specific sentence (max 22 words) about what the check-in showed and what today changes. Language: ${lang}.`;
+- "insight" is one warm, specific sentence (max 22 words) about what the check-in showed and what today changes. Language: write in the SAME language the owner used in their answers (detect it from their free-text answers). If their language is unclear, use "${lang}".`;
   const user = `Answers: ${JSON.stringify(answers)}
 Latest check-in: ${JSON.stringify(last)}
 All check-ins: ${JSON.stringify(checkins)}

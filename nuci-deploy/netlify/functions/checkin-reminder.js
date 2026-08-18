@@ -132,6 +132,7 @@ export default async (req) => {
     try {
       const d = typeof data === 'string' ? JSON.parse(data) : data;
       if (!d) return false;
+      if (d.frozenSince) return false;   // plan frozen (holiday mode) - no emails until unfrozen
       const started = !!d.planStartDate || (Array.isArray(d.assessments) && d.assessments.length > 0) ||
                       (d.planOverrides && Object.keys(d.planOverrides).length > 0);
       return started && !d.planComplete;

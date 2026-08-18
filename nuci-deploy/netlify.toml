@@ -94,3 +94,8 @@
 [functions."behaviour-tips"]
   schedule = "0 9 * * 3"
   timeout = 26
+
+# Weekly full-database backup, emailed as a gzip attachment - Sundays 03:00 UTC
+[functions."backup-profiles"]
+  schedule = "0 3 * * 0"
+  timeout = 26
