@@ -953,7 +953,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-17 22:58";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-17 23:07";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -3370,17 +3370,12 @@ async function runPaidReturn(){
     }
     log('2. profile: session='+(sess?'yes':'no')+' loadedPets='+((state.pets||[]).length)+' credits='+(state.planCredits||0));
 
-    // 3b. floor pets/archive from the parked snapshot so a not-yet-loaded profile can't wipe them
-    if(Array.isArray(ps.pets) && ps.pets.length > (Array.isArray(state.pets)?state.pets.length:0)){
-      state.pets = ps.pets.slice();
-    }
-    if(Array.isArray(ps.archive) && (!Array.isArray(state.archive) || ps.archive.length > state.archive.length)){
-      state.archive = ps.archive.slice();
-    }
-
-    // 4. commit the plan (generation happens inside) and WAIT for it
+    // 4. commit the plan (generation happens inside) and WAIT for it. handlePaidReturn owns ALL
+    // pet restore/commit logic - runPaidReturn must NOT touch state.pets itself, or the two race
+    // and produce duplicate pets / overwrite the existing one.
     try{ await handlePaidReturn(false); }
     catch(e){ log('commit ERROR: '+(e&&e.message)); try{ await handlePaidReturn(false); }catch(_){} }
+    try{ dedupePets(); }catch(e){}
     log('3. committed: pets='+JSON.stringify((state.pets||[]).map(function(p){return (p.answers&&p.answers.petName)+(p.planComplete?'(done)':'(active)');}))+' hasPlan='+hasActivePlan());
 
     // 5. poll DB for the webhook's credit/transaction write (arrives a few seconds later)
