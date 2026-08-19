@@ -68,7 +68,38 @@ function localParts(tz) {
   }
 }
 
-function emailHtml(toEmail) {
+
+// All pets on this profile with an ACTIVE plan right now (calendar-aware, frozen excluded),
+// so multi-pet owners get "Nucci & Ruby" instead of only the currently active pet's name.
+function activePetNames(data, localDate) {
+  try {
+    const d = typeof data === 'string' ? JSON.parse(data) : data;
+    if (!d) return [];
+    const pets = Array.isArray(d.pets) && d.pets.length ? d.pets : (d.answers ? [d] : []);
+    const toNum = k => { if (!k) return null; const p = String(k).split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]); };
+    const today = toNum(localDate);
+    const names = [];
+    for (const p of pets) {
+      if (!p || !p.answers || !p.answers.petName) continue;
+      if (p.planComplete === true || p.frozenSince) continue;
+      if (!p.planStartDate || !(p.aiPlan && Array.isArray(p.aiPlan.days) && p.aiPlan.days.length)) continue;
+      const start = toNum(p.planStartDate);
+      if (start == null || today == null) continue;
+      const elapsed = Math.round((today - start) / 86400000);
+      if (elapsed < 0 || elapsed >= (p.planLength || 7)) continue;
+      if (names.indexOf(p.answers.petName) < 0) names.push(p.answers.petName);
+    }
+    return names;
+  } catch (e) { return []; }
+}
+function joinNames(names) {
+  if (!names || !names.length) return '';
+  if (names.length === 1) return names[0];
+  return names.slice(0, -1).join(', ') + ' & ' + names[names.length - 1];
+}
+
+function emailHtml(toEmail, names) {
+  const forLine = names ? `${forLine}<p style="margin:0 0 6px;font-size:14px;color:#5C6660">Tonight\u2019s check-in: <b>${names}</b></p>` : '';
   const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   return nuciShell({
       preheader: 'A quick check-in keeps the plan on track.',
@@ -82,7 +113,7 @@ function emailHtml(toEmail) {
     });
 }
 
-async function sendEmail(apiKey, to) {
+async function sendEmail(apiKey, to, names) {
   const unsubUrl = `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(to)}`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -93,8 +124,8 @@ async function sendEmail(apiKey, to) {
     body: JSON.stringify({
       from: FROM,
       to: [to],
-      subject: '🐾 Your daily check-in is waiting',
-      html: emailHtml(to),
+      subject: names ? ('🐾 Check-in time for ' + names) : '🐾 Your daily check-in is waiting',
+      html: emailHtml(to, names),
       headers: { 'List-Unsubscribe': `<${unsubUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
     })
   });
@@ -196,7 +227,7 @@ export default async (req) => {
     if (wantDebug) { diag.push(`${p.email}: WOULD SEND (local ${lp.hour}:xx, tz=${p.timezone})`); continue; }
 
     try {
-      await sendEmail(RESEND_API_KEY, p.email);
+      await sendEmail(RESEND_API_KEY, p.email, joinNames(activePetNames(p.data, lp.date)));
       // Mark as reminded for this local date.
       await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(p.email)}`, {
         method: 'PATCH',

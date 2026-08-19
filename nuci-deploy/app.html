@@ -976,7 +976,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-19 fixes-v18";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-19 fixes-v19";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -2007,7 +2007,7 @@ function getQuestions(){
     {id:'breed',title:'What breed or type is <span class="accent">'+esc(name)+'?</span>',type:'text',placeholder:breedPlaceholder()},
     {id:'age',title:'How old is <span class="accent">'+esc(name)+'?</span>',type:'age-slider'},
     {id:'sex',title:'What is <span class="accent">'+esc(name)+"'s</span> sex?",type:'pills',options:['Male','Female','Unknown']},
-    {id:'neutered',title:'Is '+esc(name)+' <span class=\"accent\">neutered or spayed?</span>',type:'pills',options:['Neutered','Spayed','Not sure','Not applicable'],subs:{'Neutered':'For male pets','Spayed':'For female pets','Not sure':"That's okay - we'll work around it",'Not applicable':'For species where this does not apply'}},
+    {id:'neutered',title:'Is '+esc(name)+' <span class=\"accent\">neutered or spayed?</span>',type:'pills',options:['Neutered','Spayed','No - intact','Not sure','Not applicable'],subs:{'Neutered':'For male pets','Spayed':'For female pets','No - intact':'Not fixed - all natural','Not sure':"That's okay - we'll work around it",'Not applicable':'For species where this does not apply'}},
     {id:'environment',title:'Where does '+esc(name)+'<br><span class=\"accent\">mainly live?</span>',type:'options',options:cfg.env},
     {id:'household',title:'Who lives at home<br><span class=\"accent\">with '+esc(name)+'?</span>',type:'multi',options:['Just me','Partner/spouse','Children','Other pets','Other adults']},
     {id:'mainIssue',title:'What is the <span class=\"accent\">main issue</span><br>you are noticing?',type:'textarea',placeholder:cfg.issueEg},
@@ -2036,7 +2036,7 @@ function OLD_getQuestions(){
     {id:'breed',title:'What breed is <span class="accent">'+esc(name)+'?</span>',type:'text',placeholder:breedPlaceholder()},
     {id:'age',title:'How old is <span class="accent">'+esc(name)+'?</span>',type:'age-slider'},
     {id:'sex',title:'What is <span class="accent">'+esc(name)+"'s</span> sex?",type:'pills',options:['Male','Female','Unknown']},
-    {id:'neutered',title:'Is '+esc(name)+' <span class="accent">neutered or spayed?</span>',type:'pills',options:['Neutered','Spayed','Not sure'],subs:{'Neutered':'For male pets','Spayed':'For female pets','Not sure':"That's okay - we'll work around it"}},
+    {id:'neutered',title:'Is '+esc(name)+' <span class="accent">neutered or spayed?</span>',type:'pills',options:['Neutered','Spayed','No - intact','Not sure'],subs:{'Neutered':'For male pets','Spayed':'For female pets','No - intact':'Not fixed - all natural','Not sure':"That's okay - we'll work around it"}},
     {id:'environment',title:'Is '+esc(name)+' mainly<br><span class="accent">indoors or outdoors?</span>',type:'options',options:[{icon:'home',label:'Indoor',sub:'Stays mostly inside'},{icon:'tree',label:'Outdoor',sub:'Spends time outside'},{icon:'swap',label:'Both',sub:'Mix of indoor and outdoor'}]},
     {id:'household',title:'Who lives at home<br><span class="accent">with your pet?</span>',type:'multi',options:['Just me','Partner/spouse','Children','Other pets','Other adults']},
     {id:'mainIssue',title:'What is the <span class="accent">main issue</span><br>you are noticing?',type:'textarea',placeholder:'e.g. '+esc(name)+' suddenly started...'},

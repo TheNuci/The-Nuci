@@ -49,8 +49,38 @@
     </div>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
+  // NEW-STYLE CONFIRM LINK: the email now lands here directly with ?token_hash=... and the
+  // verification happens on THIS page (no supabase.co redirect hop - that hop caused
+  // "site can't be reached" on the first tap in mobile mail apps). Old-style links with
+  // #access_token still work through the legacy path below.
+  var q=new URLSearchParams(location.search);
+  var th=q.get('token_hash');
+  if(th){
+    var ov=document.createElement('div');
+    ov.id='cfOv';
+    ov.style.cssText='position:fixed;inset:0;z-index:50;background:#F2F1EC;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px;font-family:Inter,-apple-system,sans-serif';
+    ov.innerHTML='<div><div style="width:44px;height:44px;border:4px solid rgba(62,90,71,.15);border-top-color:#3E5A47;border-radius:50%;margin:0 auto 16px;animation:cfsp 1s linear infinite"></div><div style="color:#5C6660;font-size:.95rem">Confirming your email…</div></div><style>@keyframes cfsp{to{transform:rotate(360deg)}}</style>';
+    document.addEventListener('DOMContentLoaded',function(){ document.body.appendChild(ov); });
+    var supa=window.supabase.createClient('https://dsuiqkcjfayazzvfwdqk.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzdWlxa2NqZmF5YXp6dmZ3ZHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTA3NDksImV4cCI6MjA5NjI4Njc0OX0.WFQe-Vs3tbCemGKvNF-aQd_a1THR9C8kww9hA-LCgbE');
+    var tries=0;
+    function verify(){
+      tries++;
+      supa.auth.verifyOtp({ token_hash: th, type:'signup' }).then(function(r){
+        if(r && !r.error){ var o=document.getElementById('cfOv'); if(o) o.remove(); return; }
+        fail(r&&r.error);
+      }).catch(function(e){ fail(e); });
+    }
+    function fail(err){
+      if(tries<2){ setTimeout(verify, 900); return; }   // transient network: one silent retry
+      var o=document.getElementById('cfOv');
+      if(o){ o.innerHTML='<div style="max-width:340px"><div style="font-size:1.2rem;color:#1A211C;margin-bottom:10px">This link was already used or has expired</div><div style="color:#5C6660;font-size:.9rem;line-height:1.5;margin-bottom:18px">If you already confirmed, just log in normally. Otherwise register again to get a fresh link.</div><a href="/app" style="display:inline-block;background:#3E5A47;color:#F2F1E9;text-decoration:none;padding:13px 24px;border-radius:14px;font-size:.95rem">Open The Nuci</a></div>'; }
+    }
+    if(document.readyState!=='loading'){ document.body.appendChild(ov); }
+    verify();
+  }
   var isPhone = /iPhone|Android.*Mobile|iPod/i.test(navigator.userAgent)
     || (('ontouchstart' in window) && Math.min(screen.width, screen.height) < 820);
   document.getElementById(isPhone ? 'phone' : 'desktop').classList.remove('hidden');
