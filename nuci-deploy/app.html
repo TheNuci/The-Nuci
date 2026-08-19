@@ -976,7 +976,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-19 fixes-v17";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-19 fixes-v18";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -4571,6 +4571,20 @@ function renderFrozenToday(){
     +  '<p style="font-size:.9rem;color:var(--secondary);line-height:1.55;max-width:30ch;margin:0 auto 6px">Frozen since '+sinceStr+(days>0?' \u00b7 '+days+' day'+(days===1?'':'s'):'')+'. Days don\u2019t pass and your <b>'+(state.streak||0)+'-day streak is safe</b>.</p>'
     +  '<p style="font-size:.78rem;color:var(--secondary);margin:0 auto 20px;max-width:30ch">The plan continues on Day '+(state.currentDay||1)+' the moment you unfreeze.</p>'
     +  '<button class="btn btn-primary frz-btn" onclick="doUnfreeze()">Unfreeze \u2600\uFE0F</button>'
+    +  (function(){
+        // Freeze is per-pet: the OTHER pets' plans keep running. Offer them right here,
+        // because the frozen screen locks Plan/Progress/Vet for THIS pet and the trip
+        // through Profile was too easy to miss - people thought all plans were frozen.
+        var others='';
+        (state.pets||[]).forEach(function(p,i){
+          if(i===state.activePet || !p || !p.answers || !p.answers.petName) return;
+          var av=p.petPhoto?('<img src="'+p.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(p.answers.petType||'other','18px');
+          others+='<div onclick="switchToPet('+i+')" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.72);border:1px solid rgba(92,135,168,.25);border-radius:99px;padding:6px 14px 6px 6px;margin:4px;cursor:pointer">'
+            +'<span style="width:30px;height:30px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;background:rgba(107,143,113,.12);color:var(--sage)">'+av+'</span>'
+            +'<span style="font-size:.85rem;color:var(--text)">'+esc(p.answers.petName)+'</span></div>';
+        });
+        return others?('<div style="margin-top:22px"><div style="font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#5C87A8;margin-bottom:6px">Your other pets keep going</div>'+others+'</div>'):'';
+      })()
     +'</div></div>';
 }
 function renderToday(){
