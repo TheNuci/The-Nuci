@@ -29,10 +29,13 @@
   --ease:cubic-bezier(.22,1,.36,1);
 }
 *{margin:0;padding:0;box-sizing:border-box;font-weight:400!important;-webkit-tap-highlight-color:transparent}
-html{background:var(--bg)}
+html{background:var(--bg);overscroll-behavior:none}
 html,body{height:100%}
 body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
-  -webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+  -webkit-font-smoothing:antialiased;overscroll-behavior:none}
+/* scroll lock while a sheet / plan-end / check-in overlay owns the screen. Uses the fixed-body
+   technique because iOS ignores overflow:hidden on body once momentum scrolling is running. */
+body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   background:radial-gradient(ellipse 70% 45% at 12% 0%,rgba(107,143,113,0.14),transparent 60%)}
 /* ===== Desktop: centered app frame with ambient surroundings ===== */
@@ -66,7 +69,13 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 
 /* screens */
 .screen{display:none;min-height:100dvh;position:relative;z-index:1}
-.screen.active{display:block;animation:screenIn .38s var(--ease)}
+.screen.active{display:block}
+/* The entry animation is transform-based, and ANY live transform on an ancestor turns that
+   ancestor into the containing block for its position:fixed children - which is what threw
+   the tab bar out of place and left a multi-screen blank page after an app switch. It is now
+   applied through a temporary .anim class that is always removed again (animationend + a
+   timeout, because a backgrounded tab never fires animationend). */
+.screen.active.anim{animation:screenIn .38s var(--ease)}
 @keyframes screenIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 /* buttons */
@@ -233,6 +242,7 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .age-wrap{width:100%;text-align:center}
 .age-big{display:flex;align-items:baseline;justify-content:center;gap:12px;line-height:1}
 .age-big .n{font-size:5rem;color:var(--forest);letter-spacing:-0.03em}
+.age-big.band .n{font-size:3.4rem}
 .age-big .u{font-size:2rem;color:var(--secondary)}
 .age-sub{color:var(--secondary);font-size:1.05rem;margin-top:10px;min-height:1.4em}
 .age-track{position:relative;padding:26px 2px 6px;margin-top:30px}
@@ -246,7 +256,7 @@ input.age-range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:
 input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--forest);border:3px solid #FBFBF8;cursor:pointer}
 .age-ylab{position:relative;height:16px;margin-top:8px}
 .age-ylab span{position:absolute;transform:translateX(-50%);font-size:0.72rem;color:var(--secondary)}
-.planend{position:fixed;inset:0;z-index:1600;background:var(--bg);overflow-y:auto;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility 0s linear .18s}
+.planend{position:fixed;inset:0;z-index:1600;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility 0s linear .18s}
 .planend.open{visibility:visible;pointer-events:auto;opacity:1;transition:none}
 .planend.open .pe-inner{animation:peIn .38s ease}
 @keyframes peIn{from{opacity:0;transform:translateY(14px)}}
@@ -490,7 +500,8 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .app-head.mini .ci-btn{width:auto;margin-left:auto;padding:11px 18px}
 .tabwrap{max-width:520px;margin:0 auto;padding:0 24px}
 .tabpage{display:none}
-.tabpage.active{display:block;animation:screenIn .3s var(--ease)}
+.tabpage.active{display:block}
+.tabpage.active.anim{animation:screenIn .3s var(--ease)}
 .card{background:var(--card);border:1.5px solid var(--border);border-radius:18px;box-shadow:var(--shadow);
   padding:16px 18px;margin-bottom:12px}
 .mini-label{font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--secondary);margin-bottom:6px}
@@ -583,7 +594,8 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 .sheet.closing .panel{animation:sheetDown .22s ease forwards}
 @keyframes sheetDown{to{transform:translateY(48px);opacity:0}}
 .sheet .panel{position:relative;width:100%;max-width:520px;background:var(--card);border-radius:26px 26px 0 0;
-  padding:22px 24px max(30px,env(safe-area-inset-bottom));max-height:82dvh;overflow-y:auto;animation:sheetUp .32s var(--ease)}
+  padding:22px 24px max(30px,env(safe-area-inset-bottom));max-height:82dvh;overflow-y:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;animation:sheetUp .32s var(--ease)}
 @keyframes sheetUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 .sheet .grab{width:44px;height:5px;border-radius:99px;background:rgba(0,0,0,0.14);margin:0 auto 18px}
 
@@ -649,7 +661,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 .nuci-buddy .nb-heart{position:absolute;font-size:15px;opacity:0;animation:nbFloat 1.2s ease-out forwards}
 @keyframes nbFloat{0%{opacity:0;transform:translateY(0) scale(.5)}20%{opacity:1}100%{opacity:0;transform:translateY(-60px) scale(1.1)}}
 /* ── tap-challenge discount game ── */
-#tapGame{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100vh;height:100dvh;z-index:120;background:linear-gradient(165deg,#8CA588,var(--sage) 55%,var(--forest));display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:34px 24px;color:#F2F1EC}
+#tapGame{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100dvh;z-index:120;background:linear-gradient(165deg,#8CA588,var(--sage) 55%,var(--forest));display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:34px 24px;color:#F2F1EC}
 #tapGame.open{display:flex}
 #tapGame .tg-eb{font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:rgba(242,241,236,.7);margin-bottom:14px}
 #tapGame h2{font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:1.9rem;line-height:1.1;margin-bottom:10px}
@@ -1154,7 +1166,7 @@ function toggleMic(btn){
 function enableDemo(){
   DEMO=true;
   if(!state.answers||!state.answers.petName){
-    state.answers={petName:'Nucci',petType:'cat',breed:'British Shorthair',age:'2 years',ageMonths:24,
+    state.answers={petName:'Nucci',petType:'cat',breed:'British Shorthair',age:'2 years',ageIdx:2,ageKey:'2',ageYears:2,ageMonths:24,
       sex:'Male',neutered:'Neutered',environment:'Indoor',household:['Just me'],
       mainIssue:'Suddenly pees outside the litter box',duration:'1-2 weeks',frequency:'Once a day',
       location:['Hallway'],recentChanges:['Nothing unusual'],tried:['Nothing yet'],warningSigns:['None of these']};
@@ -1181,7 +1193,7 @@ function demoEnterApp(){
 }
 function skipAssessment(){
   // fill any unanswered questions with sensible demo values, keep what was entered
-  const d={petName:'Nucci',petType:'cat',breed:'British Shorthair',age:'2 years',ageMonths:24,
+  const d={petName:'Nucci',petType:'cat',breed:'British Shorthair',age:'2 years',ageIdx:2,ageKey:'2',ageYears:2,ageMonths:24,
     sex:'Male',neutered:'Neutered',environment:'Indoor',household:['Just me'],
     mainIssue:'Suddenly pees outside the litter box',duration:'1-2 weeks',frequency:'Once a day',
     location:['Hallway'],recentChanges:['Nothing unusual'],tried:['Nothing yet'],warningSigns:['None of these']};
@@ -1332,6 +1344,14 @@ function restoreState(d){
     if(state.activePet<0) state.activePet=0;
     if(state.pets[state.activePet]) loadPet(state.pets[state.activePet]);
   }
+  // Age model migration: plans saved before the stepped age question stored a free-month
+  // count. Snap every stored answer set onto a valid step so the slider, the profile chips,
+  // the vet letter and the AI payload all show the same thing.
+  try{
+    normalizeAnswerAge(state.answers);
+    (state.pets||[]).forEach(function(p){ if(p&&p.answers) normalizeAnswerAge(p.answers); });
+    (state.archive||[]).forEach(function(a){ if(a&&a.answers) normalizeAnswerAge(a.answers); });
+  }catch(e){ console.warn('age migration skipped',e); }
 }
 let _saveTimer=null;
 function persistState(){ clearTimeout(_saveTimer); _saveTimer=setTimeout(persistStateNow,900); }
@@ -1568,7 +1588,7 @@ function lateCheckinDay(){
 function openLateCheckin(){
   var d=lateCheckinDay(); if(!d){ toast('The late check-in window has closed'); renderToday(); return; }
   window.__lateCI=d;
-  ciData={}; ciStep=0; renderCI(); $('ciOverlay').classList.add('open');
+  ciData={}; ciStep=0; renderCI(); $('ciOverlay').classList.add('open'); lockScroll('checkin');
 }
 // The correct Day-1 date given the purchase time: same day if bought before 15:00 local,
 // otherwise the next day.
@@ -1651,9 +1671,55 @@ function showMissedNudge(n){
     +'<button class="btn btn-primary" style="width:100%" onclick="closeSheet()">Back on track</button></div>');
   haptic(14);
 }
+// ═══════ SCROLL LOCK ═══════
+// Owner-keyed rather than a plain counter: openSheet() can legitimately be called while a
+// sheet is already up (content swaps in place), and a counter would drift on every such call
+// until the page could never be unlocked again.
+var __lockOwners={}, __lockY=0;
+function scrollLocked(){ for(var k in __lockOwners){ if(__lockOwners[k]) return true; } return false; }
+function lockScroll(owner){
+  owner=owner||'default';
+  if(__lockOwners[owner]) return;
+  var wasLocked=scrollLocked();
+  __lockOwners[owner]=true;
+  if(wasLocked) return;
+  __lockY=window.scrollY||window.pageYOffset||0;
+  document.body.style.top=(-__lockY)+'px';
+  document.body.classList.add('scroll-locked');
+}
+function unlockScroll(owner){
+  if(owner===true){ __lockOwners={}; }            // force-release (used on resume)
+  else { delete __lockOwners[owner||'default']; }
+  if(scrollLocked()) return;
+  if(!document.body.classList.contains('scroll-locked')){ document.body.style.top=''; return; }
+  document.body.classList.remove('scroll-locked');
+  document.body.style.top='';
+  window.scrollTo(0,__lockY);
+}
+// ═══════ ENTRY-ANIMATION CLEANUP ═══════
+// Every transform-based entry animation must be torn down again. animationend alone is not
+// enough: a tab backgrounded mid-animation never fires it, so the class (and its transform)
+// survives the app switch and silently re-parents every position:fixed child.
+var ANIM_CLASSES=['anim','slide-in-right','slide-in-left','fade-in'];
+function clearAnim(el){ if(el&&el.classList) ANIM_CLASSES.forEach(function(c){ el.classList.remove(c); }); }
+function clearAllAnims(){ document.querySelectorAll('.screen,.tabpage').forEach(clearAnim); }
+function playAnim(el,cls){
+  if(!el) return;
+  clearAnim(el);
+  void el.offsetWidth;                 // restart the animation if the same class returns
+  el.classList.add(cls||'anim');
+  clearTimeout(el.__animT);
+  el.__animT=setTimeout(function(){ clearAnim(el); },600);
+}
+document.addEventListener('animationend',function(e){
+  var el=e.target;
+  if(el&&el.classList&&(el.classList.contains('screen')||el.classList.contains('tabpage'))){
+    clearTimeout(el.__animT); clearAnim(el);
+  }
+},true);
 function showScreen(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  const el=$(id); if(el) el.classList.add('active');
+  document.querySelectorAll('.screen').forEach(s=>{ s.classList.remove('active'); clearAnim(s); });
+  const el=$(id); if(el){ el.classList.add('active'); playAnim(el,'anim'); }
   window.scrollTo(0,0);
 }
 function welcomeCharacter(){
@@ -1743,6 +1809,7 @@ function openSheet(html){
   sh.classList.remove('closing');
   pn.innerHTML='<div class="grab"></div>'+html;
   if(!wasOpen){ sh.classList.add('open'); }   // fresh open -> slide-up animation plays
+  lockScroll('sheet');
   pn.scrollTop=0; requestAnimationFrame(function(){ pn.scrollTop=0; });
 }
 function closeSheet(){
@@ -1752,7 +1819,7 @@ function closeSheet(){
   // instant display:none vanish is what made every closing window feel like a glitch.
   sh.classList.add('closing');
   clearTimeout(__sheetCloseT);
-  __sheetCloseT=setTimeout(function(){ sh.classList.remove('open'); sh.classList.remove('closing'); __sheetCloseT=null; },230);
+  __sheetCloseT=setTimeout(function(){ sh.classList.remove('open'); sh.classList.remove('closing'); __sheetCloseT=null; unlockScroll('sheet'); },230);
 }
 // keyboard-aware CTA lift (visualViewport)
 function liftWithKeyboard(el){
@@ -2028,6 +2095,76 @@ function getQuestions(){
   );
   return q;
 }
+// ═══════ AGE MODEL (single source of truth) ═══════
+// Exact years for 0-10 (owners know these precisely), then bands for older pets where the
+// exact year rarely changes the advice and guessing is common. `months` is an approximate
+// mid-point kept ONLY for backwards compatibility with plans saved by earlier versions.
+var AGE_STEPS=[
+  {key:'lt1',   label:'Under 1 year', big:'<1', unit:'year',  sub:'Not yet a year old', tick:'<1',  months:6,   years:0.5},
+  {key:'1',     label:'1 year',       big:'1',  unit:'year',  sub:'',                   tick:'1',   months:12,  years:1},
+  {key:'2',     label:'2 years',      big:'2',  unit:'years', sub:'',                   tick:'2',   months:24,  years:2},
+  {key:'3',     label:'3 years',      big:'3',  unit:'years', sub:'',                   tick:'3',   months:36,  years:3},
+  {key:'4',     label:'4 years',      big:'4',  unit:'years', sub:'',                   tick:'4',   months:48,  years:4},
+  {key:'5',     label:'5 years',      big:'5',  unit:'years', sub:'',                   tick:'5',   months:60,  years:5},
+  {key:'6',     label:'6 years',      big:'6',  unit:'years', sub:'',                   tick:'6',   months:72,  years:6},
+  {key:'7',     label:'7 years',      big:'7',  unit:'years', sub:'',                   tick:'7',   months:84,  years:7},
+  {key:'8',     label:'8 years',      big:'8',  unit:'years', sub:'',                   tick:'8',   months:96,  years:8},
+  {key:'9',     label:'9 years',      big:'9',  unit:'years', sub:'',                   tick:'9',   months:108, years:9},
+  {key:'10',    label:'10 years',     big:'10', unit:'years', sub:'',                   tick:'10',  months:120, years:10},
+  {key:'11-13', label:'11-13 years',  big:'11\u201313', unit:'years', sub:'Senior years begin', tick:'11\u201313', months:144, years:12, band:true},
+  {key:'14-16', label:'14-16 years',  big:'14\u201316', unit:'years', sub:'Senior',            tick:'14\u201316', months:180, years:15, band:true},
+  {key:'17+',   label:'17+ years',    big:'17+',        unit:'years', sub:'Grand old age',     tick:'17+',        months:216, years:17, band:true}
+];
+var AGE_DEFAULT_INDEX=2;   // 2 years - a sensible middle default
+function ageStepByKey(k){ for(var i=0;i<AGE_STEPS.length;i++){ if(AGE_STEPS[i].key===k) return i; } return -1; }
+function ageIndexFromMonths(mm){
+  if(typeof mm!=='number'||!isFinite(mm)) return -1;
+  var y=mm/12;
+  if(y<1) return 0;
+  if(y<10.5) return Math.max(1,Math.min(10,Math.round(y)));
+  if(y<13.5) return ageStepByKey('11-13');
+  if(y<16.5) return ageStepByKey('14-16');
+  return ageStepByKey('17+');
+}
+// Accepts anything an older build (or a carried-over pet) may have stored: an index, a key,
+// a month count, or a free-text label like "3 years" / "2 years 4 months" / "8 months".
+function ageIndexFromAnswers(a){
+  a=a||{};
+  if(typeof a.ageIdx==='number' && AGE_STEPS[a.ageIdx]) return a.ageIdx;
+  if(a.ageKey){ var k=ageStepByKey(a.ageKey); if(k>=0) return k; }
+  if(typeof a.ageMonths==='number'){ var m=ageIndexFromMonths(a.ageMonths); if(m>=0) return m; }
+  var s=String(a.age==null?'':a.age).trim();
+  if(s){
+    var direct=ageStepByKey(s.replace(/\s*years?$/i,'').trim());
+    if(direct>=0) return direct;
+    if(/^under\s*1\s*year/i.test(s)||/^<\s*1/.test(s)||/month/i.test(s)&&!/year/i.test(s)) return 0;
+    var ym=s.match(/(\d+(?:\.\d+)?)\s*year/i);
+    if(ym) return ageIndexFromMonths(parseFloat(ym[1])*12);
+    var band=s.match(/(\d+)\s*[-\u2013]\s*(\d+)/);
+    if(band) return ageIndexFromMonths(((parseInt(band[1],10)+parseInt(band[2],10))/2)*12);
+    if(/^\s*17\s*\+/.test(s)) return ageStepByKey('17+');
+    var bare=s.match(/^(\d+(?:\.\d+)?)$/);
+    if(bare) return ageIndexFromMonths(parseFloat(bare[1])*12);
+  }
+  return AGE_DEFAULT_INDEX;
+}
+// Writes every age field at once so the answer set can never drift out of sync.
+function applyAgeStep(a,i){
+  var s=AGE_STEPS[i]||AGE_STEPS[AGE_DEFAULT_INDEX];
+  a.ageIdx=AGE_STEPS.indexOf(s);
+  a.ageKey=s.key;
+  a.age=s.label;
+  a.ageYears=s.years;
+  a.ageMonths=s.months;   // legacy field, approximate for bands
+  return a;
+}
+// Called once on load so plans saved by an older build show a valid step everywhere.
+function normalizeAnswerAge(a){
+  if(!a||typeof a!=='object') return a;
+  if(a.age==null && a.ageMonths==null && a.ageIdx==null && a.ageKey==null) return a;
+  applyAgeStep(a, ageIndexFromAnswers(a));
+  return a;
+}
 function OLD_getQuestions(){
   const name=state.answers.petName||'your pet';
   return [
@@ -2127,23 +2264,24 @@ function renderQ(){
     });
     mid.appendChild(g);
   }else if(q.type==='age-slider'){
-    const MAXM=240; let m=(typeof state.answers.ageMonths==='number')?state.answers.ageMonths:24;
-    let ticks=''; for(let i=0;i<=MAXM;i++){ ticks+='<i class="'+(i%12===0?'y':'')+'" style="left:'+(i/MAXM*100)+'%"></i>'; }
-    const ylab=[0,5,10,15,20].map(y=>'<span style="left:'+(y*12/MAXM*100)+'%">'+y+'</span>').join('');
-    mid.innerHTML='<div class="age-wrap"><div class="age-big"><span class="n" id="ageN"></span><span class="u" id="ageU"></span></div><div class="age-sub" id="ageS"></div>'
-      +'<div class="age-track"><div class="age-ticks">'+ticks+'</div><input type="range" class="age-range" id="ageR" min="0" max="'+MAXM+'" step="1" value="'+m+'"><div class="age-ylab">'+ylab+'</div></div></div>';
+    // Discrete age steps: exact years 0-10, then bands (11-13, 14-16, 17+). AGE_STEPS is the
+    // single source of truth - see ageIndexFromAnswers() for how a saved answer maps back.
+    const MAXI=AGE_STEPS.length-1;
+    let ai=ageIndexFromAnswers(state.answers);
+    let ticks=''; for(let i=0;i<=MAXI;i++){ ticks+='<i class="y" style="left:'+(i/MAXI*100)+'%"></i>'; }
+    const ylab=[0,5,10,MAXI].map(i=>'<span style="left:'+(i/MAXI*100)+'%">'+AGE_STEPS[i].tick+'</span>').join('');
+    mid.innerHTML='<div class="age-wrap"><div class="age-big" id="ageBig"><span class="n" id="ageN"></span><span class="u" id="ageU"></span></div><div class="age-sub" id="ageS"></div>'
+      +'<div class="age-track"><div class="age-ticks">'+ticks+'</div><input type="range" class="age-range" id="ageR" min="0" max="'+MAXI+'" step="1" value="'+ai+'"><div class="age-ylab">'+ylab+'</div></div></div>';
     const r=$('ageR');
-    const apply=mm=>{
-      const y=Math.floor(mm/12),mo=mm%12;
-      const big=y>=1?y:mo, unit=y>=1?(y===1?'year':'years'):(mo===1?'month':'months');
-      const sub=y>=1?(mo?mo+' month'+(mo>1?'s':''):''):(mm===0?'newborn':'');
-      $('ageN').textContent=big; $('ageU').textContent=unit; $('ageS').textContent=sub;
-      r.style.setProperty('--fill',(mm/MAXM*100)+'%');
-      state.answers.ageMonths=mm;
-      state.answers.age=y>=1?(mo?y+' year'+(y>1?'s':'')+' '+mo+' month'+(mo>1?'s':''):y+' year'+(y>1?'s':'')):(mm===0?'Under 1 month':mo+' month'+(mo>1?'s':''));
+    const apply=i=>{
+      const s=AGE_STEPS[i];
+      $('ageN').textContent=s.big; $('ageU').textContent=s.unit; $('ageS').textContent=s.sub||'';
+      $('ageBig').classList.toggle('band',!!s.band);
+      r.style.setProperty('--fill',(i/MAXI*100)+'%');
+      applyAgeStep(state.answers,i);
     };
-    var __lastAge=m; r.addEventListener('input',e=>{ var mm=parseInt(e.target.value,10); if(mm!==__lastAge){ __lastAge=mm; haptic(6); } apply(mm); });
-    apply(m);
+    var __lastAge=ai; r.addEventListener('input',e=>{ var i=parseInt(e.target.value,10); if(i!==__lastAge){ __lastAge=i; haptic(6); } apply(i); });
+    apply(ai);
   }else if(q.type==='pills'){
     const l=document.createElement('div'); l.className='opt-list';
     q.options.forEach(opt=>{
@@ -3179,9 +3317,9 @@ function maybeShowTapGame(){
   document.getElementById('tgDone').style.display='none';
   var t=(state.answers&&state.answers.petType)||'other';
   var tgt=document.getElementById('tgTarget'); if(tgt) tgt.innerHTML=petSvg(t,'96px');
-  el.classList.add('open');
+  el.classList.add('open'); lockScroll('tapgame');
 }
-function tgSkip(){ tgMarkSeen(); document.getElementById('tapGame').classList.remove('open'); tgAfterGame(); }
+function tgSkip(){ tgMarkSeen(); document.getElementById('tapGame').classList.remove('open'); unlockScroll('tapgame'); tgAfterGame(); }
 // Tiny sound engine (Web Audio). First unlocked by a user gesture (the "Let's go" tap),
 // so it also works on iOS. Silently no-ops if audio is unavailable.
 var tgAudio=null;
@@ -3324,7 +3462,7 @@ function tgClose(){
     return;
   }
   // Otherwise finish the game and move on to the questionnaire flow.
-  document.getElementById('tapGame').classList.remove('open');
+  document.getElementById('tapGame').classList.remove('open'); unlockScroll('tapgame');
   tgAfterGame();
 }
 // Where the game hands off to once it's done (win, lose, or skip): the intro carousel.
@@ -3365,7 +3503,7 @@ function offerTab(t){
 function testJumpToOffer(){
   // TEST ONLY: fill in sample answers and jump straight to the offer/plan screen, bypassing
   // sign-in and the questionnaire. Remove before launch.
-  state.answers={petName:'Rex',petType:'dog',breed:'Labrador',age:'3',sex:'Male',neutered:'Yes',
+  state.answers={petName:'Rex',petType:'dog',breed:'Labrador',age:'3 years',ageIdx:3,ageKey:'3',ageYears:3,ageMonths:36,sex:'Male',neutered:'Yes',
     mainIssue:'Barks at strangers and pulls on the lead',household:['Just me'],
     environment:['House with a garden'],duration:'A few weeks',frequency:'Several times a day'};
   state.previewDay1={title:'Building trust',sub:'A calm first day together',
@@ -4107,20 +4245,87 @@ function showTab(t){
   // are further apart cross-fade. This mirrors the little journey between them.
   var from=TAB_ORDER.indexOf(prevTab), to=TAB_ORDER.indexOf(t);
   var page=$('tab-'+t);
-  document.querySelectorAll('.tabpage').forEach(function(p){ p.classList.remove('active','slide-in-right','slide-in-left','fade-in'); });
-  page.classList.add('active');
+  document.querySelectorAll('.tabpage').forEach(function(p){ p.classList.remove('active'); clearAnim(p); });
+  if(page) page.classList.add('active');
   if(prevTab && prevTab!==t && from>=0 && to>=0){
     var dist=Math.abs(to-from);
-    if(dist===1){ page.classList.add(to>from?'slide-in-right':'slide-in-left'); }
-    else { page.classList.add('fade-in'); }
+    if(dist===1){ playAnim(page,to>from?'slide-in-right':'slide-in-left'); }
+    else { playAnim(page,'fade-in'); }
+  }else{
+    playAnim(page,'anim');
   }
-  if(t==='today') renderToday();
-  if(t==='plan') renderPlanTab();
-  if(t==='progress') renderProgressTab();
-  if(t==='vet') renderVetTab();
-  if(t==='profile') renderProfileTab();
+  paintTab(t);
   window.scrollTo(0,0);
 }
+// The render call on its own, so resume can repaint without touching history or scroll.
+// If a tab's renderer throws we fall back to Today rather than leaving an empty page behind
+// a tab bar - that combination is exactly what the blank-screen report looked like.
+function paintTab(t){
+  try{
+    if(t==='today') renderToday();
+    else if(t==='plan') renderPlanTab();
+    else if(t==='progress') renderProgressTab();
+    else if(t==='vet') renderVetTab();
+    else if(t==='profile') renderProfileTab();
+    else throw new Error('unknown tab '+t);
+  }catch(err){
+    console.warn('tab render failed: '+t,err);
+    if(t!=='today'){
+      curTab='today';
+      document.querySelectorAll('.tabpage').forEach(function(p){ p.classList.remove('active'); clearAnim(p); });
+      var home=document.getElementById('tab-today'); if(home) home.classList.add('active');
+      document.querySelectorAll('.navitem').forEach(function(n){ n.classList.toggle('on',n.dataset.tab==='today'); });
+      positionNavPill('today');
+      try{ renderToday(); }catch(e2){ console.warn('today render failed too',e2); }
+    }
+  }
+}
+// Redraw the tab that is currently showing, keeping the reading position. Used on every
+// resume so a page restored from the iOS back-forward cache can never show stale or empty
+// content, and so the document height always matches what is actually rendered.
+function rerenderActiveTab(keepScroll){
+  var app=document.getElementById('screen-app');
+  if(!app||!app.classList.contains('active')) return;
+  var y=keepScroll?(window.scrollY||window.pageYOffset||0):0;
+  var t=curTab||'today';
+  if(!document.getElementById('tab-'+t)){ t=curTab='today'; }
+  document.querySelectorAll('.tabpage').forEach(function(p){ p.classList.remove('active'); clearAnim(p); });
+  var page=document.getElementById('tab-'+t);
+  if(page) page.classList.add('active');   // no entry animation: this is a repair, not a transition
+  document.querySelectorAll('.navitem').forEach(function(n){ n.classList.toggle('on',n.dataset.tab===t); });
+  paintTab(t);
+  positionNavPill(curTab||t);
+  requestAnimationFrame(function(){
+    positionNavPill(curTab||t);
+    var max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);
+    window.scrollTo(0,Math.min(y,max));   // clamp: the old offset may be past the new bottom
+  });
+}
+// ═══════ RESUME ═══════
+// Fires when the user comes back from another app or another tab. iOS may restore the page
+// from the back-forward cache with a stale layout, a stale scroll offset, a paused entry
+// animation and (if it was killed) a half-built DOM. Rather than guess which of those
+// happened, we reset all of them.
+function nuciResume(){
+  try{
+    clearAllAnims();
+    var OVERLAYS=['sheet','planEndScreen','ciOverlay','tapGame','badgeModal','warnModal'];
+    var wantLock=OVERLAYS.some(function(id){
+      var el=document.getElementById(id);
+      return !!(el && el.classList.contains('open'));
+    });
+    if(!wantLock) unlockScroll(true);          // nothing owns the screen -> body must scroll
+    try{ if(typeof setKb==='function') setKb(false); }catch(e){}
+    rerenderActiveTab(true);
+  }catch(e){ console.warn('resume repair failed',e); }
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible') nuciResume();
+});
+window.addEventListener('pageshow',function(){ nuciResume(); });
+// Safari restores the previous scroll position AFTER our render, which is how you end up
+// parked in whitespace below the real content. We manage the position ourselves instead.
+try{ if('scrollRestoration' in history) history.scrollRestoration='manual'; }catch(e){}
 function taskKey(day){ return 'd'+day; }
 function getTasksDone(day){ const k=taskKey(day); if(!state.tasksDone[k]) state.tasksDone[k]=[]; return state.tasksDone[k]; }
 function ritAnim(card,open){
@@ -4693,7 +4898,7 @@ function testJumpToPlanEnd(){
   persistStateNow();
   // open the final day's check-in; finishing it triggers openPlanEnd for THIS pet only
   ciData={}; ciStep=0;
-  if(document.getElementById('ciOverlay')){ renderCI(); document.getElementById('ciOverlay').classList.add('open'); }
+  if(document.getElementById('ciOverlay')){ renderCI(); document.getElementById('ciOverlay').classList.add('open'); lockScroll('checkin'); }
 }
 // notes are stored per day as an array of {text,ts}. Migrate old string form transparently.
 function getDayNotes(day){
@@ -5448,9 +5653,9 @@ function celebrateBadge(b){
   document.getElementById('badgeModalText').innerHTML='<b style="color:var(--text)">'+esc(b.name)+'</b><br>'+esc(b.desc);
   document.getElementById('badgeModalT').textContent='Badge unlocked';
   document.getElementById('badgeModalIc').innerHTML=icon(b.ic||'sparkle','26px',1.6);
-  el.classList.add('open');
+  el.classList.add('open'); lockScroll('badge');
 }
-function closeBadgeModal(){ var el=document.getElementById('badgeModal'); if(el) el.classList.remove('open'); }
+function closeBadgeModal(){ var el=document.getElementById('badgeModal'); if(el) el.classList.remove('open'); unlockScroll('badge'); }
 function socialProofStat(){
   var t=(state.answers&&state.answers.petType)||'pet';
   var noun = t==='dog'?'dogs':t==='cat'?'cats':t==='rabbit'?'rabbits':'pets';
@@ -6139,9 +6344,9 @@ function openCheckin(){
   if(planFrozen()){ toast('Plan is frozen \u2744\uFE0F'); return; }
   if(state.lastCheckinDate===todayKey()){ toast('Already checked in today'); return; }
   if(!checkinWindowOpen()){ toast('Check-in opens at 20:00'); return; }
-  ciData={}; ciStep=0; renderCI(); $('ciOverlay').classList.add('open');
+  ciData={}; ciStep=0; renderCI(); $('ciOverlay').classList.add('open'); lockScroll('checkin');
 }
-function closeCheckin(){ kbRelease(); $('ciOverlay').classList.remove('open'); }
+function closeCheckin(){ kbRelease(); $('ciOverlay').classList.remove('open'); unlockScroll('checkin'); }
 function ciBack(){ kbRelease(); if(ciStep<=0){ closeCheckin(); return; } ciStep--; renderCI(); }
 function renderCI(){
   try{ var __f=ciFlow(), __s=__f[ciStep]; if(__s&&(__s.type==='text'||__s.type==='textarea')) kbPrime(); }catch(e){}
@@ -6574,7 +6779,7 @@ function proceedNewPet(prefillFrom, targetName, targetType, petPhoto){
   showScreen('screen-assessment');
   if(prefillFrom){
     // Carry over only the fields that don't change between plans for the same pet.
-    var keep=['petName','petType','species','breed','age','sex','neutered','environment','household'];
+    var keep=['petName','petType','species','breed','age','ageIdx','ageKey','ageYears','ageMonths','sex','neutered','environment','household'];
     keep.forEach(function(k){ if(prefillFrom[k]!=null && prefillFrom[k]!=='') state.answers[k]=prefillFrom[k]; });
     state.__prefilledPet=true;
     // Jump to the first question whose answer we did NOT carry over (the first variable one).
@@ -6824,7 +7029,7 @@ function openPlanEnd(){
   if(last && last.occurred==='No'){
     launchConfetti(); haptic(20);
     planEndWorked();
-    document.getElementById('planEndScreen').classList.add('open');
+    document.getElementById('planEndScreen').classList.add('open'); lockScroll('planend');
     return;
   }
   launchConfetti(); haptic(20);
@@ -6838,7 +7043,7 @@ function openPlanEnd(){
     +'<button class="btn btn-primary" style="margin:0 0 10px" onclick="planEndWorked()">It\u2019s better, we\u2019re good</button>'
     +'<button class="btn btn-ghost" onclick="planEndNotYet()">Not quite there yet</button>'
     +'</div>';
-  el.classList.add('open');
+  el.classList.add('open'); lockScroll('planend');
 }
 // One tap = one REAL rating. Stored anonymously in analytics (event 'rating'); the landing
 // page shows the average automatically once at least 20 genuine ratings exist.
@@ -7045,13 +7250,15 @@ function openPlanEnd_OLD(){
     +'<button class="btn btn-ghost" style="margin-top:4px" onclick="closePlanEnd();showTab(\'progress\')">See my progress</button>'
     +'<button class="btn btn-ghost" style="color:var(--secondary);padding:6px" onclick="closePlanEnd()">Close</button>'
     +'</div>';
-  el.classList.add('open');
+  el.classList.add('open'); lockScroll('planend');
 }
 function closePlanEnd(){
-  var el=document.getElementById('planEndScreen'); if(el) el.classList.remove('open');
+  var el=document.getElementById('planEndScreen'); if(el){ el.classList.remove('open'); el.scrollTop=0; }
+  unlockScroll('planend');
   // Re-render so the pet switch (after completing a plan) is reflected immediately - without
   // this the Today hero / switcher can still show the just-finished pet until a manual refresh.
-  try{ if(typeof curTab!=='undefined' && curTab){ showTab(curTab); } else { renderToday(); } }catch(e){}
+  // rerenderActiveTab (not showTab) so closing never pushes a duplicate history entry.
+  try{ rerenderActiveTab(false); }catch(e){ try{ renderToday(); }catch(e2){} }
 }
 async function adaptNextDay(nextDay){
   try{
@@ -7113,7 +7320,7 @@ async function adaptNextDay(nextDay){
       var subline = isTips
         ? 'Emails that are part of a plan you purchased are unaffected. You can turn tips back on any time in your profile.'
         : 'This switches off reminders and all other emails. You can turn them back on any time in your profile.';
-      document.body.innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px;background:#F2F1EC;font-family:Inter,-apple-system,sans-serif">'
+      document.body.innerHTML='<div style="min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:32px;background:#F2F1EC;font-family:Inter,-apple-system,sans-serif">'
         +'<div style="max-width:380px;text-align:center">'
         +'<div style="font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:#6B8F71;margin-bottom:10px">Unsubscribed</div>'
         +'<h1 style="font-size:1.6rem;font-weight:400;letter-spacing:-.03em;color:#1A211C;margin-bottom:10px">'+headline+'</h1>'
