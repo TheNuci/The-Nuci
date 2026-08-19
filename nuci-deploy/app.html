@@ -246,8 +246,10 @@ input.age-range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:
 input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--forest);border:3px solid #FBFBF8;cursor:pointer}
 .age-ylab{position:relative;height:16px;margin-top:8px}
 .age-ylab span{position:absolute;transform:translateX(-50%);font-size:0.72rem;color:var(--secondary)}
-.planend{position:fixed;inset:0;z-index:1600;background:var(--bg);overflow-y:auto;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,visibility 0s linear .3s}
-.planend.open{visibility:visible;pointer-events:auto;opacity:1;transition:opacity .3s ease}
+.planend{position:fixed;inset:0;z-index:1600;background:var(--bg);overflow-y:auto;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility 0s linear .18s}
+.planend.open{visibility:visible;pointer-events:auto;opacity:1;transition:none}
+.planend.open .pe-inner{animation:peIn .38s ease}
+@keyframes peIn{from{opacity:0;transform:translateY(14px)}}
 .planend .pe-inner{min-height:100%;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:calc(env(safe-area-inset-top) + 40px) 30px 40px}
 /* ── frozen plan (holiday mode) ── */
 .frz-wrap{position:relative;min-height:62vh;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:24px;
@@ -455,6 +457,8 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .gen-wrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
   padding:calc(env(safe-area-inset-top) + 52px) 26px}
 .gen-h{font-size:2rem;letter-spacing:-0.04em;line-height:1.12;text-align:center}
+.gen-idle{animation:genSpin 1.1s linear infinite;transform-origin:center}
+@keyframes genSpin{to{transform:rotate(360deg)}}
 .gen-circle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
 .gen-phase{position:absolute;top:calc(50% + 115px);left:0;right:0;text-align:center;color:var(--secondary);
   font-size:0.95rem;letter-spacing:.01em;transition:opacity .4s ease;min-height:1.4em;padding:0 30px}
@@ -845,7 +849,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 <section class="screen" id="screen-generating">
   <div class="gen-wrap">
     <h1 class="gen-h">Generating your<br><span class="accent">7-day plan...</span></h1>
-    <div class="gen-circle" id="genCircle"></div>
+    <div class="gen-circle" id="genCircle"><svg viewBox="0 0 120 120" width="170" height="170" class="gen-idle"><circle cx="60" cy="60" r="52" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="7"/><circle cx="60" cy="60" r="52" fill="none" stroke="#3E5A47" stroke-width="7" stroke-linecap="round" stroke-dasharray="90 236" transform="rotate(-90 60 60)"/></svg></div>
     <div class="gen-phase" id="genPhase"></div>
   </div>
 </section>
@@ -972,7 +976,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-19 fixes-v12";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-19 fixes-v13";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -6404,10 +6408,10 @@ function planForExistingPet(idx, force){
     }catch(e){}
     openSheet('<div style="text-align:center">'
       +'<div style="width:56px;height:56px;border-radius:50%;background:rgba(107,143,113,.13);display:flex;align-items:center;justify-content:center;margin:4px auto 16px;color:var(--sage)">'+icon('sparkle','24px',1.6)+'</div>'
+      +'<div class="d-eb" style="color:var(--sage)">One thing at a time</div>'
       +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 10px">'+nm+' already has an active plan'+dayInfo+'</h2>'
-      +'<p style="font-size:0.92rem;color:var(--secondary);line-height:1.55;margin-bottom:20px">Starting a new plan <b>replaces the current one</b> - its days and check-ins make way for a fresh week built around the new answers.</p>'
-      +'<button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="planForExistingPet('+idx+',true)">Start a new plan for '+nm+'</button>'
-      +'<button class="btn btn-ghost" style="width:100%" onclick="closeSheet()">Keep the current plan</button>'
+      +'<p style="font-size:0.92rem;color:var(--secondary);line-height:1.55;margin-bottom:20px">It\u2019s best to focus on one behaviour at a time. Finish '+nm+'\u2019s current plan - then a new one can begin.</p>'
+      +'<button class="btn btn-primary" style="width:100%" onclick="closeSheet()">Keep the current plan</button>'
       +'</div>');
     return;
   }
