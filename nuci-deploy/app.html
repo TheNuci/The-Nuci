@@ -972,7 +972,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-18 fixes-v9";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-18 fixes-v10";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -1293,6 +1293,16 @@ function restoreState(d){
   if(!d) return;
   try{ if(typeof d==='string') d=JSON.parse(d); }catch(e){ return; }
   Object.keys(d).forEach(k=>{ if(d[k]!==undefined) state[k]=d[k]; });
+  // Self-heal: a broken save from an older build could leave activePet parked OUTSIDE the
+  // pets array (the in-memory scratch trick was never meant to be persisted). A stale
+  // out-of-range pointer makes pet switching silently do nothing and lets syncActivePet
+  // write ghosts. On every restore, clamp it back onto a real pet.
+  if(Array.isArray(state.pets) && state.pets.length){
+    if(typeof state.activePet!=='number' || state.activePet<0 || state.activePet>=state.pets.length || !state.pets[state.activePet]){
+      state.activePet=state.pets.length-1;
+      try{ loadPet(state.pets[state.activePet]); }catch(e){}
+    }
+  } else if(!Array.isArray(state.pets)){ state.pets=[]; state.activePet=0; }
   if(!state.planOverrides) state.planOverrides={};
   if(!Array.isArray(state.checkins)) state.checkins=[];
   if(!state.dayNotes) state.dayNotes={};
@@ -6201,7 +6211,7 @@ function mergePlanIntoExistingPet(){
   state.activePet=state.pets.indexOf(newer);
   if(state.activePet<0){ state.activePet=Math.max(0,state.pets.length-1); }
 }
-function loadPet(o){ PET_FIELDS.forEach(function(k){ state[k]=o[k]; }); if(!state.tasksDone)state.tasksDone={}; if(!state.dayNotes)state.dayNotes={}; if(!state.dayInsights)state.dayInsights={}; if(!state.planOverrides)state.planOverrides={}; if(!Array.isArray(state.checkins))state.checkins=[]; }
+function loadPet(o){ if(!o){ return; } PET_FIELDS.forEach(function(k){ state[k]=o[k]; }); if(!state.tasksDone)state.tasksDone={}; if(!state.dayNotes)state.dayNotes={}; if(!state.dayInsights)state.dayInsights={}; if(!state.planOverrides)state.planOverrides={}; if(!Array.isArray(state.checkins))state.checkins=[]; }
 // Safety net: collapse any duplicate pets (same name+type) into a single entry, preferring the
 // one with a running (uncompleted) plan, else the most recently active. Protects My pets from
 // ever showing the same animal twice even if some earlier flow left a duplicate behind.
@@ -6347,19 +6357,32 @@ function chooseExistingPet(saved){
 // then moves focus to the real field and the keyboard stays up.
 function primeKeyboard(){ try{ kbPrime(); }catch(e){} }
 function planForNewPet(){ primeKeyboard(); closeSheet(); proceedNewPet(); }
-function planForExistingPet(idx){
+function planForExistingPet(idx, force){
   var choice=(window.__petChoices||[])[idx];
-  // One active plan per pet. Check this BEFORE priming the keyboard, otherwise the keyboard pops
-  // up over the "already has an active plan" message.
-  if(choice && petHasActivePlan(choice.answers.petName, choice.answers.petType)){
+  // One active plan per pet - but the OWNER decides. Instead of the old dead-end ("Got it"),
+  // offer an explicit replacement: the current plan is shown with its day, and confirming
+  // starts the normal new-plan flow. The purchase path then force-resets the old plan
+  // (handlePaidReturn) and the credit path replaces it through the merge - both already
+  // treat a purchase for an existing pet as a fresh plan.
+  if(!force && choice && petHasActivePlan(choice.answers.petName, choice.answers.petType)){
     closeSheet();
     var nm=esc(choice.answers.petName||'This pet');
+    var dayInfo='';
+    try{
+      var k=((choice.answers.petName||'')+'|'+(choice.answers.petType||'')).toLowerCase();
+      (state.pets||[]).forEach(function(p){
+        var a=(p&&p.answers)||{};
+        if(((a.petName+'|'+(a.petType||'')).toLowerCase())===k && !p.planComplete){
+          dayInfo=' (Day '+(p.currentDay||1)+' of '+(p.planLength||7)+')';
+        }
+      });
+    }catch(e){}
     openSheet('<div style="text-align:center">'
       +'<div style="width:56px;height:56px;border-radius:50%;background:rgba(107,143,113,.13);display:flex;align-items:center;justify-content:center;margin:4px auto 16px;color:var(--sage)">'+icon('sparkle','24px',1.6)+'</div>'
-      +'<div class="d-eb" style="color:var(--sage)">One thing at a time</div>'
-      +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 10px">'+nm+' already has an active plan</h2>'
-      +'<p style="font-size:0.92rem;color:var(--secondary);line-height:1.55;margin-bottom:20px">It\u2019s best to focus on one behaviour before starting the next. Finish '+nm+'\u2019s current plan, then you can begin a new one.</p>'
-      +'<button class="btn btn-primary" onclick="closeSheet()">Got it</button>'
+      +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin:6px 0 10px">'+nm+' already has an active plan'+dayInfo+'</h2>'
+      +'<p style="font-size:0.92rem;color:var(--secondary);line-height:1.55;margin-bottom:20px">Starting a new plan <b>replaces the current one</b> - its days and check-ins make way for a fresh week built around the new answers.</p>'
+      +'<button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="planForExistingPet('+idx+',true)">Start a new plan for '+nm+'</button>'
+      +'<button class="btn btn-ghost" style="width:100%" onclick="closeSheet()">Keep the current plan</button>'
       +'</div>');
     return;
   }
