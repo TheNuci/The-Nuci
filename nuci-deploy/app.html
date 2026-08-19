@@ -972,7 +972,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-19 fixes-v10b";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-19 fixes-v12";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -3848,6 +3848,22 @@ async function handlePaidReturn(demo){
   // spareCredits() can't go negative and block them. The webhook poll that follows corrects
   // this to the exact purchased amount as soon as the server-side ledger is readable.
   if(!p && (state.planCredits||0)<1){ state.planCredits=1; }
+  // NO BLIND GENERATION. If the checkout context is gone AND the account already has pets,
+  // we cannot know WHICH pet this purchase was for (classic cause: checkout started in the
+  // installed home-screen app, Stripe returned into the browser - two separate storages).
+  // The old behaviour generated a plan for whatever pet happened to be loaded - proven in
+  // analytics as "bought for Ruby, gen_target Nucci". Instead: record the purchase as a
+  // credit (the webhook poll fills in the exact amount) and let the owner start the plan
+  // through the pet chooser, which knows exactly who the plan is for.
+  if((!p || !p.answers || !p.answers.petName) && Array.isArray(state.pets) && state.pets.length){
+    try{ state.plansGenerated=Math.max(0,(state.plansGenerated||0)); }catch(e){}
+    persistStateNow();
+    enterApp();
+    try{ nuciTrack('paid_no_context'); }catch(e){}
+    toast('Payment received - your plan credit is ready. Start the plan from Profile \u2192 Start a plan.');
+    window.__handlingPaidReturn=false;
+    return Promise.resolve();
+  }
   // Count the very first plan of a fresh purchase as one credit used (the add-pet path above
   // already counts its own, so skip if it ran).
   if(!window.__addPetCounted){ state.plansGenerated=(state.plansGenerated||0)+1; }
@@ -3897,6 +3913,15 @@ async function handlePaidReturn(demo){
     // pet and park activePet past the end, so it can only be APPENDED, never written over an
     // existing entry. (A true first purchase has pets=[] and is unaffected.)
     if(!_existingTarget && _an && Array.isArray(state.pets) && state.pets.length){
+      state.__pendingBlankPet=true;
+      state.activePet=state.pets.length;
+    }
+    // And the SAME protection when the pet DOES match an existing entry: park the incoming
+    // plan as an append-only scratch. Without this, a lost add-pet context + activePet
+    // resting on a DIFFERENT pet meant syncActivePet could write the new plan over that
+    // other pet's slot before the merge ran. Append-only makes that structurally impossible;
+    // mergePlanIntoExistingPet then folds the appended entry onto the right pet.
+    if(_existingTarget && Array.isArray(state.pets) && state.pets.length){
       state.__pendingBlankPet=true;
       state.activePet=state.pets.length;
     }
