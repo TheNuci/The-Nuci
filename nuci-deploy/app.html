@@ -976,7 +976,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // can enter the app or unlock plans without a real Stripe payment. Set to false only
 // while testing, then back to true before deploying.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-19 fixes-v15";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-19 fixes-v17";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -3611,6 +3611,22 @@ function proceedToPayment(pkg){
       addPetPending:addCtx
     }));
   }catch(e){}
+  // Server-side copy of the checkout note: the Stripe return may land in a DIFFERENT window
+  // (in-app browsers, second tab) where localStorage above is unreachable. The service-role
+  // function stores it against the email even when the auth session has expired - the exact
+  // combination that used to lose the "which pet is this for" information.
+  try{
+    if(state.userEmail){
+      var _sc={ ts:Date.now(), answers:state.answers, planLength:state.planLength,
+        userEmail:state.userEmail, pricePaid:currentPrice(), planCredits:pkg.credits, packageId:pkg.id,
+        __planSig:state.__planSig||null, paid:true,
+        priorCredits:state.planCredits||0, plansGenerated:state.plansGenerated||0,
+        addPetPending:addCtx?{answers:addCtx.answers, forExistingPet:addCtx.forExistingPet||null}:null,
+        __pendingBlankPet:state.__pendingBlankPet||false };
+      fetch('/.netlify/functions/checkout-context',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'save', email:state.userEmail, ctx:_sc}), keepalive:true}).catch(function(){});
+    }
+  }catch(e){}
   var payLink=pkgLink(pkg);
   if(payLink){ window.location.href=payLink; return; }
   // no link configured -> complete locally so the flow isn't blocked
@@ -3648,6 +3664,29 @@ async function runPaidReturn(){
       ps={};
     }
     if(ps.userEmail && !state.userEmail) state.userEmail=ps.userEmail;
+    // SERVER FALLBACK: no usable local note -> ask the server for the one parked at Pay time.
+    // This is what makes the purchase work in ANY window: in-app browsers, second tabs,
+    // expired sessions - the note lives in the database, not in a browser window.
+    if(!ps || !ps.answers || !ps.answers.petName){
+      try{
+        var _em2=state.userEmail;
+        if(!_em2){ try{ var _l2=JSON.parse(localStorage.getItem('nuciState')||'null'); _em2=_l2&&_l2.userEmail; }catch(e){} }
+        if(_em2){
+          var _cr=await fetch('/.netlify/functions/checkout-context',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({action:'load', email:_em2})});
+          if(_cr.ok){
+            var _cj=await _cr.json();
+            if(_cj && _cj.ctx && _cj.ctx.answers && _cj.ctx.answers.petName){
+              ps=Object.assign({}, _cj.ctx);
+              ps.userEmail=ps.userEmail||_em2;
+              if(!state.userEmail) state.userEmail=ps.userEmail;
+              try{ localStorage.setItem('pendingState', JSON.stringify(ps)); }catch(e){}
+              log('server checkout note recovered for '+(ps.answers.petName||'?'));
+            }
+          }
+        }
+      }catch(e){}
+    }
     // SPEED: the AI call is by far the longest step after payment (5-15s), and the answers it
     // needs are already here in pendingState - so fire it NOW, in parallel with the session
     // wait + profile load below, instead of only after them. generatePlanAI picks this
@@ -3682,6 +3721,24 @@ async function runPaidReturn(){
         await new Promise(function(res){ setTimeout(res,400); });
       }
       if(sess && sess.user && sess.user.email) state.userEmail=sess.user.email;
+      // SECOND server-note attempt: in a truly foreign window (nothing local at all) the
+      // email only becomes known here, from the session - so ask for the parked checkout
+      // note again now that we know who this is.
+      if((!ps || !ps.answers || !ps.answers.petName) && state.userEmail){
+        try{
+          var _cr2=await fetch('/.netlify/functions/checkout-context',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({action:'load', email:state.userEmail})});
+          if(_cr2.ok){
+            var _cj2=await _cr2.json();
+            if(_cj2 && _cj2.ctx && _cj2.ctx.answers && _cj2.ctx.answers.petName){
+              ps=Object.assign({}, _cj2.ctx);
+              ps.userEmail=ps.userEmail||state.userEmail;
+              try{ localStorage.setItem('pendingState', JSON.stringify(ps)); }catch(e){}
+              log('server checkout note recovered (post-session) for '+(ps.answers.petName||'?'));
+            }
+          }
+        }catch(e){}
+      }
       if(state.userEmail){ try{ await loadStateForUser(state.userEmail); }catch(e){} }
     }
     // restore the add-pet scratch that the profile load may have clobbered
@@ -3721,6 +3778,8 @@ async function runPaidReturn(){
     // Final save attempt: by now (generation + webhook poll = 10-20s) the session has almost
     // always recovered, so this turns an earlier silent RLS failure into a successful upload.
     try{ await persistStateNow(); }catch(e){}
+    try{ if(state.userEmail){ fetch('/.netlify/functions/checkout-context',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'clear', email:state.userEmail}), keepalive:true}).catch(function(){}); } }catch(e){}
     log('DONE');
   }catch(e){
     log('FATAL: '+(e&&e.message));
@@ -3874,6 +3933,11 @@ async function handlePaidReturn(demo){
     // exact numbers once live links are on).
     if(!Array.isArray(state.transactions)) state.transactions=[];
     state.transactions.push({date:new Date().toISOString(), packageId:'credit', price:null, credits:1});
+    // The credit must be a SPARE one. "At least 1 total" wasn't enough: on an account whose
+    // used-plans counter already matched its credits, the granted credit drowned in the math,
+    // spareCredits() stayed 0, and the chooser sent the person BACK TO PAYMENT - the vicious
+    // circle. Guarantee one usable credit so the post-questionnaire path generates for free.
+    try{ if(spareCredits()<1){ state.planCredits=(state.planCredits||0)+(1-spareCredits()); } }catch(e){ state.planCredits=(state.planCredits||0)+1; }
     persistStateNow();
     enterApp();
     try{ nuciTrack('paid_no_context'); }catch(e){}
