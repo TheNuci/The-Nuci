@@ -105,6 +105,17 @@ input:focus{outline:none;border-color:var(--sage)}
       <h2>Client errors <span class="pill" id="errCount"></span></h2>
       <div id="errList" class="muted">No errors in the last 7 days 🎉</div>
     </div>
+
+    <div class="sec card">
+      <h2>Inspect profile</h2>
+      <div class="muted" style="margin-bottom:10px">Structural view of one account's data (pets, days, archive, counters) for debugging. No answer texts or photos are returned.</div>
+      <div style="display:flex;gap:8px">
+        <input type="email" id="inspEmail" placeholder="user@email.com" style="flex:1">
+        <button class="btn" style="width:auto;padding:13px 18px" onclick="inspect()">Inspect</button>
+      </div>
+      <pre id="inspOut" style="display:none;margin-top:12px;background:rgba(26,33,28,.05);border-radius:12px;padding:12px;font-size:.72rem;line-height:1.5;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:480px;overflow-y:auto"></pre>
+      <button class="ghost" id="inspCopy" style="display:none" onclick="copyInspect()">Copy JSON</button>
+    </div>
   </div>
 </div>
 
@@ -197,6 +208,19 @@ function renderFunnel(d){
   });
   document.getElementById('funnel').innerHTML=h;
 }
+async function inspect(){
+  var em=(document.getElementById('inspEmail').value||'').trim();
+  var out=document.getElementById('inspOut'), cp=document.getElementById('inspCopy');
+  if(!em){ return; }
+  out.style.display='block'; out.textContent='Loading…';
+  try{
+    var r=await fetch('/.netlify/functions/admin-inspect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,email:em})});
+    var t=await r.text();
+    try{ out.textContent=JSON.stringify(JSON.parse(t),null,2); }catch(e){ out.textContent=t; }
+    cp.style.display='inline-block';
+  }catch(e){ out.textContent='Error: '+e; }
+}
+function copyInspect(){ try{ navigator.clipboard.writeText(document.getElementById('inspOut').textContent); }catch(e){} }
 function esc(s){ return String(s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 document.getElementById('keyInput').addEventListener('keydown',function(e){ if(e.key==='Enter') unlock(); });
 try{ var sk=sessionStorage.getItem('nuci_admin_key'); if(sk){ KEY=sk; load(); } }catch(e){}
