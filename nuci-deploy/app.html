@@ -728,10 +728,11 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 /* Plan timeline day expand/collapse */
 /* Day accordion: close and open run CONCURRENTLY with the same duration and curve
    (Apple's sheet easing), so the list reflows in one continuous motion instead of
-   collapse -> pause -> expand. Symmetric timing keeps the total height change smooth. */
-.a-dayexp{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .45s cubic-bezier(.32,.72,0,1),opacity .3s ease;will-change:grid-template-rows}
-.a-dayexp>.a-dayexp-inner{overflow:hidden;min-height:0;transform:translateY(-4px);transition:transform .45s cubic-bezier(.32,.72,0,1)}
-.a-dayexp.open{grid-template-rows:1fr;opacity:1;transition:grid-template-rows .45s cubic-bezier(.32,.72,0,1),opacity .35s ease .06s}
+   collapse -> pause -> expand. Symmetric 1.5s timing; while it runs, the page glides
+   so the opening day is on screen (see openDay's follow loop). */
+.a-dayexp{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows 1.5s cubic-bezier(.32,.72,0,1),opacity .8s ease;will-change:grid-template-rows}
+.a-dayexp>.a-dayexp-inner{overflow:hidden;min-height:0;transform:translateY(-4px);transition:transform 1.5s cubic-bezier(.32,.72,0,1)}
+.a-dayexp.open{grid-template-rows:1fr;opacity:1;transition:grid-template-rows 1.5s cubic-bezier(.32,.72,0,1),opacity .9s ease .15s}
 .a-dayexp.open>.a-dayexp-inner{transform:translateY(0)}
 .a-daynode{transition:background .3s ease,border-color .3s ease,color .3s ease}
 .a-dayrow .a-daylbl{transition:font-weight .2s ease,color .2s ease}
@@ -988,7 +989,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-21 launch-v25";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-21 launch-v26";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -5034,22 +5035,29 @@ function openDay(n){
   styleNode(n,true);
   if(navigator.vibrate) navigator.vibrate(6);
 
-  // Scroll follow: pin the tapped day's header to the viewport position it had at tap time
-  // while the heights above it animate - the row stays under the user's finger instead of
-  // drifting away when a taller card above collapses. Runs only for the transition window.
+  // Scroll follow: while the accordion animates (1.5s), glide the page so the OPENING
+  // day's header settles a comfortable distance from the top - the user never has to
+  // scroll to find the day they just tapped, even when a taller card above collapsed.
+  // Exponential approach per frame (15%/frame) tracks the changing layout smoothly and
+  // needs no knowledge of final heights.
   if(nl && nl.getBoundingClientRect){
-    var y0=nl.getBoundingClientRect().top;
+    var TARGET_TOP=96;   // px from viewport top where the opened day's header should rest
     var scroller=getPlanScroller();
     var t0=(window.performance&&performance.now)?performance.now():Date.now();
     var tick=function(){
       var now=(window.performance&&performance.now)?performance.now():Date.now();
-      var r=nl.getBoundingClientRect(); if(!r) return;
-      var dy=r.top-y0;
-      if(dy>0.5||dy<-0.5){
+      var el=document.getElementById('daylbl-'+n); if(!el) return;   // tab re-rendered
+      var dy=el.getBoundingClientRect().top-TARGET_TOP;
+      var step=dy*0.15;
+      if(step>0.5||step<-0.5){
+        if(scroller===window) window.scrollBy(0,step);
+        else scroller.scrollTop+=step;
+      }
+      if(now-t0<1650) requestAnimationFrame(tick);
+      else if(dy>1||dy<-1){   // final settle
         if(scroller===window) window.scrollBy(0,dy);
         else scroller.scrollTop+=dy;
       }
-      if(now-t0<500) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   }
