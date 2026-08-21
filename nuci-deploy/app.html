@@ -985,7 +985,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-20 launch-v21";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-21 launch-v23";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -5786,10 +5786,31 @@ function renderProfileTab(){
     +prow('Settings','openSettings()','',true)
     +'</div>';
 
-  h+='<p style="text-align:center;font-family:\'Inter\',-apple-system,sans-serif;font-weight:400;font-size:1.35rem;letter-spacing:-0.03em;margin-top:24px;margin-bottom:8px"><span style="color:var(--sage)">The</span> <span style="color:var(--text)">Nuci</span><span style="color:var(--sage)">.</span></p>';
-  h+='<p style="text-align:center;font-size:0.68rem;color:var(--secondary);margin-bottom:4px">Build '+(typeof BUILD_STAMP!=='undefined'?BUILD_STAMP:'-')+'</p>';
+  // Wordmark doubles as the hidden admin trigger: 7 quick taps open the admin sheet
+  // (build info + full reset). No URL parameter - those were removed for launch on purpose.
+  h+='<p onclick="adminTap()" style="text-align:center;font-family:\'Inter\',-apple-system,sans-serif;font-weight:400;font-size:1.35rem;letter-spacing:-0.03em;margin-top:24px;margin-bottom:8px;cursor:default;-webkit-user-select:none;user-select:none"><span style="color:var(--sage)">The</span> <span style="color:var(--text)">Nuci</span><span style="color:var(--sage)">.</span></p>';
 
   $('tab-profile').innerHTML=h;
+}
+// ═══════ HIDDEN ADMIN ═══════
+// 7 taps on the Profile wordmark within 2.5s. Shows which build is live and offers a full
+// reset - double-confirmed, because it erases the LOCAL app state on this device.
+var __admTaps=0,__admT=null;
+function adminTap(){
+  __admTaps++;
+  clearTimeout(__admT);
+  __admT=setTimeout(function(){ __admTaps=0; },2500);
+  if(__admTaps>=7){ __admTaps=0; clearTimeout(__admT); openAdminSheet(); }
+}
+function openAdminSheet(){
+  var rows='';
+  rows+='<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:0.85rem"><span style="color:var(--secondary)">Build</span><b>'+(typeof BUILD_STAMP!=='undefined'?esc(BUILD_STAMP):'-')+'</b></div>';
+  rows+='<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:0.85rem"><span style="color:var(--secondary)">Mode</span><b>'+(typeof LIVE!=='undefined'&&LIVE?'LIVE':'test')+'</b></div>';
+  rows+='<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:0.85rem"><span style="color:var(--secondary)">Account</span><b style="max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.userEmail||'-')+'</b></div>';
+  rows+='<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;font-size:0.85rem"><span style="color:var(--secondary)">Pets / credits</span><b>'+((state.pets&&state.pets.length)||0)+' / '+(state.planCredits||0)+'</b></div>';
+  openSheet('<h3 style="font-size:1.1rem;margin-bottom:10px">Admin</h3>'
+    +rows
+    +'<button class="btn" style="width:100%;margin-top:18px" onclick="closeSheet()">Close</button>');
 }
 function setUserPhoto(inp){
   const f=inp.files&&inp.files[0]; if(!f) return;

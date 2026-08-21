@@ -63,6 +63,7 @@ input:focus{outline:none;border-color:var(--sage)}
         <div class="eb">The Nuci</div>
         <h1>Admin dashboard</h1>
         <div class="sub" id="genAt"></div>
+        <div class="sub" id="buildLine" style="margin-top:2px"></div>
       </div>
       <div style="text-align:right">
         <button class="ghost" onclick="load()">Refresh</button>
@@ -116,6 +117,24 @@ input:focus{outline:none;border-color:var(--sage)}
       <pre id="inspOut" style="display:none;margin-top:12px;background:rgba(26,33,28,.05);border-radius:12px;padding:12px;font-size:.72rem;line-height:1.5;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:480px;overflow-y:auto"></pre>
       <button class="ghost" id="inspCopy" style="display:none" onclick="copyInspect()">Copy JSON</button>
     </div>
+
+    <div class="sec card" style="border-color:rgba(180,85,63,.35)">
+      <h2 style="color:var(--danger)">Danger zone</h2>
+      <div class="muted" style="margin-bottom:12px">Erases the collected <b>statistics</b>: tracking events (funnel, app opens, check-in counts, signups-per-day source) and logged client errors. User accounts, pets, plans, purchases and revenue records are <b>not</b> touched. This cannot be undone.</div>
+      <div id="resetIdle">
+        <button class="btn" style="background:var(--danger);width:auto;padding:13px 22px" onclick="resetStatsAsk()">Reset statistics…</button>
+      </div>
+      <div id="resetConfirm" style="display:none">
+        <div style="font-size:.9rem;line-height:1.5;margin-bottom:10px"><b>Really erase all statistics?</b> Every dashboard number that comes from events (funnel, opens, check-ins per day, signups chart, errors) starts again from zero. Type <b>RESET</b> to confirm.</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="resetWord" placeholder="Type RESET" autocomplete="off" style="flex:1">
+          <button class="btn" style="background:var(--danger);width:auto;padding:13px 18px" onclick="resetStatsGo()">Erase</button>
+          <button class="ghost" onclick="resetStatsCancel()">Cancel</button>
+        </div>
+        <div id="resetErr" style="color:var(--danger);font-size:.78rem;min-height:18px;margin-top:6px"></div>
+      </div>
+      <div id="resetDone" style="display:none;font-size:.85rem;color:var(--forest);margin-top:4px"></div>
+    </div>
   </div>
 </div>
 
@@ -150,6 +169,7 @@ function fmtDay(k){ return k? k.slice(8,10)+'.'+k.slice(5,7)+'.':''; }
 
 function render(d){
   document.getElementById('genAt').textContent='Generated '+new Date(d.generatedAt).toLocaleString();
+  showBuild(d);
   var conv=d.users.total? Math.round(d.users.purchased/d.users.total*100):0;
   var c='';
   c+=card(d.users.total,'Total users');
@@ -221,6 +241,53 @@ async function inspect(){
   }catch(e){ out.textContent='Error: '+e; }
 }
 function copyInspect(){ try{ navigator.clipboard.writeText(document.getElementById('inspOut').textContent); }catch(e){} }
+// ── Build line ──
+// Preferred source: the admin-stats payload (d.build), so the dashboard states which build
+// the SERVER saw last. Fallback: scrape BUILD_STAMP out of the deployed /app itself, so the
+// line works even before admin-stats learns to send it.
+async function showBuild(d){
+  var el=document.getElementById('buildLine'); if(!el) return;
+  if(d && d.build){ el.textContent='App build: '+d.build; return; }
+  try{
+    var r=await fetch('/app',{cache:'no-store'});
+    var t=await r.text();
+    var m=t.match(/BUILD_STAMP\s*=\s*["']([^"']+)["']/);
+    el.textContent='App build: '+(m? m[1] : 'unknown');
+  }catch(e){ el.textContent='App build: unknown'; }
+}
+// ── Reset statistics (double-confirmed) ──
+function resetStatsAsk(){
+  document.getElementById('resetIdle').style.display='none';
+  document.getElementById('resetConfirm').style.display='block';
+  document.getElementById('resetDone').style.display='none';
+  document.getElementById('resetErr').textContent='';
+  document.getElementById('resetWord').value='';
+  document.getElementById('resetWord').focus();
+}
+function resetStatsCancel(){
+  document.getElementById('resetConfirm').style.display='none';
+  document.getElementById('resetIdle').style.display='block';
+}
+async function resetStatsGo(){
+  var errEl=document.getElementById('resetErr');
+  var word=(document.getElementById('resetWord').value||'').trim();
+  if(word!=='RESET'){ errEl.textContent='Type RESET (exactly) to confirm.'; return; }
+  errEl.textContent='';
+  try{
+    var r=await fetch('/.netlify/functions/admin-reset-stats',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({key:KEY,confirm:'RESET'})});
+    if(r.status===403){ errEl.textContent='Wrong key - re-open the dashboard.'; return; }
+    if(r.status===404){ errEl.textContent='admin-reset-stats function is not deployed yet.'; return; }
+    if(!r.ok){ errEl.textContent='Server error ('+r.status+').'; return; }
+    var j={}; try{ j=await r.json(); }catch(e){}
+    document.getElementById('resetConfirm').style.display='none';
+    document.getElementById('resetIdle').style.display='block';
+    var d=document.getElementById('resetDone');
+    d.style.display='block';
+    d.textContent='Statistics erased ('+(j.deleted!=null? j.deleted+' rows':'done')+'). Refreshing\u2026';
+    setTimeout(load,900);
+  }catch(e){ errEl.textContent='Network error - are you online?'; }
+}
 function esc(s){ return String(s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 document.getElementById('keyInput').addEventListener('keydown',function(e){ if(e.key==='Enter') unlock(); });
 try{ var sk=sessionStorage.getItem('nuci_admin_key'); if(sk){ KEY=sk; load(); } }catch(e){}
