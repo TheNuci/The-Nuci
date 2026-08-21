@@ -64,6 +64,29 @@ async function welcomeAlreadySent(email){
     return Array.isArray(rows) && rows.length > 0;
   }catch(e){ return false; }
 }
+// Also stamp signup_at on the profile at confirm time (2026-08-21): the app only wrote
+// it on the immediate-login / ?resume paths - the same fragile chain that broke the
+// welcome email - so confirm-flow users had signup_at NULL and the abandoned-cart
+// nudges never considered them. Two careful steps so an existing timestamp is NEVER
+// reset (that would restart the nudge clock):
+//   1. INSERT the row with signup_at only if no row exists yet (ignore-duplicates)
+//   2. PATCH signup_at only WHERE it is currently null
+async function ensureSignupAt(email){
+  try{
+    if(!process.env.SUPABASE_URL || !process.env.THE_NUCI_SUPABASE_SERVICE_ROLE_KEY) return;
+    const now = new Date().toISOString();
+    await fetch(process.env.SUPABASE_URL + '/rest/v1/profiles?on_conflict=email', {
+      method:'POST',
+      headers: Object.assign(sbHeaders(), { 'Prefer':'resolution=ignore-duplicates,return=minimal' }),
+      body: JSON.stringify([{ email, signup_at: now }])
+    });
+    await fetch(process.env.SUPABASE_URL + '/rest/v1/profiles?email=eq.' + encodeURIComponent(email) + '&signup_at=is.null', {
+      method:'PATCH',
+      headers: Object.assign(sbHeaders(), { 'Prefer':'return=minimal' }),
+      body: JSON.stringify({ signup_at: now })
+    });
+  }catch(e){}
+}
 async function markWelcomeSent(email){
   try{
     if(!process.env.SUPABASE_URL || !process.env.THE_NUCI_SUPABASE_SERVICE_ROLE_KEY) return;
@@ -160,6 +183,7 @@ export default async (req) => {
       return new Response(JSON.stringify({ error: 'Send failed', detail: txt }), { status: 502 });
     }
     await markWelcomeSent(email);
+    await ensureSignupAt(email);
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   } catch (e) {
     return new Response(JSON.stringify({ error: 'Server error', detail: String(e) }), { status: 500 });
