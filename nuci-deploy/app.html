@@ -985,7 +985,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-21 launch-v23";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-21 launch-v24";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -3839,6 +3839,32 @@ function proceedToPayment(pkg){
 //   5. only then, poll the DB for the webhook's credit/transaction write
 // A diagnostic banner records each step so we can see exactly where it stops.
 // ─────────────────────────────────────────────────────────────────────────────
+// Shown when the return from checkout cannot be verified as paid. Honest to both sides:
+// a real payer sees that their money is safe and gets a retry; a fabricated ?paid=true
+// simply stops here. pendingState is kept so retry has the full context.
+function payVerifyFail(reason, hadSession){
+  var old=document.getElementById('payVerifyFail'); if(old) old.remove();
+  var d=document.createElement('div');
+  d.id='payVerifyFail';
+  d.style.cssText='position:fixed;inset:0;z-index:4000;background:var(--bg,#F2F1EC);display:flex;align-items:center;justify-content:center;padding:28px;text-align:center';
+  var inner='<div style="max-width:420px">'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin-bottom:10px">'+(hadSession?'Confirming your payment\u2026':'Payment not confirmed')+'</h2>';
+  if(hadSession){
+    inner+='<p style="font-size:0.92rem;color:var(--secondary,#5C6660);line-height:1.55;margin-bottom:18px">We could not confirm the payment with Stripe just now ('+esc(reason)+'). If you completed the payment, your money is safe \u2014 tap retry and we\u2019ll check again.</p>'
+      +'<button onclick="payVerifyRetry()" style="font-family:inherit;background:var(--forest,#3E5A47);color:#F2F1E9;border:none;border-radius:14px;padding:14px 26px;font-size:0.95rem;cursor:pointer">Retry</button>'
+      +'<p style="font-size:0.78rem;color:var(--secondary,#5C6660);margin-top:14px">Still stuck? Email us \u2014 nothing is lost.</p>';
+  }else{
+    inner+='<p style="font-size:0.92rem;color:var(--secondary,#5C6660);line-height:1.55;margin-bottom:18px">This page confirms a checkout, but no payment reference arrived with it. If you just paid, open the app again from the Stripe confirmation page \u2014 or retry below.</p>'
+      +'<button onclick="payVerifyRetry()" style="font-family:inherit;background:var(--forest,#3E5A47);color:#F2F1E9;border:none;border-radius:14px;padding:14px 26px;font-size:0.95rem;cursor:pointer">Retry</button>';
+  }
+  inner+='</div>';
+  d.innerHTML=inner;
+  document.body.appendChild(d);
+}
+function payVerifyRetry(){
+  var d=document.getElementById('payVerifyFail'); if(d) d.remove();
+  runPaidReturn();
+}
 async function runPaidReturn(){
   try{ nuciTrack('paid_return'); }catch(e){}
   var D=[]; var log=function(s){ D.push(s); try{ showDebugBanner(D.join('\n')); }catch(e){} };
@@ -3883,6 +3909,32 @@ async function runPaidReturn(){
         }
       }catch(e){}
     }
+    // ── PAYMENT VERIFICATION GATE ──
+    // Nothing below runs unless Stripe confirms the session in the return URL was PAID.
+    // Local notes (pendingState / checkout-context) only carry context; they are written at
+    // checkout CLICK, so on their own they prove nothing - this is what used to let a manual
+    // ?paid=true unlock a plan without paying.
+    var __sid=window.__stripeSessionId || ps.__sessId || null;
+    if(__sid && !ps.__sessId){ ps.__sessId=__sid; try{ localStorage.setItem('pendingState',JSON.stringify(ps)); }catch(e){} }
+    var __ver=null;
+    try{
+      var _vr=await fetch('/.netlify/functions/verify-payment',{method:'POST',
+        headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:__sid})});
+      if(_vr.ok) __ver=await _vr.json();
+      else if(_vr.status===404) __ver={verified:false, reason:'verify-payment not deployed'};
+      else __ver={verified:false, reason:'server '+_vr.status};
+    }catch(e){ __ver={verified:false, reason:'network'}; }
+    log('1b. verify: sid='+(__sid?'yes':'MISSING')+' -> '+(__ver&&__ver.verified?'PAID':(__ver&&__ver.reason||'failed')));
+    if(!__ver || !__ver.verified){
+      payVerifyFail(__ver&&__ver.reason||'unknown', !!__sid);
+      return;
+    }
+    // Trust the verified facts over anything a browser could have written: the package and
+    // credit count come from the payment link's metadata via Stripe, not from localStorage.
+    if(__ver.credits){ ps.planCredits=__ver.credits; }
+    if(__ver.packageId){ ps.packageId=__ver.packageId; }
+    try{ localStorage.setItem('pendingState',JSON.stringify(ps)); }catch(e){}
+
     // SPEED: the AI call is by far the longest step after payment (5-15s), and the answers it
     // needs are already here in pendingState - so fire it NOW, in parallel with the session
     // wait + profile load below, instead of only after them. generatePlanAI picks this
@@ -7355,6 +7407,10 @@ async function adaptNextDay(nextDay){
     return;
   }
   const isPaid=params.get('paid')==='true'||params.get('paid')==='1';
+  // Stripe appends the checkout session id to the confirmation URL ({CHECKOUT_SESSION_ID}
+  // placeholder on every payment link). Captured here, before any history.replaceState
+  // strips the query - runPaidReturn verifies it server-side before unlocking anything.
+  try{ window.__stripeSessionId=params.get('session_id')||null; }catch(e){ window.__stripeSessionId=null; }
   const wantLogin=params.get('login')==='1';
   const wantStart=params.get('start')==='1';
   const wantCheckin=params.get('checkin')==='1';
