@@ -18,7 +18,31 @@
 //   {key, action:'get'}                    -> {baseline: {...}|null}
 //   {key, action:'set', snapshot:{...}}    -> stores {at, snapshot}
 //   {key, action:'clear'}                  -> removes the baseline
-const { createClient } = require('@supabase/supabase-js');
+// Minimal Supabase REST helper (service_role) - no npm dependency, same pattern as the
+// site's other functions. All calls hit PostgREST directly.
+function sbHeaders(){
+  const k = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return { 'apikey': k, 'Authorization': 'Bearer ' + k, 'Content-Type': 'application/json' };
+}
+async function sbGetMeta(id){
+  const url = process.env.SUPABASE_URL + '/rest/v1/admin_meta?id=eq.' + encodeURIComponent(id) + '&select=value';
+  const r = await fetch(url, { headers: sbHeaders() });
+  if(!r.ok) throw new Error('supabase read ' + r.status);
+  const rows = await r.json();
+  return rows && rows[0] ? rows[0].value : null;
+}
+async function sbUpsertMeta(id, value){
+  const url = process.env.SUPABASE_URL + '/rest/v1/admin_meta?on_conflict=id';
+  const r = await fetch(url, { method: 'POST',
+    headers: Object.assign(sbHeaders(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify([{ id, value, updated_at: new Date().toISOString() }]) });
+  if(!r.ok) throw new Error('supabase upsert ' + r.status);
+}
+async function sbDeleteMeta(id){
+  const url = process.env.SUPABASE_URL + '/rest/v1/admin_meta?id=eq.' + encodeURIComponent(id);
+  const r = await fetch(url, { method: 'DELETE', headers: sbHeaders() });
+  if(!r.ok) throw new Error('supabase delete ' + r.status);
+}
 
 const META_ID = 'stats_baseline';
 
@@ -39,29 +63,26 @@ exports.handler = async function(event){
   if(!url || !serviceKey){
     return { statusCode: 500, body: JSON.stringify({ error: 'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not configured' }) };
   }
-  const supa = createClient(url, serviceKey, { auth: { persistSession: false } });
   const json = (code, obj) => ({ statusCode: code, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
 
   const action = body.action || 'get';
   try{
     if(action === 'get'){
-      const { data, error } = await supa.from('admin_meta').select('value').eq('id', META_ID).maybeSingle();
-      if(error){
-        // most likely the admin_meta table hasn't been created yet - tell the dashboard plainly
-        return json(200, { baseline: null, note: 'admin_meta not readable: ' + error.message });
-      }
-      return json(200, { baseline: (data && data.value) || null });
+      let value=null;
+      try{ value = await sbGetMeta(META_ID); }
+      catch(e){ return json(200, { baseline: null, note: 'admin_meta not readable: ' + e.message }); }
+      return json(200, { baseline: value });
     }
     if(action === 'set'){
       const snapshot = (body.snapshot && typeof body.snapshot === 'object') ? body.snapshot : {};
       const value = { at: new Date().toISOString(), snapshot };
-      const { error } = await supa.from('admin_meta').upsert({ id: META_ID, value, updated_at: new Date().toISOString() });
-      if(error) return json(500, { error: 'could not store baseline: ' + error.message });
+      try{ await sbUpsertMeta(META_ID, value); }
+      catch(e){ return json(500, { error: 'could not store baseline: ' + e.message }); }
       return json(200, { ok: true, baseline: value });
     }
     if(action === 'clear'){
-      const { error } = await supa.from('admin_meta').delete().eq('id', META_ID);
-      if(error) return json(500, { error: 'could not clear baseline: ' + error.message });
+      try{ await sbDeleteMeta(META_ID); }
+      catch(e){ return json(500, { error: 'could not clear baseline: ' + e.message }); }
       return json(200, { ok: true, baseline: null });
     }
     return json(400, { error: 'unknown action' });

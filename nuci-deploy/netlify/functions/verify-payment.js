@@ -15,7 +15,31 @@
 //   - session must be recent (created within 2 hours) - an old id can't be replayed later
 //   - a session can be redeemed for 2 hours after first redemption (covers refresh/retry
 //     on the same return), after that it is dead
-const { createClient } = require('@supabase/supabase-js');
+// Minimal Supabase REST helper (service_role) - no npm dependency, same pattern as the
+// site's other functions. All calls hit PostgREST directly.
+function sbHeaders(){
+  const k = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return { 'apikey': k, 'Authorization': 'Bearer ' + k, 'Content-Type': 'application/json' };
+}
+async function sbGetMeta(id){
+  const url = process.env.SUPABASE_URL + '/rest/v1/admin_meta?id=eq.' + encodeURIComponent(id) + '&select=value';
+  const r = await fetch(url, { headers: sbHeaders() });
+  if(!r.ok) throw new Error('supabase read ' + r.status);
+  const rows = await r.json();
+  return rows && rows[0] ? rows[0].value : null;
+}
+async function sbUpsertMeta(id, value){
+  const url = process.env.SUPABASE_URL + '/rest/v1/admin_meta?on_conflict=id';
+  const r = await fetch(url, { method: 'POST',
+    headers: Object.assign(sbHeaders(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify([{ id, value, updated_at: new Date().toISOString() }]) });
+  if(!r.ok) throw new Error('supabase upsert ' + r.status);
+}
+async function sbDeleteMeta(id){
+  const url = process.env.SUPABASE_URL + '/rest/v1/admin_meta?id=eq.' + encodeURIComponent(id);
+  const r = await fetch(url, { method: 'DELETE', headers: sbHeaders() });
+  if(!r.ok) throw new Error('supabase delete ' + r.status);
+}
 
 const REDEEM_WINDOW_MS = 2 * 60 * 60 * 1000;   // re-verify allowed this long after first use
 const SESSION_MAX_AGE_MS = 2 * 60 * 60 * 1000; // session itself must be this fresh
@@ -59,17 +83,15 @@ exports.handler = async function(event){
   // blocking a real payer over bookkeeping would be worse than allowing a rare replay.
   let redeemNote = null;
   try{
-    const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if(url && key){
-      const supa = createClient(url, key, { auth: { persistSession: false } });
+    if(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY){
       const id = 'sess_' + sessionId;
-      const { data } = await supa.from('admin_meta').select('value').eq('id', id).maybeSingle();
-      const firstAt = data && data.value && data.value.at ? new Date(data.value.at).getTime() : null;
+      const existing = await sbGetMeta(id);
+      const firstAt = existing && existing.at ? new Date(existing.at).getTime() : null;
       if(firstAt && (Date.now() - firstAt) > REDEEM_WINDOW_MS){
         return json(200, { verified: false, reason: 'session already redeemed' });
       }
       if(!firstAt){
-        await supa.from('admin_meta').upsert({ id, value: { at: new Date().toISOString() }, updated_at: new Date().toISOString() });
+        await sbUpsertMeta(id, { at: new Date().toISOString() });
       }
     } else {
       redeemNote = 'redeem bookkeeping skipped (supabase env missing)';
