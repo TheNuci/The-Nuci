@@ -28,7 +28,10 @@
   --border:rgba(0,0,0,0.07); --shadow:0 2px 14px rgba(0,0,0,0.05); --radius:20px;
   --ease:cubic-bezier(.22,1,.36,1);
 }
-*{margin:0;padding:0;box-sizing:border-box;font-weight:400!important;-webkit-tap-highlight-color:transparent}
+*{margin:0;padding:0;box-sizing:border-box;font-weight:400!important;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+/* touch-action:manipulation on everything: kills iOS double-tap zoom and the legacy tap
+   delay while KEEPING scroll and pinch-zoom (accessibility). The viewport's
+   user-scalable=no alone is ignored by iOS, so double taps still zoomed before this. */
 html{background:var(--bg);overscroll-behavior:none}
 html,body{height:100%}
 body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
@@ -240,11 +243,17 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .field .eye{color:var(--secondary);width:22px;height:22px;flex-shrink:0}
 /* age slider */
 .age-wrap{width:100%;text-align:center}
-.age-big{display:flex;align-items:baseline;justify-content:center;gap:12px;line-height:1}
+/* Fixed-height value block: the number area is ALWAYS 5rem tall and the sub-line always
+   occupies its row (even empty), so switching between plain years (5rem digits, no sub)
+   and bands (3.4rem digits + "Senior years begin") never changes the block height - the
+   slider below stays glued to one position for every value. Band digits get top padding
+   to sit visually centered inside the reserved height. */
+.age-big{display:flex;align-items:baseline;justify-content:center;gap:12px;line-height:1;height:5rem}
 .age-big .n{font-size:5rem;color:var(--forest);letter-spacing:-0.03em}
+.age-big.band{padding-top:.8rem}
 .age-big.band .n{font-size:3.4rem}
 .age-big .u{font-size:2rem;color:var(--secondary)}
-.age-sub{color:var(--secondary);font-size:1.05rem;margin-top:10px;min-height:1.4em}
+.age-sub{color:var(--secondary);font-size:1.05rem;margin-top:10px;min-height:1.4em;height:1.4em;overflow:hidden}
 .age-track{position:relative;padding:26px 2px 6px;margin-top:30px}
 .age-ticks{position:relative;height:20px}
 .age-ticks i{position:absolute;bottom:0;width:1px;height:8px;background:rgba(0,0,0,0.16)}
@@ -989,7 +998,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-21 launch-v26";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-21 launch-v28";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
