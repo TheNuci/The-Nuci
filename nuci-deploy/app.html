@@ -777,7 +777,6 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 <!-- ASSESSMENT -->
 <section class="screen" id="screen-assessment">
   <div class="qtop">
-    <button class="qskip" id="qSkip" onclick="skipAssessment()" style="display:none;margin-left:0">Skip</button>
     <div class="pring" id="qRing"></div>
   </div>
   <div class="qfixed" id="qFixed"></div>
@@ -806,7 +805,6 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     </div>
     <div class="auth-err" id="regErr"></div>
     <p style="font-size:0.88rem;color:var(--secondary);margin-top:6px">Already have an account? <span class="auth-link" onclick="showScreen('screen-login')">Log in</span></p>
-    <p style="display:none;font-size:0.85rem;color:var(--secondary);margin-top:10px"><span class="auth-link" onclick="demoToOffer()">Skip for now - preview the app</span></p>
   </div>
   <div class="auth-cta" id="regCta"><button class="btn btn-primary" onclick="doRegister()">Create account</button></div>
 </section>
@@ -825,7 +823,6 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <div class="auth-err" id="logErr"></div>
     <p style="font-size:0.88rem;color:var(--secondary)"><span class="auth-link" onclick="forgotPass()">Forgot password?</span></p>
     <p style="font-size:0.88rem;color:var(--secondary);margin-top:8px">New here? <span class="auth-link" onclick="welcomeNew()">Create an account</span></p>
-    <p style="display:none;font-size:0.85rem;color:var(--secondary);margin-top:10px"><span class="auth-link" onclick="demoToOffer()">Preview without logging in</span></p>
   </div>
   <div class="auth-cta" id="logCta"><button class="btn btn-primary" onclick="doLogin()">Log in</button></div>
 </section>
@@ -984,12 +981,12 @@ window.addEventListener('error', function(ev){
 const SUPABASE_URL = 'https://dsuiqkcjfayazzvfwdqk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzdWlxa2NqZmF5YXp6dmZ3ZHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTA3NDksImV4cCI6MjA5NjI4Njc0OX0.WFQe-Vs3tbCemGKvNF-aQd_a1THR9C8kww9hA-LCgbE';
 // ── PRODUCTION FLAG ──
-// When true, the ?demo=1 and ?test=1 payment-bypass shortcuts are DISABLED, so no one
-// can enter the app or unlock plans without a real Stripe payment. Set to false only
-// while testing, then back to true before deploying.
+// Launch build: the payment-bypass shortcuts (?demo=1 / ?test=1), the questionnaire Skip
+// button and the "Test: jump to plan end" button are REMOVED from this file, not merely
+// disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-19 fixes-v19";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
-let DEMO=(function(){ try{ return !LIVE && new URLSearchParams(location.search).get('demo')==='1'; }catch(e){ return false; } })();
+const BUILD_STAMP = "2026-08-20 launch-v21";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
 var __errSent=0;
@@ -1163,66 +1160,24 @@ function toggleMic(btn){
     toast('Microphone permission is needed for voice input');
   });
 }
-function enableDemo(){
-  DEMO=true;
-  if(!state.answers||!state.answers.petName){
-    state.answers={petName:'Nucci',petType:'cat',breed:'British Shorthair',age:'2 years',ageIdx:2,ageKey:'2',ageYears:2,ageMonths:24,
-      sex:'Male',neutered:'Neutered',environment:'Indoor',household:['Just me'],
-      mainIssue:'Suddenly pees outside the litter box',duration:'1-2 weeks',frequency:'Once a day',
-      location:['Hallway'],recentChanges:['Nothing unusual'],tried:['Nothing yet'],warningSigns:['None of these']};
-  }
-  state.userEmail=state.userEmail||'demo@thenuci.com';
-}
-function demoToOffer(){ enableDemo(); buildOffer(); showScreen('screen-offer'); }
-function demoEnterApp(){
-  enableDemo();
-  state.purchased=true; state.paid=true; state.planCredits=state.planCredits||1;
-  if(!state.planStartDate) state.planStartDate=todayKey();
-  if(!state.currentDay) state.currentDay=1;
-  // seed a bit of demo progress so all tabs look alive
-  if(!(state.checkins&&state.checkins.length)){
-    state.checkins=[{occurred:'Yes',freq:'3',severity:6,time:'Evening (18-24h)',loc:'Hallway',trigger:'Leaving home',day:1},
-                    {occurred:'Yes',freq:'2',severity:4,time:'Evening (18-24h)',loc:'Hallway',trigger:'Leaving home',day:2}];
-    state.streak=2; state.currentDay=3; state.lastCheckinDate=yesterdayKey();
-    state.dayInsights={3:'Two calmer afternoons in a row - the play session is working.'};
-    state.aiBehaviorExplain='Nucci is reacting to a recent change in routine.';
-    state.aiCauses=['Change in feeding time','Mild separation stress'];
-    state.aiWhatNotToDo=['Punish after the fact','Change the litter box location suddenly'];
-  }
-  enterApp();
-}
-function skipAssessment(){
-  // fill any unanswered questions with sensible demo values, keep what was entered
-  const d={petName:'Nucci',petType:'cat',breed:'British Shorthair',age:'2 years',ageIdx:2,ageKey:'2',ageYears:2,ageMonths:24,
-    sex:'Male',neutered:'Neutered',environment:'Indoor',household:['Just me'],
-    mainIssue:'Suddenly pees outside the litter box',duration:'1-2 weeks',frequency:'Once a day',
-    location:['Hallway'],recentChanges:['Nothing unusual'],tried:['Nothing yet'],warningSigns:['None of these']};
-  Object.keys(d).forEach(k=>{ const v=state.answers[k];
-    if(v==null||v===''||(Array.isArray(v)&&!v.length)) state.answers[k]=d[k]; });
-  DEMO=true; state.userEmail=state.userEmail||'demo@thenuci.com';
-  finishAssessment();
-}
 let supa=null;
 if(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase){
   try{ supa=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY); }catch(e){ console.warn('supabase init',e); }
 }
 const AI_ENDPOINT='/.netlify/functions/generate-plan';
 const AI_ADAPT_ENDPOINT='/.netlify/functions/regenerate-day';
-// ── Payment links (single global Stripe account for everyone) ──
+// ── Payment links (single global Stripe account for everyone) ── ALL LIVE
 const LINKS_INTL={
-  single:'https://buy.stripe.com/test_6oU5kw9Qj1Gh6VjgGAdIA00',   // ⚠️ TEST LINK - 9.95 (1 plan) - revert to live before launch! Live: https://buy.stripe.com/14AcMYd2vet37Zn2PKdIA0d
-  triple:'https://buy.stripe.com/test_cNiaEQ9Qjet32F30HCdIA02',   // ⚠️ TEST LINK - 19.95 (3 plans) - revert before launch! Live: https://buy.stripe.com/9B65kw4vZ4St93rduodIA08
-  five:'https://buy.stripe.com/dRmcMY8Mf2Kl4NbduodIA09'      // 29.95 (5 plans) - unused
+  single:'https://buy.stripe.com/14AcMYd2vet37Zn2PKdIA0d',   // LIVE 9.95  (1 plan  - Single Plan)
+  triple:'https://buy.stripe.com/9B65kw4vZ4St93rduodIA08'    // LIVE 19.95 (3 plans - Family Pack)
 };
 const DISCOUNT_LINKS_INTL={
-  single:'https://buy.stripe.com/28EdR2bYret30wV0HCdIA0a',   // 50OFF 4.95  (1 plan)
-  triple:'https://buy.stripe.com/bJe6oA1jN2KlcfDeysdIA0b',   // 50OFF 9.95  (3 plans)
-  five:'https://buy.stripe.com/28E3co5A3doZ3J7fCwdIA0c'      // 50OFF 14.95 (5 plans) - unused
+  single:'https://buy.stripe.com/28EdR2bYret30wV0HCdIA0a',   // LIVE 50OFF 4.95  (1 plan  - Single Plan 50% OFF)
+  triple:'https://buy.stripe.com/bJe6oA1jN2KlcfDeysdIA0b'    // LIVE 50OFF 9.95  (3 plans - Family Pack 50% OFF)
 };
 // Back-compat aliases used elsewhere
 const STRIPE_PAYMENT_LINK=LINKS_INTL.single;
 const STRIPE_PAYMENT_LINK_3PACK=LINKS_INTL.triple;
-const STRIPE_PAYMENT_LINK_5PACK=LINKS_INTL.five;
 const PACKAGES=[
   {id:'single',credits:1,price:9.95, anchor:19.95, name:'1 plan', sub:'For one pet or one issue'},
   {id:'triple',credits:3,price:19.95,anchor:59.95, name:'3 plans', sub:'For multiple pets or issues'}
@@ -1721,7 +1676,48 @@ function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>{ s.classList.remove('active'); clearAnim(s); });
   const el=$(id); if(el){ el.classList.add('active'); playAnim(el,'anim'); }
   window.scrollTo(0,0);
+  // The assessment is the one screen where iOS's focus auto-scroll can shove the whole page
+  // out from under the fixed title/Next (.qbody scrolls internally, the window never needs
+  // to). Lock the page for its whole lifetime; every other screen releases the lock. This
+  // covers BOTH entry paths (fresh questionnaire and planForExistingPet/proceedNewPet)
+  // because both arrive here.
+  if(id==='screen-assessment'){
+    // Enter with a CLEAN lock at scroll 0. If a sheet was mid-close (the existing-pet entry
+    // path), its lock still holds the old page offset - inheriting it would show the
+    // questionnaire shifted up by however far the user had scrolled behind the sheet.
+    unlockScroll(true);
+    window.scrollTo(0,0);
+    lockScroll('assess');
+    qStabilize();
+  }
+  else unlockScroll('assess');
 }
+// Put the assessment viewport back where it belongs: window at 0, question body at 0.
+// iOS applies its focus scroll asynchronously (and more than once while the keyboard
+// animates), so callers invoke this repeatedly on a short schedule rather than once.
+function qStabilize(){
+  var scr=document.getElementById('screen-assessment');
+  if(!scr||!scr.classList.contains('active')) return;
+  try{ window.scrollTo(0,0); }catch(e){}
+  try{ document.documentElement.scrollTop=0; }catch(e){}
+  try{ document.body.scrollTop=0; }catch(e){}
+  var qb=document.getElementById('qBody'); if(qb&&qb.scrollTop!==0) qb.scrollTop=0;
+}
+function qStabilizeSoon(){ qStabilize(); requestAnimationFrame(qStabilize); [60,140,300,500].forEach(function(ms){ setTimeout(qStabilize,ms); }); }
+// Any focus landing in the assessment (real field or the keyboard proxy) re-runs the reset:
+// this is the moment iOS performs its auto-scroll, whatever code path triggered the focus.
+document.addEventListener('focusin',function(e){
+  var t=e.target;
+  if(t&&(t.id==='qInput'||t.id==='kbProxy')) qStabilizeSoon();
+},true);
+try{
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',function(){
+      var scr=document.getElementById('screen-assessment');
+      if(scr&&scr.classList.contains('active')) qStabilizeSoon();
+    });
+  }
+}catch(e){}
 function welcomeCharacter(){
   // friendly generic character for the welcome hook (cat-style, warm)
   return '<svg class="nuci-char" width="128" height="128" viewBox="0 0 100 100">'
@@ -1873,7 +1869,7 @@ function renderIntro(){
 function introNext(){ if(introIdx>=INTRO.length-1){ showScreen('screen-hello'); return; } introIdx++; renderIntro(); }
 function introBack(){ if(introIdx<=0){ window.location.href='/'; return; } introIdx--; renderIntro(); }
 function helloBack(){ introIdx=INTRO.length-1; renderIntro(); showScreen('screen-intro'); }
-function helloReady(){ try{localStorage.setItem('nuci_intro_seen','1');}catch(e){} kbPrime(); state.currentQ=0; showScreen('screen-assessment'); renderQ(); setTimeout(function(){ var i=document.getElementById('qInput'); if(i){ try{i.focus({preventScroll:true});}catch(e){} } },30); }
+function helloReady(){ try{localStorage.setItem('nuci_intro_seen','1');}catch(e){} kbPrime(); state.currentQ=0; showScreen('screen-assessment'); renderQ(); setTimeout(function(){ var i=document.getElementById('qInput'); if(i){ try{i.focus({preventScroll:true});}catch(e){} } qStabilize(); },30); }
 
 // ═══════ QUESTIONNAIRE ═══════
 function breedPlaceholder(){ const t=state.answers.petType; return t==='dog'?'e.g. Labrador, mixed…':t==='cat'?'e.g. British Shorthair…':'e.g. breed or "unknown"'; }
@@ -2230,13 +2226,31 @@ function renderQ(){
   // Reserve space under the fixed title. For BOTH text and non-text questions we pin the
   // content a fixed, safe distance below the title bottom - far enough that the title's
   // background fade (~28px) never overlaps the field/options. No fragile centering math.
-  requestAnimationFrame(()=>{ const fh=$('qFixed').offsetHeight;
+  //
+  // Measured MORE THAN ONCE on purpose: the very first question renders before the web
+  // fonts (Fraunces italic in the title) have loaded and while the keyboard is still
+  // resizing the viewport, so a single early measurement captures the wrong title height
+  // and the content ends up sitting too high. Re-measuring after fonts.ready (and once
+  // more on a short timer) repairs it without any visible jump - the values only differ
+  // on that first cold render.
+  var measureQ=function(){
+    var qf=$('qFixed'); if(!qf || !mid || !mid.isConnected) return;
+    const fh=qf.offsetHeight;
     var pad = 92 + fh + 24;   // title offset + title height + clear gap below the fade
     body.style.paddingTop='calc(env(safe-area-inset-top) + '+pad+'px)';
     body.style.setProperty('--fadeTop','calc(env(safe-area-inset-top) + '+pad+'px)');
     const qm=$('qMid'); if(qm) qm.style.paddingTop='0px';
     revealMid();
-    body.scrollTop=0; });
+    body.scrollTop=0;
+  };
+  requestAnimationFrame(measureQ);
+  // Only text questions re-measure: non-text questions get their padding from the
+  // refinement block further down, and a late measureQ would stomp on it.
+  if(isText){
+    try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){ requestAnimationFrame(measureQ); }); }catch(e){}
+    setTimeout(measureQ,380);
+  }
+  qStabilizeSoon();   // whatever entry path rendered this question, start from scroll 0
   if(q.type==='text'||q.type==='textarea'){
     const multi=q.type==='textarea';
     mid.innerHTML='<div class="field field-grow'+(multi?'':' field-oneline')+'"><textarea id="qInput" rows="1" placeholder="'+esc(q.placeholder||'')+'"></textarea>'+micBtnHTML('qInput')+'</div>'
@@ -2247,11 +2261,16 @@ function renderQ(){
     inp.addEventListener('input',e=>{ state.answers[q.id]=e.target.value; autoGrow(inp, floorLines); });
     autoGrow(inp, floorLines);
     if(!multi) inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); assessNext(); }});
-    try{ inp.focus({preventScroll:true}); }catch(e){}
-    requestAnimationFrame(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){} });
-    setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){ inp.focus(); } },50);
-    setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){} },160);
-    setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){} kbLock(inp); },320);
+    // Focus only once the screen has had a frame to settle - a synchronous focus lands while
+    // the entry layout is still moving, which is when iOS's focus auto-scroll does the damage
+    // (first question: everything scrolled away, only Next left). The keyboard itself is
+    // already held open by kbProxy (claimed synchronously in the user's tap), so delaying the
+    // hand-over to the real field costs nothing. After every attempt, reset the scroll.
+    var f=function(){ try{ inp.focus({preventScroll:true}); }catch(e){ try{ inp.focus(); }catch(_){} } qStabilize(); };
+    requestAnimationFrame(function(){ f(); });
+    setTimeout(f,50);
+    setTimeout(f,160);
+    setTimeout(function(){ f(); kbLock(inp); qStabilizeSoon(); },320);
   }else if(q.type==='pet-type'){
     const items=[['dog','Dog'],['cat','Cat'],['rabbit','Rabbit'],['bird','Bird'],['rodent','Small pet'],['reptile','Reptile']];
     const g=document.createElement('div'); g.className='petgrid';
@@ -2266,22 +2285,61 @@ function renderQ(){
   }else if(q.type==='age-slider'){
     // Discrete age steps: exact years 0-10, then bands (11-13, 14-16, 17+). AGE_STEPS is the
     // single source of truth - see ageIndexFromAnswers() for how a saved answer maps back.
-    const MAXI=AGE_STEPS.length-1;
+    //
+    // The track geometry never changes: 14 evenly spaced positions across the full width,
+    // whatever the value. For feel, the range itself is fine-grained (RES units per step)
+    // so the thumb follows the finger continuously; the DISPLAYED value snaps to the
+    // nearest step while dragging, and on release the thumb eases onto the step's tick.
+    const MAXI=AGE_STEPS.length-1, RES=100, RMAX=MAXI*RES;
     let ai=ageIndexFromAnswers(state.answers);
     let ticks=''; for(let i=0;i<=MAXI;i++){ ticks+='<i class="y" style="left:'+(i/MAXI*100)+'%"></i>'; }
     const ylab=[0,5,10,MAXI].map(i=>'<span style="left:'+(i/MAXI*100)+'%">'+AGE_STEPS[i].tick+'</span>').join('');
     mid.innerHTML='<div class="age-wrap"><div class="age-big" id="ageBig"><span class="n" id="ageN"></span><span class="u" id="ageU"></span></div><div class="age-sub" id="ageS"></div>'
-      +'<div class="age-track"><div class="age-ticks">'+ticks+'</div><input type="range" class="age-range" id="ageR" min="0" max="'+MAXI+'" step="1" value="'+ai+'"><div class="age-ylab">'+ylab+'</div></div></div>';
+      +'<div class="age-track"><div class="age-ticks">'+ticks+'</div><input type="range" class="age-range" id="ageR" min="0" max="'+RMAX+'" step="1" value="'+(ai*RES)+'" aria-valuetext="'+AGE_STEPS[ai].label+'"><div class="age-ylab">'+ylab+'</div></div></div>';
     const r=$('ageR');
-    const apply=i=>{
+    const setFill=v=>r.style.setProperty('--fill',(v/RMAX*100)+'%');
+    const idxOf=v=>Math.max(0,Math.min(MAXI,Math.round(v/RES)));
+    const applyIdx=i=>{
       const s=AGE_STEPS[i];
       $('ageN').textContent=s.big; $('ageU').textContent=s.unit; $('ageS').textContent=s.sub||'';
       $('ageBig').classList.toggle('band',!!s.band);
-      r.style.setProperty('--fill',(i/MAXI*100)+'%');
+      r.setAttribute('aria-valuetext',s.label);
       applyAgeStep(state.answers,i);
     };
-    var __lastAge=ai; r.addEventListener('input',e=>{ var i=parseInt(e.target.value,10); if(i!==__lastAge){ __lastAge=i; haptic(6); } apply(i); });
-    apply(ai);
+    let __ageIdx=ai, __snapRaf=0;
+    const snap=()=>{
+      cancelAnimationFrame(__snapRaf);
+      const from=parseFloat(r.value), target=__ageIdx*RES;
+      if(Math.abs(target-from)<0.5){ r.value=target; setFill(target); return; }
+      const t0=performance.now(), dur=150;
+      const step=now=>{
+        const p=Math.min(1,(now-t0)/dur), k=1-Math.pow(1-p,3);
+        const v=from+(target-from)*k;
+        r.value=v; setFill(v);
+        if(p<1) __snapRaf=requestAnimationFrame(step);
+      };
+      __snapRaf=requestAnimationFrame(step);
+    };
+    r.addEventListener('pointerdown',()=>cancelAnimationFrame(__snapRaf));
+    r.addEventListener('input',e=>{
+      const v=parseFloat(e.target.value); setFill(v);
+      const i=idxOf(v);
+      if(i!==__ageIdx){ __ageIdx=i; haptic(6); applyIdx(i); }
+    });
+    r.addEventListener('change',snap);
+    r.addEventListener('pointerup',snap);
+    r.addEventListener('touchend',snap,{passive:true});
+    // Keyboard: one arrow press = one whole step, not one fine-grained unit.
+    r.addEventListener('keydown',e=>{
+      let d=0;
+      if(e.key==='ArrowRight'||e.key==='ArrowUp') d=1;
+      else if(e.key==='ArrowLeft'||e.key==='ArrowDown') d=-1;
+      else return;
+      e.preventDefault();
+      __ageIdx=Math.max(0,Math.min(MAXI,__ageIdx+d));
+      haptic(6); applyIdx(__ageIdx); snap();
+    });
+    applyIdx(ai); setFill(ai*RES);
   }else if(q.type==='pills'){
     const l=document.createElement('div'); l.className='opt-list';
     q.options.forEach(opt=>{
@@ -4315,6 +4373,10 @@ function nuciResume(){
       return !!(el && el.classList.contains('open'));
     });
     if(!wantLock) unlockScroll(true);          // nothing owns the screen -> body must scroll
+    // ...unless the questionnaire is the active screen: its lock is not overlay-owned and
+    // must survive a resume, or the first focus after returning re-triggers the fly-away.
+    var asm=document.getElementById('screen-assessment');
+    if(asm&&asm.classList.contains('active')){ window.scrollTo(0,0); lockScroll('assess'); qStabilizeSoon(); }
     try{ if(typeof setKb==='function') setKb(false); }catch(e){}
     rerenderActiveTab(true);
   }catch(e){ console.warn('resume repair failed',e); }
@@ -4873,32 +4935,8 @@ function renderToday(){
     h+='<div style="text-align:center;margin-top:18px">'
       +'<button onclick="openNotWorking()" style="background:none;border:none;color:var(--secondary);font-family:inherit;font-size:.84rem;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:8px">This isn\u2019t working for '+esc(pet)+'</button></div>';
   }
-  // TEST ONLY - jump to the last day so the plan-end flow can be previewed. Remove before launch.
-  if(!state.planComplete){
-    h+='<div style="text-align:center;margin-top:14px">'
-      +'<button onclick="testJumpToPlanEnd()" style="background:rgba(0,0,0,.05);border:1px dashed var(--border);border-radius:10px;color:var(--secondary);font-family:inherit;font-size:.72rem;cursor:pointer;padding:9px 14px">\ud83d\udd27 Test: jump to plan end</button></div>';
-  }
   $('tab-today').innerHTML=lateBanner+h;
   hookGrow('todayNote');
-}
-function testJumpToPlanEnd(){
-  // TEST ONLY: simulate reaching the final day of the ACTIVE pet's plan and opening its last
-  // check-in - exactly as if the owner had lived through all 7 days. This only touches the
-  // active pet's state; finishing that check-in runs the normal plan-end flow. We deliberately
-  // do NOT call syncPlanDay() here, because that would auto-archive the plan before the
-  // plan-end screen ever appears.
-  var L=state.planLength||7;
-  var d=new Date(); d.setDate(d.getDate()-(L-1));
-  state.planStartDate=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  state.currentDay=L;
-  state.viewDay=L;
-  state.planComplete=false;   // not complete yet - the check-in + plan-end choice will decide
-  // make sure the active pet's stored entry matches this (so nothing drifts)
-  try{ syncActivePet(); }catch(e){}
-  persistStateNow();
-  // open the final day's check-in; finishing it triggers openPlanEnd for THIS pet only
-  ciData={}; ciStep=0;
-  if(document.getElementById('ciOverlay')){ renderCI(); document.getElementById('ciOverlay').classList.add('open'); lockScroll('checkin'); }
 }
 // notes are stored per day as an array of {text,ts}. Migrate old string form transparently.
 function getDayNotes(day){
@@ -6804,9 +6842,9 @@ function proceedNewPet(prefillFrom, targetName, targetType, petPhoto){
   var qs2=getQuestions(); var q2=qs2[state.currentQ];
   if(q2 && (q2.type==='text' || q2.type==='textarea')){
     var grab=function(){ var i=document.getElementById('qInput'); if(i){ try{ i.focus({preventScroll:true}); }catch(e){ try{ i.focus(); }catch(_){} } return i; } return null; };
-    grab();
-    requestAnimationFrame(function(){ grab(); });
-    [40,120,260].forEach(function(ms){ setTimeout(function(){ var i=grab(); if(i && ms===260){ try{ kbLock(i); }catch(e){} } }, ms); });
+    // Delay the first grab one frame (screen just swapped); stabilize after every attempt.
+    requestAnimationFrame(function(){ grab(); qStabilize(); });
+    [40,120,260].forEach(function(ms){ setTimeout(function(){ var i=grab(); qStabilize(); if(i && ms===260){ try{ kbLock(i); }catch(e){} qStabilizeSoon(); } }, ms); });
   }
 }
 function startAnotherPet_OLD(){
@@ -7299,7 +7337,6 @@ async function adaptNextDay(nextDay){
   const wantLogin=params.get('login')==='1';
   const wantStart=params.get('start')==='1';
   const wantCheckin=params.get('checkin')==='1';
-  const wantDemo=params.get('demo')==='1';
   const wantResume=params.get('resume')==='1';
   // One-click unsubscribe from any Nuci email (GDPR Art. 7(3) - as easy as opting in).
   // kind 'tips' = only behaviour-tips consent; anything else ('all') = every email including
@@ -7486,7 +7523,6 @@ async function adaptNextDay(nextDay){
       }
     }catch(e){}
 
-    if(wantDemo){ try{ demoEnterApp(); }catch(e){ welcomeNew(); } return; }
     startFreshState(); startFlow();
   };
   // The tap-game element lives lower in the HTML than this script, so at first execution it
