@@ -726,9 +726,12 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 .nuci-mood{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage);font-weight:600;text-align:center;margin-top:8px}
 
 /* Plan timeline day expand/collapse */
-.a-dayexp{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .6s cubic-bezier(.33,.9,.28,1),opacity .5s ease;will-change:grid-template-rows}
-.a-dayexp>.a-dayexp-inner{overflow:hidden;min-height:0;transform:translateY(-6px);transition:transform .6s cubic-bezier(.33,.9,.28,1)}
-.a-dayexp.open{grid-template-rows:1fr;opacity:1}
+/* Day accordion: close and open run CONCURRENTLY with the same duration and curve
+   (Apple's sheet easing), so the list reflows in one continuous motion instead of
+   collapse -> pause -> expand. Symmetric timing keeps the total height change smooth. */
+.a-dayexp{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .45s cubic-bezier(.32,.72,0,1),opacity .3s ease;will-change:grid-template-rows}
+.a-dayexp>.a-dayexp-inner{overflow:hidden;min-height:0;transform:translateY(-4px);transition:transform .45s cubic-bezier(.32,.72,0,1)}
+.a-dayexp.open{grid-template-rows:1fr;opacity:1;transition:grid-template-rows .45s cubic-bezier(.32,.72,0,1),opacity .35s ease .06s}
 .a-dayexp.open>.a-dayexp-inner{transform:translateY(0)}
 .a-daynode{transition:background .3s ease,border-color .3s ease,color .3s ease}
 .a-dayrow .a-daylbl{transition:font-weight .2s ease,color .2s ease}
@@ -985,7 +988,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-21 launch-v24";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-21 launch-v25";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -5010,7 +5013,6 @@ function openDay(n){
   var cur=state.currentDay||1; if(n>cur) return;
   var prev=state.viewDay;
   if(prev===n) return;
-  if(state.__dayAnimating) return;        // ignore taps mid-animation
   state.viewDay=n;
   if(!document.getElementById('dayexp-'+n)){ renderPlanTab(); return; }
 
@@ -5020,29 +5022,36 @@ function openDay(n){
   // Prepare new card content while collapsed (no layout shift yet).
   if(ne){ var inner=ne.querySelector('.a-dayexp-inner'); if(inner) inner.innerHTML=dayCardHtml(n); }
 
-  function expandNew(){
-    void (ne&&ne.offsetHeight);
-    if(ne) ne.classList.add('open');
-    if(nl) nl.style.fontWeight='500';
-    styleNode(n,true);
-    if(navigator.vibrate) navigator.vibrate(6);
-  }
+  // Cross-expand: close the previous card and open the new one IN THE SAME FRAME. Both
+  // grid-rows transitions share duration and easing, so the list reflows in one continuous
+  // motion - no dead gap, no double jump, and taps are never locked out.
+  if(pl) pl.style.fontWeight='400';
+  if(prev) styleNode(prev,false);
+  if(pe) pe.classList.remove('open');
+  void (ne&&ne.offsetHeight);   // flush so the expand transitions from a settled 0fr
+  if(ne) ne.classList.add('open');
+  if(nl) nl.style.fontWeight='500';
+  styleNode(n,true);
+  if(navigator.vibrate) navigator.vibrate(6);
 
-  if(pe && pe.classList.contains('open')){
-    // STEP 1: close the previous day first. STEP 2: once closed, open the new one.
-    state.__dayAnimating=true;
-    // update label/node styling immediately
-    if(pl) pl.style.fontWeight='400';
-    if(prev) styleNode(prev,false);
-    pe.classList.remove('open');
-    var done=false;
-    var finish=function(){ if(done) return; done=true; pe.removeEventListener('transitionend',onEnd); state.__dayAnimating=false; expandNew(); };
-    var onEnd=function(ev){ if(ev.propertyName==='grid-template-rows') finish(); };
-    pe.addEventListener('transitionend',onEnd);
-    setTimeout(finish, 680);   // fallback in case transitionend doesn't fire
-  } else {
-    // nothing open yet -> just open (this is the 1->2 case)
-    expandNew();
+  // Scroll follow: pin the tapped day's header to the viewport position it had at tap time
+  // while the heights above it animate - the row stays under the user's finger instead of
+  // drifting away when a taller card above collapses. Runs only for the transition window.
+  if(nl && nl.getBoundingClientRect){
+    var y0=nl.getBoundingClientRect().top;
+    var scroller=getPlanScroller();
+    var t0=(window.performance&&performance.now)?performance.now():Date.now();
+    var tick=function(){
+      var now=(window.performance&&performance.now)?performance.now():Date.now();
+      var r=nl.getBoundingClientRect(); if(!r) return;
+      var dy=r.top-y0;
+      if(dy>0.5||dy<-0.5){
+        if(scroller===window) window.scrollBy(0,dy);
+        else scroller.scrollTop+=dy;
+      }
+      if(now-t0<500) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   }
 }
 function getPlanScroller(){
