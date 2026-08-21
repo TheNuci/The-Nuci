@@ -99,13 +99,16 @@ function joinNames(names) {
 }
 
 function emailHtml(toEmail, names) {
-  const forLine = names ? `${forLine}<p style="margin:0 0 6px;font-size:14px;color:#5C6660">Tonight\u2019s check-in: <b>${names}</b></p>` : '';
+  // (fixed 2026-08-21: the previous version referenced `forLine` inside its own
+  // initializer - a guaranteed ReferenceError whenever pet names were present,
+  // which would have crash-looped every send with names, hourly, forever.)
+  const forLine = names ? `<p style="margin:0 0 6px;font-size:14px;color:#5C6660">Tonight\u2019s check-in: <b>${nuciEsc(names)}</b></p>` : '';
   const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   return nuciShell({
       preheader: 'A quick check-in keeps the plan on track.',
       eyebrow: 'Evening check-in',
       titleHtml: 'How was your pet<br>today?',
-      bodyHtml: nuciPara("A quick daily check-in keeps your pet's plan on track and your streak alive. It only takes a minute.")
+      bodyHtml: forLine + nuciPara("A quick daily check-in keeps your pet's plan on track and your streak alive. It only takes a minute.")
         + nuciPara("Tomorrow's steps adapt to your answer.",10)
         + nuciBtn("Check in for today","https://thenuci.com/?checkin=1")
         + nuciBox(`<div style="text-align:center"><div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${NUCI.sec};font-family:Arial,sans-serif">Your check-in window</div><div style="font-family:Georgia,serif;font-size:26px;color:${NUCI.forest};margin-top:4px">20:00 - 23:00</div></div>`),
@@ -150,12 +153,19 @@ export default async (req) => {
   // Only pull rows that have a timezone and haven't opted out.
   // IMPORTANT: pet-related reminders go ONLY to people with a purchased, active plan.
   // Someone who merely signed up must never receive check-in nudges about an animal.
+  // 2026-08-21: `purchased=eq.true` REMOVED from this filter. Since the launch-day
+  // lockdown the browser can no longer set purchased on its own profile (the webhook
+  // sets it on the profile matching the CARD email, which carries no plan data), so
+  // keeping the filter would silently exclude every new paying customer. The paid
+  // guarantee now lives one level down: since verify-payment (v24) a plan cannot be
+  // created without a Stripe-verified payment, so "has an active plan" (checked
+  // per-pet below) implies "paid". Legacy rows without per-pet data still honour the
+  // purchased flag as a fallback - see the eligibility check in the loop.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
     `?select=email,timezone,last_checkin_date,email_reminders,last_reminder_sent,marketing_opt_out,purchased,data` +
     `&timezone=not.is.null` +
     `&email_reminders=not.eq.false` +
-    `&marketing_opt_out=not.eq.true` +
-    `&purchased=eq.true`;
+    `&marketing_opt_out=not.eq.true`;
 
   // Does this profile have an active (started, not completed) plan? Without this check,
   // someone who finished their plan months ago would keep getting a 20:00 reminder forever.
@@ -221,13 +231,21 @@ export default async (req) => {
     // Already reminded today? Don't double-send (cron runs hourly).
     if (p.last_reminder_sent === lp.date) { skipped++; diag.push(`${p.email}: already reminded today`); continue; }
 
-    // Reminders only make sense while a plan is actually running.
-    if (!hasActivePlan(p.data)) { skipped++; diag.push(`${p.email}: no active plan`); continue; }
+    // Reminders only make sense while a plan is actually running - checked across ALL
+    // pets on the profile (2026-08-21 fix: the old check read only the top-level fields,
+    // which mirror the currently SELECTED pet; finishing that pet's plan silenced the
+    // whole profile even when another pet was mid-plan - reminders died the day a
+    // plan-end was tested). activePetNames() walks every pet, calendar-aware, frozen
+    // excluded. Legacy single-pet rows without aiPlan data fall back to the old check,
+    // but then only when the profile is marked purchased (pre-gate rows).
+    const names = activePetNames(p.data, lp.date);
+    const eligible = names.length > 0 || (p.purchased === true && hasActivePlan(p.data));
+    if (!eligible) { skipped++; diag.push(`${p.email}: no active plan (any pet)`); continue; }
 
-    if (wantDebug) { diag.push(`${p.email}: WOULD SEND (local ${lp.hour}:xx, tz=${p.timezone})`); continue; }
+    if (wantDebug) { diag.push(`${p.email}: WOULD SEND (local ${lp.hour}:xx, tz=${p.timezone}, pets=${joinNames(names)||'-'})`); continue; }
 
     try {
-      await sendEmail(RESEND_API_KEY, p.email, joinNames(activePetNames(p.data, lp.date)));
+      await sendEmail(RESEND_API_KEY, p.email, joinNames(names));
       // Mark as reminded for this local date.
       await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(p.email)}`, {
         method: 'PATCH',

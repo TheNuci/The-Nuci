@@ -45,7 +45,8 @@
 
     <!-- Desktop -->
     <div id="desktop" class="hidden">
-      <p>Continue on your phone to finish.</p>
+      <p>You can continue here, or pick up your phone — your account works on both.</p>
+      <button onclick="goBack()">Continue</button>
     </div>
   </div>
 
@@ -69,7 +70,20 @@
     function verify(){
       tries++;
       supa.auth.verifyOtp({ token_hash: th, type:'signup' }).then(function(r){
-        if(r && !r.error){ var o=document.getElementById('cfOv'); if(o) o.remove(); return; }
+        if(r && !r.error){
+          var o=document.getElementById('cfOv'); if(o) o.remove();
+          // Welcome email fires HERE (2026-08-21): this is the only moment guaranteed to
+          // happen exactly once per real signup on ANY device or in-app browser - the old
+          // trigger lived behind /app?resume=1 + a localStorage note from the signup
+          // browser, a chain that silently broke on desktop confirms and in Gmail's
+          // built-in browser. The function dedupes server-side, so the app's own backup
+          // call can stay without ever double-sending.
+          try{
+            var em=(r.data&&r.data.user&&r.data.user.email)||(r.data&&r.data.session&&r.data.session.user&&r.data.session.user.email)||null;
+            if(em){ fetch('/.netlify/functions/welcome-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,name:''}),keepalive:true}).catch(function(){}); }
+          }catch(e){}
+          return;
+        }
         fail(r&&r.error);
       }).catch(function(e){ fail(e); });
     }

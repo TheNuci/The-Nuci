@@ -44,6 +44,38 @@ function nuciBox(inner){ return `<table role="presentation" width="100%" style="
 
 const FROM = 'The Nuci <hello@thenuci.com>';
 
+// ── Server-side dedupe (added 2026-08-21) ──
+// The welcome trigger now fires from more than one place (confirm.html right after
+// verifyOtp - the only moment guaranteed to happen on ANY device/browser - plus the
+// app's ?resume=1 path as backup). One email per address, ever, is enforced HERE,
+// in admin_meta (kv), so callers can be naive. If the bookkeeping is unreachable we
+// still send: a rare duplicate welcome beats a silently missing one.
+function sbHeaders(){
+  const k = process.env.THE_NUCI_SUPABASE_SERVICE_ROLE_KEY;
+  return { 'apikey': k, 'Authorization': 'Bearer ' + k, 'Content-Type': 'application/json' };
+}
+async function welcomeAlreadySent(email){
+  try{
+    if(!process.env.SUPABASE_URL || !process.env.THE_NUCI_SUPABASE_SERVICE_ROLE_KEY) return false;
+    const id = 'welcome_' + email.toLowerCase();
+    const r = await fetch(process.env.SUPABASE_URL + '/rest/v1/admin_meta?id=eq.' + encodeURIComponent(id) + '&select=id', { headers: sbHeaders() });
+    if(!r.ok) return false;
+    const rows = await r.json();
+    return Array.isArray(rows) && rows.length > 0;
+  }catch(e){ return false; }
+}
+async function markWelcomeSent(email){
+  try{
+    if(!process.env.SUPABASE_URL || !process.env.THE_NUCI_SUPABASE_SERVICE_ROLE_KEY) return;
+    const id = 'welcome_' + email.toLowerCase();
+    await fetch(process.env.SUPABASE_URL + '/rest/v1/admin_meta?on_conflict=id', {
+      method:'POST',
+      headers: Object.assign(sbHeaders(), { 'Prefer':'resolution=merge-duplicates,return=minimal' }),
+      body: JSON.stringify([{ id, value:{ at:new Date().toISOString() }, updated_at:new Date().toISOString() }])
+    });
+  }catch(e){}
+}
+
 function welcomeHtml(name, toEmail) {
   const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   return nuciShell({
@@ -104,6 +136,11 @@ export default async (req) => {
     return new Response(JSON.stringify({ error: 'Invalid email' }), { status: 400 });
   }
 
+  // One welcome per address, ever - regardless of which trigger called us first.
+  if (await welcomeAlreadySent(email)) {
+    return new Response(JSON.stringify({ ok: true, deduped: true }), { status: 200 });
+  }
+
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -122,6 +159,7 @@ export default async (req) => {
       const txt = await res.text().catch(() => '');
       return new Response(JSON.stringify({ error: 'Send failed', detail: txt }), { status: 502 });
     }
+    await markWelcomeSent(email);
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   } catch (e) {
     return new Response(JSON.stringify({ error: 'Server error', detail: String(e) }), { status: 500 });
