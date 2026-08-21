@@ -1,22 +1,26 @@
 // netlify/functions/admin-reset-stats.js
 //
-// Erases the collected STATISTICS: tracking events (funnel, app opens, check-ins/day,
-// signups chart source) and logged client errors. It deliberately does NOT touch user
-// accounts, pets, plans, purchases or revenue.
+// NON-DESTRUCTIVE statistics reset. Nothing is ever deleted from Supabase.
+// "Reset" stores a BASELINE (timestamp + the cumulative totals at that moment) in a tiny
+// admin_meta table; the dashboard then shows numbers relative to that baseline and day
+// charts from that date on. "Clear" removes the baseline -> the all-time view returns.
 //
-// Guarded three ways: the admin key, an explicit confirm:"RESET" in the body, and POST-only.
+// One-time setup (Supabase SQL editor):
+//   create table if not exists admin_meta (
+//     id text primary key,
+//     value jsonb,
+//     updated_at timestamptz default now()
+//   );
+//   alter table admin_meta enable row level security;
+//   -- no policies on purpose: anon can't touch it, service_role (this function) can.
 //
-// ⚠️ TABLE NAMES: I could not see track.js / log-error.js / admin-stats.js, so the two
-// table names below are a best guess following the app's naming. Before deploying, open
-// netlify/functions/track.js and log-error.js and make sure STATS_TABLES matches the
-// tables they insert into. If a listed table doesn't exist, the function skips it and
-// reports that in the response instead of failing.
+// Actions (POST, guarded by THE_NUCI_DEBUG_KEY):
+//   {key, action:'get'}                    -> {baseline: {...}|null}
+//   {key, action:'set', snapshot:{...}}    -> stores {at, snapshot}
+//   {key, action:'clear'}                  -> removes the baseline
 const { createClient } = require('@supabase/supabase-js');
 
-const STATS_TABLES = [
-  'events',        // <- written by track.js  (verify!)
-  'client_errors'  // <- written by log-error.js (verify!)
-];
+const META_ID = 'stats_baseline';
 
 exports.handler = async function(event){
   if(event.httpMethod !== 'POST'){
@@ -29,9 +33,6 @@ exports.handler = async function(event){
   if(!adminKey || body.key !== adminKey){
     return { statusCode: 403, body: JSON.stringify({ error: 'forbidden' }) };
   }
-  if(body.confirm !== 'RESET'){
-    return { statusCode: 400, body: JSON.stringify({ error: 'missing confirm:"RESET"' }) };
-  }
 
   const url = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -39,28 +40,32 @@ exports.handler = async function(event){
     return { statusCode: 500, body: JSON.stringify({ error: 'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not configured' }) };
   }
   const supa = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const json = (code, obj) => ({ statusCode: code, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
 
-  let deleted = 0;
-  const results = {};
-  for(const table of STATS_TABLES){
-    try{
-      // count first so the dashboard can report how much was erased
-      const { count, error: cErr } = await supa.from(table).select('*', { count: 'exact', head: true });
-      if(cErr){ results[table] = 'skipped: ' + cErr.message; continue; }
-      // delete everything; the not-null filter on a column every row has satisfies
-      // PostgREST's requirement that DELETE carries a WHERE clause
-      const { error: dErr } = await supa.from(table).delete().not('id', 'is', null);
-      if(dErr){ results[table] = 'delete failed: ' + dErr.message; continue; }
-      deleted += (count || 0);
-      results[table] = 'erased ' + (count || 0) + ' rows';
-    }catch(e){
-      results[table] = 'error: ' + (e && e.message);
+  const action = body.action || 'get';
+  try{
+    if(action === 'get'){
+      const { data, error } = await supa.from('admin_meta').select('value').eq('id', META_ID).maybeSingle();
+      if(error){
+        // most likely the admin_meta table hasn't been created yet - tell the dashboard plainly
+        return json(200, { baseline: null, note: 'admin_meta not readable: ' + error.message });
+      }
+      return json(200, { baseline: (data && data.value) || null });
     }
+    if(action === 'set'){
+      const snapshot = (body.snapshot && typeof body.snapshot === 'object') ? body.snapshot : {};
+      const value = { at: new Date().toISOString(), snapshot };
+      const { error } = await supa.from('admin_meta').upsert({ id: META_ID, value, updated_at: new Date().toISOString() });
+      if(error) return json(500, { error: 'could not store baseline: ' + error.message });
+      return json(200, { ok: true, baseline: value });
+    }
+    if(action === 'clear'){
+      const { error } = await supa.from('admin_meta').delete().eq('id', META_ID);
+      if(error) return json(500, { error: 'could not clear baseline: ' + error.message });
+      return json(200, { ok: true, baseline: null });
+    }
+    return json(400, { error: 'unknown action' });
+  }catch(e){
+    return json(500, { error: (e && e.message) || 'unexpected error' });
   }
-
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ok: true, deleted, results, at: new Date().toISOString() })
-  };
 };
