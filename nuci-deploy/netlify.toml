@@ -11,7 +11,21 @@
 [functions."generate-plan"]
   timeout = 26
 
-# index.html (the landing page) is served automatically at "/".
+# The landing now lives INSIDE app.html (as the #screen-landing screen), so the whole
+# site is one document: tapping "Get started" swaps screens instead of loading a new
+# page. That matters because TikTok's in-app browser blocked the old landing -> app
+# page load for iOS users whose default browser is Safari.
+#
+# "/" therefore serves app.html. force = true is required: without it the static
+# index.html file would win over this rule. index.html is kept in the repo purely as a
+# backup of the old standalone landing and is no longer served at "/".
+# Ads and the TikTok bio link can keep pointing at plain thenuci.com.
+[[redirects]]
+  from = "/"
+  to = "/app.html"
+  status = 200
+  force = true
+
 # Clean URL for the app: /app (and its sub-paths) all serve app.html without changing
 # the address bar (status 200 = rewrite, not redirect). This keeps the URL clean while
 # leaving the Stripe return flow (which appends ?paid=true) fully intact.
@@ -46,6 +60,11 @@
 # showing an old app.html after a new deploy, so fixes appear to "not work".
 [[headers]]
   for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
