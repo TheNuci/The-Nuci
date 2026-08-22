@@ -278,6 +278,9 @@ footer .brand .g{color:var(--sage)}
   .reveal{transition:none;opacity:1;transform:none}
   .hero-scroll .line{animation:none}
 }
+
+nav .nav-cta{display:inline-block;text-decoration:none;line-height:normal;text-align:center}
+a.cta-big{display:inline-block;text-decoration:none;line-height:normal;text-align:center}
 </style>
 </head>
 <body>
@@ -290,7 +293,7 @@ footer .brand .g{color:var(--sage)}
   <div class="brand"><span class="g">The</span> Nuci<span class="g">.</span></div>
   <div class="nav-actions">
     <button class="nav-login" onclick="goLogin()">Login</button>
-    <button class="nav-cta" onclick="goApp()">Get started</button>
+    <a class="nav-cta" href="app.html?start=1" onclick="return goApp(event)">Get started</a>
   </div>
 </nav>
 
@@ -446,7 +449,7 @@ footer .brand .g{color:var(--sage)}
   <div class="glow"></div>
   <div class="inner">
     <h2 class="reveal">Begin your pet's<br><span class="accent">calmer week.</span></h2>
-    <button class="cta-big reveal d1" onclick="goApp()">Get started</button>
+    <a class="cta-big reveal d1" href="app.html?start=1" onclick="return goApp(event)">Get started</a>
     <div class="trust reveal d2">One-time payment · no subscription · <span>secure via Stripe</span></div>
   </div>
 </section>
@@ -548,7 +551,7 @@ function openQR(dest, title){
   document.getElementById('qrModal').classList.add('open');
 }
 function closeQR(){ document.getElementById('qrModal').classList.remove('open'); }
-function goApp(){ try{ nuciTrack('landing_cta'); }catch(e){} if(isDesktop()){ openQR('start=1','Start on your phone'); return; } window.location.href='app.html?start=1'; }
+function goApp(ev){ try{ nuciTrack('landing_cta'); }catch(e){} if(isDesktop()){ if(ev&&ev.preventDefault) ev.preventDefault(); openQR('start=1','Start on your phone'); return false; } /* phone: let the real <a href> navigation happen - TikTok's webview allows a genuine link where it blocks a JS location.href jump */ return true; }
 try{ nuciTrack('landing_view'); }catch(e){}
 function goLogin(){ if(isDesktop()){ openQR('login=1','Log in on your phone'); return; } window.location.href='app.html?login=1'; }
 // If a desktop visitor arrived from an app link (e.g. the "Check in" button in an email),
