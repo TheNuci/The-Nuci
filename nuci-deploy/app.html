@@ -1758,8 +1758,18 @@ let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not 
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
 var __errSent=0;
+// Noise from in-app browsers / extensions / WebView internals - not our code, never logged.
+var __ERR_NOISE=[/java object is gone/i,/navigation_performance_logger/i,/script error\.?$/i,/resizeobserver loop/i,
+  /chrome-extension:|moz-extension:|safari-extension:/i,/webkit-masked-url/i,/instantSearchSDKJSBridge/i,/__gCrWeb/i,
+  /ceCurrentVideo\.currentTime/i,/window\.webkit\.messageHandlers/i,/vid_mate_check/i,/JSBridge/i,/\bFBNavigation\b/i];
+function __isNoise(msg,src,stack){
+  var t=String(msg||'')+' '+String(src||'')+' '+String(stack||'');
+  for(var i=0;i<__ERR_NOISE.length;i++){ if(__ERR_NOISE[i].test(t)) return true; }
+  return false;
+}
 function reportError(msg, src, line, col, stack){
   try{
+    if(__isNoise(msg,src,stack)) return;
     if(__errSent>=5) return; __errSent++;
     var payload=JSON.stringify({ msg:String(msg||'').slice(0,500), src:String(src||'').slice(0,300),
       line:line||0, col:col||0, stack:String(stack||'').slice(0,2000),

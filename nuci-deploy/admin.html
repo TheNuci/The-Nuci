@@ -180,6 +180,9 @@ function render(d){
   var c='';
   c+=card(uTot,'Total users'+(BASE?' <b>(since reset)</b>':''));
   c+=card(uPur,'Purchased <b>('+conv+'%)</b>');
+  var f7=d.funnelSessions7||{}, f30=d.funnelSessions30||{};
+  var op7=f7.app_open||0, cl7=f7.landing_cta||0, cl30=f30.landing_cta||0;
+  c+=card(cl7+' / '+cl30,'Clicked \u201cGet my pet\u2019s plan\u201d \u00b7 7d / 30d'+(op7?' <b>('+Math.round(cl7/op7*100)+'% of opens)</b>':''),'var(--forest)');
   c+=card(d.plans.active,'Active plans','var(--forest)');
   c+=card(d.plans.checkedInToday,'Checked in today');
   c+=card(d.activity.activeSessionsToday,'Active sessions today');
@@ -193,7 +196,7 @@ function render(d){
   c+=card(d.emails.remindersOn,'Reminder emails on');
   c+=card(d.emails.marketingConsent,'Tips consent');
   c+=card(d.emails.optedOut,'Opted out of marketing');
-  if(d.ratings){ c+=card((d.ratings.avg!=null?('\u2605 '+d.ratings.avg):'\u2013'),'Plan rating \u00b7 '+(d.ratings.count||0)+' ratings'+((d.ratings.count||0)<20?' (stars show on landing at 20+)':''), d.ratings.avg>=4?'var(--forest)':null); }
+  if(d.ratings){ c+=card((d.ratings.avg!=null?('\u2605 '+d.ratings.avg):'\u2013'),'Plan rating \u00b7 '+(d.ratings.count||0)+' ratings', d.ratings.avg>=4?'var(--forest)':null); }
   document.getElementById('cards').innerHTML=c;
   renderFunnel(d);
   bars('dayDist','dayDistLbl',(function(){ var o={},L=7; for(var i=1;i<=L;i++) o['Day '+i]=d.plans.dayDistribution[i]||0; return o; })(),false,true);
@@ -226,7 +229,7 @@ function bars(id,lblId,obj,blue,showAll){
   if(showAll){ lbl.innerHTML=ks.map(function(k){ return '<span>'+k.replace('Day ','D')+'·'+obj[k]+'</span>'; }).join(''); }
   else { lbl.innerHTML='<span>'+ks[0]+'</span><span>'+ks[Math.floor(ks.length/2)]+'</span><span>'+ks[ks.length-1]+'</span>'; }
 }
-var STEPS=[['landing_view','Landing seen'],['landing_cta','Get started click'],['app_open','App opened'],['assessment_start','Assessment started'],['assessment_done','Assessment finished'],['offer_view','Offer seen'],['checkout_click','Checkout click'],['paid_return','Paid'],['checkin_done','Did a check-in'],['plan_end','Finished plan']];
+var STEPS=[['app_open','App opened'],['landing_cta','Clicked \u201cGet my pet\u2019s plan\u201d'],['assessment_start','Assessment started'],['assessment_done','Assessment finished'],['offer_view','Offer seen'],['checkout_click','Checkout click'],['paid_return','Paid'],['checkin_done','Did a check-in'],['plan_end','Finished plan']];
 function renderFunnel(d){
   var src=(RANGE===7? d.funnelSessions7 : d.funnelSessions30)||{};
   var max=1; STEPS.forEach(function(s){ if((src[s[0]]||0)>max) max=src[s[0]]||0; });
