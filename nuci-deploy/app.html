@@ -1288,9 +1288,9 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 }
 
 /* ═══════ OTP code boxes (email confirmation) ═══════ */
-.otp-row{display:flex;gap:7px;justify-content:center;margin:6px 0 4px;direction:ltr}
+.otp-row{display:flex;gap:8px;justify-content:center;margin:6px 0 4px;direction:ltr}
 .otp-box{
-  width:42px;height:56px;flex:0 0 auto;
+  width:46px;height:58px;flex:0 0 auto;
   text-align:center;font-family:inherit;font-size:1.5rem;font-weight:500!important;
   color:var(--text);background:var(--card);
   border:1.5px solid var(--border);border-radius:14px;
@@ -1302,8 +1302,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 .otp-box.filled{border-color:rgba(107,143,113,.55)}
 .otp-row.err .otp-box{border-color:var(--danger)}
 .otp-row.busy .otp-box{opacity:.55;pointer-events:none}
-@media(max-width:400px){ .otp-box{width:34px;height:48px;font-size:1.2rem} .otp-row{gap:5px} }
-@media(max-width:340px){ .otp-box{width:30px;height:44px;font-size:1.05rem} .otp-row{gap:4px} }
+@media(max-width:360px){ .otp-box{width:40px;height:52px;font-size:1.3rem} .otp-row{gap:6px} }
 </style>
 
 <!-- ═══════ META PIXEL ═══════
@@ -3690,7 +3689,7 @@ async function doRegister(){
 // Number of digits Supabase sends. MUST match Authentication -> Sign In / Providers ->
 // Email -> "Email OTP Length". Change it in ONE place here and the boxes, the
 // auto-submit threshold and the copy all follow.
-var OTP_LEN=8;
+var OTP_LEN=6;
 var __otpEmail=null, __otpBusy=false;
 
 function showEmailConfirmNotice(email){
@@ -3702,7 +3701,7 @@ function showEmailConfirmNotice(email){
       // arrows type=number brings. autocomplete=one-time-code is what makes iOS
       // and Android offer the code straight above the keyboard.
       boxes+='<input class="otp-box" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" '
-           + 'autocomplete="'+(i===0?'one-time-code':'off')+'" data-i="'+i+'" aria-label="Digit '+(i+1)+'">';
+           + 'autocomplete="one-time-code" name="otp'+i+'" data-i="'+i+'" aria-label="Digit '+(i+1)+' of '+OTP_LEN+'">';
     }
     openSheet(
       '<div style="text-align:center">'
