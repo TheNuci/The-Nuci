@@ -1287,6 +1287,26 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   #screen-landing .price-old::after{transform:scaleX(1)}
 }
 </style>
+
+<!-- ═══════ META PIXEL ═══════
+     Replace PASTE_YOUR_PIXEL_ID_HERE with the 15-digit ID from Events Manager.
+     It appears in ONE place only (the FB_PIXEL_ID line below). -->
+<script>
+var FB_PIXEL_ID = '1620366293016411';
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window,document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
+  fbq('init', FB_PIXEL_ID);
+  fbq('track', 'PageView');
+}
+</script>
+<!-- ═══════ /META PIXEL ═══════ -->
 </head>
 <body>
 <div id="appFrame" role="main">
@@ -1319,7 +1339,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <div class="price-card rv in d3">
       <div class="price-lead">One plan, one price</div>
       <div class="price-row">
-        <span class="price-amount price-glow"><span class="amt" id="phAmount">2.95</span><span class="cur">&euro;</span></span>
+        <span class="price-amount price-glow"><span class="amt" id="phAmount">9.95</span><span class="cur">&euro;</span></span>
       </div>
       <div class="price-note">One-time payment &middot; no subscription</div>
       <button class="price-cta" onclick="goApp()">Get my pet's plan <span class="arw">&rarr;</span></button>
@@ -1475,7 +1495,7 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
     <div class="eyebrow">Start today</div>
     <h2>Begin your pet's<br><span class="l-accent">calmer week.</span></h2>
     <div class="price-inline">for just</div>
-    <div class="price-row final-price"><span class="price-amount price-glow price-glow-light"><span class="amt" id="phAmount2">2.95</span><span class="cur">&euro;</span></span></div>
+    <div class="price-row final-price"><span class="price-amount price-glow price-glow-light"><span class="amt" id="phAmount2">9.95</span><span class="cur">&euro;</span></span></div>
     <button class="cta-big2" onclick="goApp()">Get my pet's plan <span class="arw">&rarr;</span></button>
     <div class="fine">One-time payment &middot; no subscription &middot; secure via Stripe</div>
   </div>
@@ -1755,7 +1775,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-25 launch-v30";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-25 launch-v31";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -1793,6 +1813,37 @@ function nuciTrack(ev, extra){
     if(navigator.sendBeacon){ navigator.sendBeacon('/.netlify/functions/track', payload); }
     else { fetch('/.netlify/functions/track',{method:'POST',headers:{'Content-Type':'application/json'},body:payload,keepalive:true}).catch(function(){}); }
   }catch(e){}
+  try{ fbTrack(ev, extra); }catch(e){}
+}
+// ── Meta Pixel: mirror the funnel events above onto the standard events Meta
+// optimises against. Piggy-backing on nuciTrack means there is exactly one place
+// where funnel steps are declared - no second set of call sites to keep in sync.
+function fbTrack(ev, extra){
+  if(typeof fbq !== 'function') return;
+  if(ev === 'assessment_start'){
+    fbq('trackCustom', 'QuestionnaireStart');
+  }
+  else if(ev === 'offer_view'){
+    fbq('track', 'ViewContent', {content_name:'offer_screen', currency:'EUR'});
+  }
+  else if(ev === 'checkout_click'){
+    var v = (extra === 'triple') ? 19.95 : 9.95;
+    fbq('track', 'InitiateCheckout', {value:v, currency:'EUR', content_ids:[String(extra||'single')]});
+  }
+  else if(ev === 'paid_return'){
+    // Fire Purchase once per completed checkout. runPaidReturn() can be re-entered
+    // via payVerifyRetry(), and a duplicate Purchase would inflate reported ROAS and
+    // teach Meta to bid on the wrong people.
+    try{ if(sessionStorage.getItem('fb_purchase_sent')) return; }catch(e){}
+    var val = 9.95, pid = 'single';
+    try{
+      var ps = JSON.parse(localStorage.getItem('pendingState') || '{}') || {};
+      if(ps.pricePaid) val = Number(ps.pricePaid);
+      if(ps.packageId) pid = String(ps.packageId);
+    }catch(e){}
+    fbq('track', 'Purchase', {value:val, currency:'EUR', content_ids:[pid]});
+    try{ sessionStorage.setItem('fb_purchase_sent','1'); }catch(e){}
+  }
 }
 // ===== Voice input (speech-to-text) - works in any language the user speaks =====
 var __mediaRec=null, __chunks=[], __micBtn=null;
@@ -1955,16 +2006,16 @@ const AI_ENDPOINT='/.netlify/functions/generate-plan';
 const AI_ADAPT_ENDPOINT='/.netlify/functions/regenerate-day';
 // ── Payment links (single global Stripe account for everyone) ── ALL LIVE
 const LINKS_INTL={
-  single:'https://buy.stripe.com/dRmeV63rV3Op6VjcqkdIA0e',   // LIVE 2.95  (1 plan  - Single Plan)
-  triple:'https://buy.stripe.com/bJe3co5A3gBbdjH760dIA0f'    // LIVE 9.95  (3 plans - Family Pack)
+  single:'https://buy.stripe.com/14AcMYd2vet37Zn2PKdIA0d',   // LIVE 9.95  (1 plan  - Single Plan)
+  triple:'https://buy.stripe.com/9B65kw4vZ4St93rduodIA08'    // LIVE 19.95 (3 plans - Family Pack)
 };
 const DISCOUNT_LINKS_INTL={};  // no discounts - regular prices only
 // Back-compat aliases used elsewhere
 const STRIPE_PAYMENT_LINK=LINKS_INTL.single;
 const STRIPE_PAYMENT_LINK_3PACK=LINKS_INTL.triple;
 const PACKAGES=[
-  {id:'single',credits:1,price:2.95, anchor:null, name:'1 plan', sub:'For one pet or one issue'},
-  {id:'triple',credits:3,price:9.95,anchor:null, name:'3 plans', sub:'For multiple pets or issues'}
+  {id:'single',credits:1,price:9.95, anchor:null, name:'1 plan', sub:'For one pet or one issue'},
+  {id:'triple',credits:3,price:19.95,anchor:null, name:'3 plans', sub:'For multiple pets or issues'}
 ];
 let selectedPackage=PACKAGES[0];
 let appliedPromo=null;
@@ -1993,7 +2044,7 @@ function pkgLink(p){
   if(discountActive() && DISCOUNT_LINKS_INTL[p.id]) return DISCOUNT_LINKS_INTL[p.id];
   return LINKS_INTL[p.id];
 }
-function currentPrice(){ return selectedPackage?pkgPrice(selectedPackage):2.95; }
+function currentPrice(){ return selectedPackage?pkgPrice(selectedPackage):9.95; }
 
 // ═══════ STATE (same schema as the old app / DB blobs) ═══════
 const state={
