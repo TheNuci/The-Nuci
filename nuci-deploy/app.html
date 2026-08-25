@@ -3699,8 +3699,15 @@ function showEmailConfirmNotice(email){
     for(var i=0;i<OTP_LEN;i++){
       // inputmode=numeric gives the digit keypad on mobile without the spinner
       // arrows type=number brings. autocomplete=one-time-code is what makes iOS
-      // and Android offer the code straight above the keyboard.
-      boxes+='<input class="otp-box" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" '
+      // and Android offer the code above the keyboard.
+      //
+      // DELIBERATELY NO maxlength="1": the OS autofill pastes the WHOLE code into
+      // whichever box is focused, and maxlength made the browser silently throw away
+      // everything after the first digit — the keyboard suggestion appeared to work
+      // but only ever filled box one. Without it we receive all the digits and the
+      // input handler spreads them across the boxes itself. The handler also trims
+      // any manual typing back to a single character, so the boxes still behave.
+      boxes+='<input class="otp-box" type="text" inputmode="numeric" pattern="[0-9]*" size="1" '
            + 'autocomplete="one-time-code" name="otp'+i+'" data-i="'+i+'" aria-label="Digit '+(i+1)+' of '+OTP_LEN+'">';
     }
     openSheet(
@@ -3752,11 +3759,13 @@ function wireOtpBoxes(){
       el.addEventListener('input', function(ev){
         setErr('');
         var raw=el.value||'';
-        // iOS one-time-code autofill drops all six digits into the FIRST box, and a
-        // paste does the same. Detect >1 character and spread it out instead of
-        // silently truncating to one digit.
-        if(raw.length>1){ el.value=''; fill(raw, idx); return; }
-        if(!/^[0-9]$/.test(raw)){ el.value=''; paint(); return; }
+        var digits=raw.replace(/\D/g,'');
+        // Autofill (and paste, and a fast double keypress) delivers more than one
+        // character at once. Spread it across the boxes from here rather than
+        // discarding the tail.
+        if(digits.length>1){ el.value=''; fill(digits, idx); return; }
+        if(!digits){ el.value=''; paint(); return; }
+        el.value=digits;               // strip any stray non-digit the OS inserted
         paint();
         if(idx<els.length-1){ els[idx+1].focus(); els[idx+1].select&&els[idx+1].select(); }
         maybeSubmit();
