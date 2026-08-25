@@ -1286,6 +1286,23 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   #screen-landing .price-amount .amt,#screen-landing .price-old::after,#screen-landing .price-card::before{animation:none}
   #screen-landing .price-old::after{transform:scaleX(1)}
 }
+
+/* ═══════ OTP code boxes (email confirmation) ═══════ */
+.otp-row{display:flex;gap:8px;justify-content:center;margin:6px 0 4px;direction:ltr}
+.otp-box{
+  width:46px;height:58px;flex:0 0 auto;
+  text-align:center;font-family:inherit;font-size:1.5rem;font-weight:500!important;
+  color:var(--text);background:var(--card);
+  border:1.5px solid var(--border);border-radius:14px;
+  outline:none;padding:0;transition:border-color .16s var(--ease),box-shadow .16s var(--ease);
+  -moz-appearance:textfield;
+}
+.otp-box::-webkit-outer-spin-button,.otp-box::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.otp-box:focus{border-color:var(--sage);box-shadow:0 0 0 3px rgba(107,143,113,.15)}
+.otp-box.filled{border-color:rgba(107,143,113,.55)}
+.otp-row.err .otp-box{border-color:var(--danger)}
+.otp-row.busy .otp-box{opacity:.55;pointer-events:none}
+@media(max-width:360px){ .otp-box{width:40px;height:52px;font-size:1.3rem} .otp-row{gap:6px} }
 </style>
 
 <!-- ═══════ META PIXEL ═══════
@@ -3652,32 +3669,221 @@ async function doRegister(){
     else { welcomeNew(); }
   }catch(e){ err.textContent='Something went wrong - please try again.'; btn.disabled=false; btn.textContent='Create account'; }
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// EMAIL CONFIRMATION — 6-DIGIT CODE (replaces the magic-link round trip)
+//
+// The old flow sent a confirmation LINK. Clicking a link in a mail client always
+// opens a NEW tab — often in a different browser entirely (Gmail app, Facebook
+// in-app browser -> Safari). That new tab has no localStorage from the original
+// session, which is why we needed nuci_pending_signup, the /confirm page and the
+// ?resume=1 branch to stitch the journey back together. It also breaks Meta's
+// attribution, because the purchase can complete in a browser that never saw the
+// ad click.
+//
+// With a code, the user never leaves the tab: they read six digits from the mail
+// and type them here. State stays intact, the pixel session stays intact.
+//
+// REQUIRES a one-line change in Supabase: Authentication -> Emails ->
+// "Confirm signup" template must use {{ .Token }} instead of {{ .ConfirmationURL }}.
+// ═══════════════════════════════════════════════════════════════════════════
+var __otpEmail=null, __otpBusy=false;
+
 function showEmailConfirmNotice(email){
-  // Shown after signup when email confirmation is required. Clear call to check the inbox,
-  // plus a resend option.
+  __otpEmail=email; __otpBusy=false;
   try{
+    var boxes='';
+    for(var i=0;i<6;i++){
+      // inputmode=numeric gives the digit keypad on mobile without the spinner
+      // arrows type=number brings. autocomplete=one-time-code is what makes iOS
+      // and Android offer the code straight above the keyboard.
+      boxes+='<input class="otp-box" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" '
+           + 'autocomplete="'+(i===0?'one-time-code':'off')+'" data-i="'+i+'" aria-label="Digit '+(i+1)+'">';
+    }
     openSheet(
       '<div style="text-align:center">'
       +'<div style="width:58px;height:58px;border-radius:50%;background:rgba(107,143,113,.13);display:flex;align-items:center;justify-content:center;margin:4px auto 16px;color:var(--sage)"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>'
       +'<div class="d-eb" style="color:var(--sage)">One last step</div>'
-      +'<h2 style="font-size:1.4rem;letter-spacing:-.02em;margin:6px 0 10px">Confirm your email</h2>'
-      +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.55;margin-bottom:20px">We sent a confirmation link to <b>'+esc(email)+'</b>. Tap it to activate your account, then you\u2019ll come straight back here to choose your plan.</p>'
-      +'<button class="btn" id="resendConfirmBtn" style="width:100%;background:rgba(107,143,113,.12);color:var(--forest);border:none" onclick="resendConfirmEmail(\''+esc(email).replace(/'/g,"\\'")+'\')">Resend the email</button>'
+      +'<h2 style="font-size:1.4rem;letter-spacing:-.02em;margin:6px 0 10px">Enter your code</h2>'
+      +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.55;margin-bottom:18px">We sent a six-digit code to <b>'+esc(email)+'</b>. Type it below \u2014 you can stay right here.</p>'
+      +'<div class="otp-row" id="otpRow">'+boxes+'</div>'
+      +'<div id="otpErr" style="font-size:.84rem;color:var(--danger);min-height:20px;margin-top:8px"></div>'
+      +'<button class="btn" id="resendConfirmBtn" style="width:100%;background:rgba(107,143,113,.12);color:var(--forest);border:none;margin-top:4px" onclick="resendConfirmEmail(\''+esc(email).replace(/'/g,"\\'")+'\')">Send a new code</button>'
       +'<p style="font-size:.76rem;color:var(--secondary);margin-top:12px">Check your spam folder if it hasn\u2019t arrived in a minute.</p>'
       +'</div>'
     );
+    // openSheet has just written the markup; wire the boxes on the next frame so
+    // the nodes definitely exist.
+    requestAnimationFrame(function(){ wireOtpBoxes(); });
   }catch(e){}
 }
+
+function wireOtpBoxes(){
+  var row=document.getElementById('otpRow'); if(!row) return;
+  var els=row.querySelectorAll('.otp-box'); if(!els.length) return;
+
+  function setErr(msg){
+    var e=document.getElementById('otpErr'); if(e) e.textContent=msg||'';
+    row.classList.toggle('err', !!msg);
+  }
+  function value(){ var s=''; for(var i=0;i<els.length;i++) s+=els[i].value||''; return s; }
+  function paint(){ for(var i=0;i<els.length;i++) els[i].classList.toggle('filled', !!els[i].value); }
+  function maybeSubmit(){
+    var v=value();
+    if(v.length===6 && !__otpBusy){ els[els.length-1].blur(); verifyOtpCode(v); }
+  }
+  // Spread a pasted or autofilled string across the boxes, starting at `from`.
+  function fill(str, from){
+    var digits=String(str||'').replace(/\D/g,'');
+    if(!digits) return;
+    var i=from||0, k=0;
+    while(i<els.length && k<digits.length){ els[i].value=digits.charAt(k); i++; k++; }
+    paint(); setErr('');
+    var next=Math.min(i, els.length-1);
+    els[next].focus(); els[next].select&&els[next].select();
+    maybeSubmit();
+  }
+
+  for(var i=0;i<els.length;i++){
+    (function(el, idx){
+      el.addEventListener('input', function(ev){
+        setErr('');
+        var raw=el.value||'';
+        // iOS one-time-code autofill drops all six digits into the FIRST box, and a
+        // paste does the same. Detect >1 character and spread it out instead of
+        // silently truncating to one digit.
+        if(raw.length>1){ el.value=''; fill(raw, idx); return; }
+        if(!/^[0-9]$/.test(raw)){ el.value=''; paint(); return; }
+        paint();
+        if(idx<els.length-1){ els[idx+1].focus(); els[idx+1].select&&els[idx+1].select(); }
+        maybeSubmit();
+      });
+      el.addEventListener('keydown', function(ev){
+        if(ev.key==='Backspace'){
+          // Backspace in an EMPTY box steps back and clears the previous one, so
+          // holding backspace walks the whole code away as you'd expect.
+          if(!el.value && idx>0){ ev.preventDefault(); els[idx-1].value=''; paint(); els[idx-1].focus(); }
+        }
+        else if(ev.key==='ArrowLeft' && idx>0){ ev.preventDefault(); els[idx-1].focus(); }
+        else if(ev.key==='ArrowRight' && idx<els.length-1){ ev.preventDefault(); els[idx+1].focus(); }
+      });
+      el.addEventListener('paste', function(ev){
+        ev.preventDefault();
+        var t=(ev.clipboardData||window.clipboardData); if(!t) return;
+        fill(t.getData('text'), idx);
+      });
+      el.addEventListener('focus', function(){ el.select&&el.select(); });
+    })(els[i], i);
+  }
+  setTimeout(function(){ try{ els[0].focus(); }catch(e){} }, 120);
+}
+
+async function verifyOtpCode(code){
+  if(__otpBusy) return;
+  var row=document.getElementById('otpRow');
+  var errEl=document.getElementById('otpErr');
+  function setErr(msg){ if(errEl) errEl.textContent=msg||''; if(row) row.classList.toggle('err', !!msg); }
+  function clearBoxes(){
+    if(!row) return;
+    var els=row.querySelectorAll('.otp-box');
+    for(var i=0;i<els.length;i++){ els[i].value=''; els[i].classList.remove('filled'); }
+    try{ els[0].focus(); }catch(e){}
+  }
+  if(!supa){ setErr('Connection error \u2014 please try again.'); return; }
+
+  __otpBusy=true;
+  if(row) row.classList.add('busy');
+  setErr('');
+  try{
+    // type:'signup' is the confirmation issued by supa.auth.signUp(). On success this
+    // returns a real session, which is exactly what the old confirm-link round trip
+    // was fetching — except we're still in the original tab.
+    var res=await supa.auth.verifyOtp({ email:__otpEmail, token:String(code), type:'signup' });
+    if(res && res.error){
+      __otpBusy=false; if(row) row.classList.remove('busy');
+      var m=(res.error.message||'').toLowerCase();
+      if(m.indexOf('expired')>-1) setErr('That code has expired. Send a new one.');
+      else setErr('That code isn\u2019t right. Check the email and try again.');
+      clearBoxes();
+      return;
+    }
+  }catch(e){
+    __otpBusy=false; if(row) row.classList.remove('busy');
+    setErr('Something went wrong \u2014 please try again.');
+    clearBoxes();
+    return;
+  }
+  // Verified and signed in.
+  state.userEmail=__otpEmail;
+  try{ closeSheet(); }catch(e){}
+  await afterEmailVerified();
+}
+
+// Everything that used to happen on the ?resume=1 return, now run inline. Kept as its
+// own function so the /confirm link path can call it too while old emails are still
+// in flight.
+async function afterEmailVerified(){
+  // The questionnaire is normally still in memory (same tab), but a reload between
+  // signup and code entry would have cleared it — fall back to the local stash, then
+  // to the profile row.
+  if(!(state.answers && state.answers.petName)){
+    var raw=null;
+    try{ raw=localStorage.getItem('nuci_pending_signup'); }catch(e){}
+    if(raw){
+      try{
+        var ps=JSON.parse(raw);
+        if(ps && ps.answers && ps.answers.petName){
+          state.answers=ps.answers; state.aiPlan=ps.aiPlan||null;
+          state.previewDay1=ps.previewDay1||null; state.aiBehaviorExplain=ps.aiBehaviorExplain||null;
+          state.userName=state.userName||ps.name;
+        }
+      }catch(e){}
+    }
+  }
+  if(!(state.answers && state.answers.petName)){
+    try{ await loadStateForUser(state.userEmail); }catch(e){}
+  }
+  // Welcome email + first profile write happen once, now that there's a session and
+  // RLS will accept the insert. nuci_welcomed guards against a repeat.
+  try{
+    if(!localStorage.getItem('nuci_welcomed')){
+      var nm=state.userName||'';
+      try{ var pj=JSON.parse(localStorage.getItem('nuci_pending_signup')||'{}'); if(pj&&pj.name) nm=pj.name; }catch(e){}
+      try{
+        await supa.from('profiles').upsert({email:state.userEmail, data:serializeState(),
+          signup_at:new Date().toISOString(), pet_name_pending:(state.answers&&state.answers.petName)||null,
+          updated_at:new Date().toISOString(),
+          timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
+      }catch(e){}
+      try{ await fetch('/.netlify/functions/welcome-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.userEmail,name:nm}),keepalive:true}); }catch(e){}
+      try{ localStorage.setItem('nuci_welcomed','1'); localStorage.removeItem('nuci_pending_signup'); }catch(e){}
+    }
+  }catch(e){}
+  if(state.answers && state.answers.petName){
+    if(state.purchased){ enterApp(); return; }
+    buildOffer(); showScreen('screen-offer'); return;
+  }
+  startFreshState(); startFlow();
+}
+
 async function resendConfirmEmail(email){
   var btn=document.getElementById('resendConfirmBtn');
   if(btn){ btn.disabled=true; btn.textContent='Sending...'; }
   try{
-    // Supabase resend of the signup confirmation email.
-    await supa.auth.resend({ type:'signup', email:email,
-      options:{ emailRedirectTo: location.origin+'/confirm' } });
-    if(btn){ btn.textContent='Sent - check your inbox'; }
+    // Supabase resend of the signup confirmation. No emailRedirectTo — the template
+    // now carries a code, not a link.
+    await supa.auth.resend({ type:'signup', email:email });
+    if(btn){ btn.textContent='New code sent'; }
+    var row=document.getElementById('otpRow');
+    if(row){
+      var els=row.querySelectorAll('.otp-box');
+      for(var i=0;i<els.length;i++){ els[i].value=''; els[i].classList.remove('filled'); }
+      row.classList.remove('err');
+      var e=document.getElementById('otpErr'); if(e) e.textContent='';
+      try{ els[0].focus(); }catch(_){}
+    }
+    setTimeout(function(){ if(btn){ btn.disabled=false; btn.textContent='Send a new code'; } }, 20000);
   }catch(e){
-    if(btn){ btn.disabled=false; btn.textContent='Resend the email'; }
+    if(btn){ btn.disabled=false; btn.textContent='Send a new code'; }
     try{ toast('Could not resend - try again in a moment'); }catch(_){}
   }
 }
