@@ -2145,53 +2145,49 @@ async function persistStateNow(){
 async function loadStateForUser(email){
   if(!supa||!email) return false;
   try{
-    const {data,error}=await supa.from('profiles')
-      .select('data,email_reminders,purchased,marketing_consent,plan_credits,transactions')
-      .eq('email',email.toLowerCase()).maybeSingle();
-    if(error||!data) return false;
+    // EGRESS GUARD. The `data` column carries the whole snapshot including base64 photos
+    // (hundreds of KB). Downloading it on every app open was the main Supabase egress cost.
+    // Step 1: fetch ONLY the tiny fields plus data->savedAt (a single number, not the blob).
+    var em=email.toLowerCase();
+    const pre=await supa.from('profiles')
+      .select('savedAt:data->savedAt,email_reminders,purchased,marketing_consent,plan_credits,transactions')
+      .eq('email',em).maybeSingle();
+    if(pre.error||!pre.data) return false;
+    var data=pre.data;
     if(data.email_reminders!=null) state.emailReminders=data.email_reminders!==false;
     if(data.marketing_consent!=null) state.marketingConsent=data.marketing_consent===true;
-    // FRESHNESS GUARD. Every saved snapshot carries savedAt. If THIS device holds a NEWER
-    // snapshot of the SAME account than the server does, restoring the server copy would
-    // erase the newer local work. That is exactly how a freshly paid + generated plan kept
-    // vanishing: right after the Stripe round-trip the auth session is often still
-    // refreshing, so the post-generation save silently failed under RLS - the plan lived
-    // only on the device - and the next app open "restored" the older server copy over it,
-    // while the webhook-credited purchase made the payment look registered. Plan gone.
-    // Newer-local wins and is pushed UP instead; the server's billing columns still apply.
-    var _localNewer=false;
-    try{
-      var _inc=data.data; if(typeof _inc==='string') _inc=JSON.parse(_inc);
-      var _srvAt=(_inc && typeof _inc.savedAt==='number') ? _inc.savedAt : 0;
-      // Newer local can live in two places: the in-memory state (same tab), or the
-      // localStorage snapshot written by the last save (fresh boot - memory is empty then).
-      // localStorage on this device always belongs to the last signed-in account (it is
-      // cleared on sign-out), so a same-or-unlabelled snapshot is this account's.
-      var _memAt=(typeof state.savedAt==='number' && state.userEmail
-                  && state.userEmail.toLowerCase()===email.toLowerCase()) ? state.savedAt : 0;
-      var _ls=null, _lsAt=0;
-      try{ var _lr=localStorage.getItem('nuciState'); if(_lr) _ls=JSON.parse(_lr); }catch(e){}
-      if(_ls && typeof _ls.savedAt==='number'
-         && (!_ls.userEmail || String(_ls.userEmail).toLowerCase()===email.toLowerCase())){ _lsAt=_ls.savedAt; }
-      var _bestAt=Math.max(_memAt,_lsAt);
-      if(_srvAt && _bestAt > _srvAt + 2000){
-        _localNewer=true;
-        if(_lsAt>_memAt){ restoreState(_ls); }   // adopt the newer on-device snapshot
-      }
-    }catch(e){}
+    var _srvAt=(typeof data.savedAt==='number')?data.savedAt:(Number(data.savedAt)||0);
+    // FRESHNESS GUARD (unchanged logic): if THIS device holds a NEWER snapshot of the SAME
+    // account than the server, keep local and push it up instead of restoring the server copy.
+    var _memAt=(typeof state.savedAt==='number' && state.userEmail
+                && state.userEmail.toLowerCase()===em) ? state.savedAt : 0;
+    var _ls=null, _lsAt=0;
+    try{ var _lr=localStorage.getItem('nuciState'); if(_lr) _ls=JSON.parse(_lr); }catch(e){}
+    if(_ls && typeof _ls.savedAt==='number'
+       && (!_ls.userEmail || String(_ls.userEmail).toLowerCase()===em)){ _lsAt=_ls.savedAt; }
+    var _bestAt=Math.max(_memAt,_lsAt);
+    var _localNewer=!!(_srvAt && _bestAt > _srvAt + 2000);
+    var hasServerData=!!_srvAt;
     if(_localNewer){
+      if(_lsAt>_memAt){ restoreState(_ls); }
       console.warn('loadStateForUser: local snapshot is newer than the server copy - keeping local and uploading it');
       persistState();
-    } else if(data.data){ restoreState(data.data); }
+    } else if(_srvAt && _ls && _lsAt===_srvAt){
+      // Step 2a: the device already holds exactly the server snapshot - restore it locally,
+      // no need to download the blob again.
+      restoreState(_ls);
+    } else {
+      // Step 2b: server is newer (or nothing usable on this device) - now fetch the blob.
+      const full=await supa.from('profiles').select('data').eq('email',em).maybeSingle();
+      if(full.error) return false;
+      var _inc=full.data&&full.data.data; if(typeof _inc==='string'){ try{ _inc=JSON.parse(_inc); }catch(e){} }
+      hasServerData=!!_inc;
+      if(_inc){ restoreState(_inc); }
+    }
     if(_localNewer){ state.purchased = state.purchased || (data.purchased===true); }
     else { state.purchased=(data.purchased===true); }
-    // The Stripe webhook writes plan_credits / transactions server-side, so they are the
-    // trustworthy record of what was actually paid for. The COLUMN is the source of truth: the
-    // webhook increments it on every purchase. We take it whenever it's present and at least as
-    // high as what this device knows. (Using ">=" not ">" matters: after a second purchase the
-    // device may have already added the credit locally, making the two equal - if we required
-    // strictly greater we'd ignore the column and the purchase would look unregistered. We still
-    // never go below the local value, so a missing/unconfigured webhook can't strip credits.)
+    // Stripe webhook writes plan_credits / transactions server-side - the column is the
+    // source of truth (>= so a locally-added credit after a 2nd purchase still matches).
     if(typeof data.plan_credits==='number' && data.plan_credits>=(state.planCredits||0)){
       state.planCredits=data.plan_credits;
       state.purchased=state.purchased||data.plan_credits>0;
@@ -2199,7 +2195,7 @@ async function loadStateForUser(email){
     if(Array.isArray(data.transactions) && data.transactions.length>((state.transactions||[]).length)){
       state.transactions=data.transactions;
     }
-    return !!data.data;
+    return hasServerData;
   }catch(e){ return false; }
 }
 
@@ -7216,11 +7212,11 @@ function setUserPhoto(inp){
   rd.onload=()=>{
     const img=new Image();
     img.onload=()=>{
-      const maxEdge=600; const scale=Math.min(1,maxEdge/Math.max(img.width,img.height));
+      const maxEdge=400; const scale=Math.min(1,maxEdge/Math.max(img.width,img.height));
       const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
       const c=document.createElement('canvas'); c.width=w; c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
-      state.userPhoto=c.toDataURL('image/jpeg',0.85);
+      state.userPhoto=c.toDataURL('image/jpeg',0.78);
       persistStateNow(); renderProfileTab();
     };
     img.src=rd.result;
@@ -7628,7 +7624,7 @@ function setPhoto(inp){
       // full-bleed background on the Today hero (~350px wide, up to 3x on retina). So we
       // keep the whole image (no square crop) and cap the LONG edge at 1600px - plenty
       // for the hero to stay crisp, while object-fit/background-size handle the framing.
-      const maxEdge=1600;
+      const maxEdge=1000;   // was 1600 - a 1000px long edge is still crisp on the Today hero and ~3x smaller
       const scale=Math.min(1, maxEdge/Math.max(img.width,img.height));  // never upscale
       const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
       const c=document.createElement('canvas');
@@ -7636,7 +7632,7 @@ function setPhoto(inp){
       const ctx=c.getContext('2d');
       ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
       ctx.drawImage(img, 0, 0, w, h);
-      state.petPhoto=c.toDataURL('image/jpeg',0.9);
+      state.petPhoto=c.toDataURL('image/jpeg',0.78);
       persistState(); renderProfileTab(); if(curTab==='today') renderToday(); toast('Photo updated');
     };
     img.src=rd.result;
