@@ -1288,9 +1288,9 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 }
 
 /* ═══════ OTP code boxes (email confirmation) ═══════ */
-.otp-row{display:flex;gap:8px;justify-content:center;margin:6px 0 4px;direction:ltr}
+.otp-row{display:flex;gap:7px;justify-content:center;margin:6px 0 4px;direction:ltr}
 .otp-box{
-  width:46px;height:58px;flex:0 0 auto;
+  width:42px;height:56px;flex:0 0 auto;
   text-align:center;font-family:inherit;font-size:1.5rem;font-weight:500!important;
   color:var(--text);background:var(--card);
   border:1.5px solid var(--border);border-radius:14px;
@@ -1302,7 +1302,8 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
 .otp-box.filled{border-color:rgba(107,143,113,.55)}
 .otp-row.err .otp-box{border-color:var(--danger)}
 .otp-row.busy .otp-box{opacity:.55;pointer-events:none}
-@media(max-width:360px){ .otp-box{width:40px;height:52px;font-size:1.3rem} .otp-row{gap:6px} }
+@media(max-width:400px){ .otp-box{width:34px;height:48px;font-size:1.2rem} .otp-row{gap:5px} }
+@media(max-width:340px){ .otp-box{width:30px;height:44px;font-size:1.05rem} .otp-row{gap:4px} }
 </style>
 
 <!-- ═══════ META PIXEL ═══════
@@ -3686,13 +3687,17 @@ async function doRegister(){
 // REQUIRES a one-line change in Supabase: Authentication -> Emails ->
 // "Confirm signup" template must use {{ .Token }} instead of {{ .ConfirmationURL }}.
 // ═══════════════════════════════════════════════════════════════════════════
+// Number of digits Supabase sends. MUST match Authentication -> Sign In / Providers ->
+// Email -> "Email OTP Length". Change it in ONE place here and the boxes, the
+// auto-submit threshold and the copy all follow.
+var OTP_LEN=8;
 var __otpEmail=null, __otpBusy=false;
 
 function showEmailConfirmNotice(email){
   __otpEmail=email; __otpBusy=false;
   try{
     var boxes='';
-    for(var i=0;i<6;i++){
+    for(var i=0;i<OTP_LEN;i++){
       // inputmode=numeric gives the digit keypad on mobile without the spinner
       // arrows type=number brings. autocomplete=one-time-code is what makes iOS
       // and Android offer the code straight above the keyboard.
@@ -3704,7 +3709,7 @@ function showEmailConfirmNotice(email){
       +'<div style="width:58px;height:58px;border-radius:50%;background:rgba(107,143,113,.13);display:flex;align-items:center;justify-content:center;margin:4px auto 16px;color:var(--sage)"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>'
       +'<div class="d-eb" style="color:var(--sage)">One last step</div>'
       +'<h2 style="font-size:1.4rem;letter-spacing:-.02em;margin:6px 0 10px">Enter your code</h2>'
-      +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.55;margin-bottom:18px">We sent a six-digit code to <b>'+esc(email)+'</b>. Type it below \u2014 you can stay right here.</p>'
+      +'<p style="font-size:.92rem;color:var(--secondary);line-height:1.55;margin-bottom:18px">We sent a '+OTP_LEN+'-digit code to <b>'+esc(email)+'</b>.</p>'
       +'<div class="otp-row" id="otpRow">'+boxes+'</div>'
       +'<div id="otpErr" style="font-size:.84rem;color:var(--danger);min-height:20px;margin-top:8px"></div>'
       +'<button class="btn" id="resendConfirmBtn" style="width:100%;background:rgba(107,143,113,.12);color:var(--forest);border:none;margin-top:4px" onclick="resendConfirmEmail(\''+esc(email).replace(/'/g,"\\'")+'\')">Send a new code</button>'
@@ -3729,7 +3734,7 @@ function wireOtpBoxes(){
   function paint(){ for(var i=0;i<els.length;i++) els[i].classList.toggle('filled', !!els[i].value); }
   function maybeSubmit(){
     var v=value();
-    if(v.length===6 && !__otpBusy){ els[els.length-1].blur(); verifyOtpCode(v); }
+    if(v.length===OTP_LEN && !__otpBusy){ els[els.length-1].blur(); verifyOtpCode(v); }
   }
   // Spread a pasted or autofilled string across the boxes, starting at `from`.
   function fill(str, from){
