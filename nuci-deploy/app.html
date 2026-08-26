@@ -1792,7 +1792,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-25 launch-v31";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-26 launch-v33";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -2112,6 +2112,89 @@ function serializeState(){
     _newDesign:true
   };
 }
+// CLOUD COPY WITHOUT PHOTOS. Photos are base64 JPEGs (100-500 KB each) and were by far
+// the largest part of every profile row. Every server-side read of `data` (cron emails,
+// backups, admin) paid for them again and again - that was ~all of the Supabase egress.
+// Photos now live ONLY on the device (localStorage / sessionStorage); the cloud snapshot
+// carries everything else. On restore from the cloud, mergeLocalPhotos() re-attaches them.
+// PHOTO SIZE BUDGET. Photos are stored as base64 JPEG inside the profile blob, so their
+// size is paid on EVERY server-side read (app open, cron emails, backups). They are now
+// compressed hard: pet photo 640px / q0.6 (~30-60 KB), avatar 160px (~5 KB). Any photo
+// bigger than PHOTO_MAX_B64 (old 1600px uploads) is re-encoded on the fly by shrinkAllPhotos().
+var PET_PHOTO_EDGE=640, PET_PHOTO_Q=0.6, AVATAR_EDGE=160, AVATAR_Q=0.6, PHOTO_MAX_B64=90000;
+function shrinkPhoto(src, maxEdge, q){
+  return new Promise(function(res){
+    try{
+      var img=new Image();
+      img.onload=function(){
+        try{
+          var scale=Math.min(1, maxEdge/Math.max(img.width,img.height));
+          var w=Math.max(1,Math.round(img.width*scale)), h=Math.max(1,Math.round(img.height*scale));
+          var c=document.createElement('canvas'); c.width=w; c.height=h;
+          var cx=c.getContext('2d'); cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
+          cx.drawImage(img,0,0,w,h);
+          res(c.toDataURL('image/jpeg',q));
+        }catch(e){ res(src); }
+      };
+      img.onerror=function(){ res(src); };
+      img.src=src;
+    }catch(e){ res(src); }
+  });
+}
+// Re-encode every oversized photo in the state (top-level, pets[], archive[], avatar).
+// Runs after a restore; saves only if something actually changed.
+async function shrinkAllPhotos(){
+  var changed=false;
+  async function fix(obj,key,edge,q){
+    var v=obj&&obj[key];
+    if(typeof v==='string' && v.indexOf('data:image')===0 && v.length>PHOTO_MAX_B64){
+      var nv=await shrinkPhoto(v,edge,q);
+      if(nv && nv.length<v.length){ obj[key]=nv; changed=true; }
+    }
+  }
+  try{
+    await fix(state,'userPhoto',AVATAR_EDGE,AVATAR_Q);
+    await fix(state,'petPhoto',PET_PHOTO_EDGE,PET_PHOTO_Q);
+    for(var i=0;i<(state.pets||[]).length;i++) await fix(state.pets[i],'petPhoto',PET_PHOTO_EDGE,PET_PHOTO_Q);
+    for(var j=0;j<(state.archive||[]).length;j++) await fix(state.archive[j],'petPhoto',PET_PHOTO_EDGE,PET_PHOTO_Q);
+    // keep the top-level copy identical to the active pet's entry
+    var ap=(state.pets||[])[state.activePet]; if(ap&&ap.petPhoto&&state.petPhoto!==ap.petPhoto){ state.petPhoto=ap.petPhoto; }
+  }catch(e){ console.warn('shrinkAllPhotos',e); }
+  if(changed){ persistState(); }
+  return changed;
+}
+// Cloud snapshot = full state (photos included, but they are tiny now - see above).
+function serializeStateForCloud(){ return serializeState(); }
+function _localSnapshot(){
+  var out=null;
+  try{ var r=localStorage.getItem('nuciState'); if(r) out=JSON.parse(r); }catch(e){}
+  if(!out){ try{ var r2=sessionStorage.getItem('nuciState'); if(r2) out=JSON.parse(r2); }catch(e){} }
+  return out;
+}
+function mergeLocalPhotos(ls){
+  if(!ls) return;
+  try{
+    if(ls.userEmail && state.userEmail && String(ls.userEmail).toLowerCase()!==String(state.userEmail).toLowerCase()) return;
+    var nm=function(p){ return (p&&p.answers&&p.answers.petName)?String(p.answers.petName).toLowerCase():''; };
+    var pool=[].concat(ls.pets||[], ls.archive||[]);
+    if(ls.petPhoto){ pool.push({answers:ls.answers||{}, petPhoto:ls.petPhoto}); }
+    var find=function(p,i,arr){
+      if(!p) return null;
+      var n=nm(p);
+      var m=n?pool.find(function(q){ return q&&q.petPhoto&&nm(q)===n; }):null;
+      if(!m && arr && arr[i] && arr[i].petPhoto) m=arr[i];
+      return m?m.petPhoto:null;
+    };
+    if(!state.userPhoto && ls.userPhoto) state.userPhoto=ls.userPhoto;
+    (state.pets||[]).forEach(function(p,i){ if(p&&!p.petPhoto){ var ph=find(p,i,ls.pets||[]); if(ph) p.petPhoto=ph; } });
+    (state.archive||[]).forEach(function(p,i){ if(p&&!p.petPhoto){ var ph=find(p,i,ls.archive||[]); if(ph) p.petPhoto=ph; } });
+    if(!state.petPhoto){
+      var ap=(state.pets||[])[state.activePet];
+      if(ap&&ap.petPhoto) state.petPhoto=ap.petPhoto;
+      else { var ph2=find({answers:state.answers},-1,null); if(ph2) state.petPhoto=ph2; }
+    }
+  }catch(e){ console.warn('mergeLocalPhotos',e); }
+}
 function restoreState(d){
   if(!d) return;
   try{ if(typeof d==='string') d=JSON.parse(d); }catch(e){ return; }
@@ -2197,7 +2280,7 @@ async function persistStateNow(){
       marketing_consent_at: state.marketingConsentAt||null
     };
     if(_uid) _rec.user_id=_uid;
-    if(state.purchased){ _rec.data=serializeState(); _rec.purchased=true; }
+    if(state.purchased){ _rec.data=serializeStateForCloud(); _rec.purchased=true; }
     // If they are giving consent now, clear any old opt-out flag (e.g. from a previous
     // delete-profile or unsubscribe) so a returning user actually receives emails again.
     if(state.marketingConsent){ _rec.marketing_opt_out=false; }
@@ -2239,18 +2322,18 @@ async function loadStateForUser(email){
     if(_localNewer){
       if(_lsAt>_memAt){ restoreState(_ls); }
       console.warn('loadStateForUser: local snapshot is newer than the server copy - keeping local and uploading it');
-      persistState();
+      if(!(await shrinkAllPhotos())) persistState();
     } else if(_srvAt && _ls && _lsAt===_srvAt){
       // Step 2a: the device already holds exactly the server snapshot - restore it locally,
       // no need to download the blob again.
-      restoreState(_ls);
+      restoreState(_ls); shrinkAllPhotos();
     } else {
       // Step 2b: server is newer (or nothing usable on this device) - now fetch the blob.
       const full=await supa.from('profiles').select('data').eq('email',em).maybeSingle();
       if(full.error) return false;
       var _inc=full.data&&full.data.data; if(typeof _inc==='string'){ try{ _inc=JSON.parse(_inc); }catch(e){} }
       hasServerData=!!_inc;
-      if(_inc){ restoreState(_inc); }
+      if(_inc){ restoreState(_inc); mergeLocalPhotos(_ls||_localSnapshot()); shrinkAllPhotos(); }
     }
     if(_localNewer){ state.purchased = state.purchased || (data.purchased===true); }
     else { state.purchased=(data.purchased===true); }
@@ -3586,7 +3669,7 @@ async function doRegister(){
     var emailChanged = (email !== state.userEmail);
     state.userName=name; state.userEmail=email;
     try{
-      await supa.from('profiles').upsert({email, data:serializeState(), updated_at:new Date().toISOString(),
+      await supa.from('profiles').upsert({email, data:serializeStateForCloud(), updated_at:new Date().toISOString(),
         timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
     }catch(e){}
     if(emailChanged){ try{ await supa.auth.updateUser({email:email}); }catch(e){} }
@@ -3650,7 +3733,7 @@ async function doRegister(){
 
     if(signedInNow){
       try{
-        await supa.from('profiles').upsert({email, data:serializeState(), signup_at:new Date().toISOString(),
+        await supa.from('profiles').upsert({email, data:serializeStateForCloud(), signup_at:new Date().toISOString(),
           pet_name_pending:state.answers.petName||null, updated_at:new Date().toISOString(),
           timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
       }catch(e){}
@@ -3862,7 +3945,7 @@ async function afterEmailVerified(){
       var nm=state.userName||'';
       try{ var pj=JSON.parse(localStorage.getItem('nuci_pending_signup')||'{}'); if(pj&&pj.name) nm=pj.name; }catch(e){}
       try{
-        await supa.from('profiles').upsert({email:state.userEmail, data:serializeState(),
+        await supa.from('profiles').upsert({email:state.userEmail, data:serializeStateForCloud(),
           signup_at:new Date().toISOString(), pet_name_pending:(state.answers&&state.answers.petName)||null,
           updated_at:new Date().toISOString(),
           timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
@@ -7482,11 +7565,11 @@ function setUserPhoto(inp){
   rd.onload=()=>{
     const img=new Image();
     img.onload=()=>{
-      const maxEdge=400; const scale=Math.min(1,maxEdge/Math.max(img.width,img.height));
+      const maxEdge=AVATAR_EDGE; const scale=Math.min(1,maxEdge/Math.max(img.width,img.height));
       const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
       const c=document.createElement('canvas'); c.width=w; c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
-      state.userPhoto=c.toDataURL('image/jpeg',0.78);
+      state.userPhoto=c.toDataURL('image/jpeg',AVATAR_Q);
       persistStateNow(); renderProfileTab();
     };
     img.src=rd.result;
@@ -7572,12 +7655,12 @@ function setPetCardPhoto(inp, petIndex){
   rd.onload=()=>{
     const img=new Image();
     img.onload=()=>{
-      const maxEdge=1600; const scale=Math.min(1, maxEdge/Math.max(img.width,img.height));
+      const maxEdge=PET_PHOTO_EDGE; const scale=Math.min(1, maxEdge/Math.max(img.width,img.height));
       const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
       const c=document.createElement('canvas'); c.width=w; c.height=h;
       const cx=c.getContext('2d'); cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
       cx.drawImage(img,0,0,w,h);
-      var dataUrl=c.toDataURL('image/jpeg',0.9);
+      var dataUrl=c.toDataURL('image/jpeg',PET_PHOTO_Q);
       var pets=state.pets||[];
       if(pets[petIndex]){ pets[petIndex].petPhoto=dataUrl; }
       // if this is also the active pet, keep the top-level copy in sync
@@ -7599,12 +7682,12 @@ function setArchivedPetPhoto(inp, key){
   rd.onload=()=>{
     const img=new Image();
     img.onload=()=>{
-      const maxEdge=1600; const scale=Math.min(1, maxEdge/Math.max(img.width,img.height));
+      const maxEdge=PET_PHOTO_EDGE; const scale=Math.min(1, maxEdge/Math.max(img.width,img.height));
       const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
       const c=document.createElement('canvas'); c.width=w; c.height=h;
       const cx=c.getContext('2d'); cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
       cx.drawImage(img,0,0,w,h);
-      var dataUrl=c.toDataURL('image/jpeg',0.9);
+      var dataUrl=c.toDataURL('image/jpeg',PET_PHOTO_Q);
       (state.archive||[]).forEach(function(ar){
         var aa=ar.answers||{petName:ar.petName,petType:ar.petType};
         if(((aa.petName||'')+'|'+(aa.petType||'')).toLowerCase()===key){ ar.petPhoto=dataUrl; }
@@ -7894,7 +7977,7 @@ function setPhoto(inp){
       // full-bleed background on the Today hero (~350px wide, up to 3x on retina). So we
       // keep the whole image (no square crop) and cap the LONG edge at 1600px - plenty
       // for the hero to stay crisp, while object-fit/background-size handle the framing.
-      const maxEdge=1000;   // was 1600 - a 1000px long edge is still crisp on the Today hero and ~3x smaller
+      const maxEdge=PET_PHOTO_EDGE;
       const scale=Math.min(1, maxEdge/Math.max(img.width,img.height));  // never upscale
       const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
       const c=document.createElement('canvas');
@@ -7902,7 +7985,7 @@ function setPhoto(inp){
       const ctx=c.getContext('2d');
       ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
       ctx.drawImage(img, 0, 0, w, h);
-      state.petPhoto=c.toDataURL('image/jpeg',0.78);
+      state.petPhoto=c.toDataURL('image/jpeg',PET_PHOTO_Q);
       persistState(); renderProfileTab(); if(curTab==='today') renderToday(); toast('Photo updated');
     };
     img.src=rd.result;
@@ -9127,7 +9210,7 @@ async function adaptNextDay(nextDay){
           if(pend && !localStorage.getItem('nuci_welcomed')){
             var pj=JSON.parse(pend);
             try{
-              await supa.from('profiles').upsert({email:state.userEmail, data:serializeState(),
+              await supa.from('profiles').upsert({email:state.userEmail, data:serializeStateForCloud(),
                 signup_at:new Date().toISOString(), pet_name_pending:(state.answers&&state.answers.petName)||null,
                 updated_at:new Date().toISOString(),
                 timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
