@@ -156,14 +156,6 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .idots span.on{width:22px;background:var(--sage)}
 .intro-anim{animation:screenIn .4s var(--ease)}
 
-/* hello */
-.hello-wrap{position:absolute;inset:0;display:flex;flex-direction:column;
-  padding:calc(env(safe-area-inset-top) + 24px) 32px max(38px,env(safe-area-inset-bottom))}
-.hello-track{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
-.hello-hand{width:78px;height:78px;color:var(--sage);margin-bottom:24px}
-.hello-h{font-size:clamp(2.6rem,10vw,3.4rem);letter-spacing:-0.045em;line-height:1;margin-bottom:20px}
-.hello-p{color:var(--secondary);font-size:1.05rem;line-height:1.6;max-width:34ch}
-.hello-quote{font-family:'Fraunces',Georgia,serif;font-style:italic;color:var(--forest);font-size:1.08em}
 
 /* questionnaire */
 .qtop{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;justify-content:space-between;
@@ -1566,20 +1558,6 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
   </div>
 </section>
 
-<!-- HELLO -->
-<section class="screen" id="screen-hello">
-  <div class="hello-wrap">
-    <div class="hello-track">
-      <svg class="hello-hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V6.2a1.3 1.3 0 0 1 2.6 0V11m0-.4V5a1.3 1.3 0 0 1 2.6 0v5.6m0-.3V6.4a1.3 1.3 0 0 1 2.6 0V13c0 4-2.4 6.8-6 6.8-2.2 0-3.6-1-4.7-2.8L6 13.6c-.6-1 .1-2.2 1.2-2.2.6 0 1.1.3 1.4.9z"/></svg>
-      <div class="hello-h">Hello.</div>
-      <p class="hello-p">To get started, we'd like to ask you<br><span class="hello-quote">a few questions about your pet</span></p>
-    </div>
-    <div style="display:flex;align-items:center;gap:11px">
-      <button class="rback" onclick="helloBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></button>
-      <button class="btn btn-primary" style="flex:1;white-space:nowrap" onclick="helloReady()">Let's get started</button>
-    </div>
-  </div>
-</section>
 
 <!-- ASSESSMENT -->
 <section class="screen" id="screen-assessment">
@@ -1792,7 +1770,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-26 launch-v33";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-29 launch-v34";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -2164,7 +2142,25 @@ async function shrinkAllPhotos(){
   return changed;
 }
 // Cloud snapshot = full state (photos included, but they are tiny now - see above).
-function serializeStateForCloud(){ return serializeState(); }
+// Strip every base64 photo before the snapshot leaves the device. Photos are the largest
+// thing in the blob by far, and the cloud copy is re-read on every app open, every cron email
+// run, every backup and every admin view - so each photo was paid for over and over in egress.
+// The device keeps the photos (localStorage/sessionStorage); mergeLocalPhotos() re-attaches
+// them on restore, so nothing is lost to the owner.
+function serializeStateForCloud(){
+  var d=serializeState();
+  try{
+    d.petPhoto=null;
+    d.userPhoto=null;
+    if(Array.isArray(d.pets)) d.pets=d.pets.map(function(p){
+      if(!p) return p; var c=Object.assign({},p); c.petPhoto=null; return c;
+    });
+    if(Array.isArray(d.archive)) d.archive=d.archive.map(function(a){
+      if(!a) return a; var c=Object.assign({},a); c.petPhoto=null; return c;
+    });
+  }catch(e){}
+  return d;
+}
 function _localSnapshot(){
   var out=null;
   try{ var r=localStorage.getItem('nuciState'); if(r) out=JSON.parse(r); }catch(e){}
@@ -2530,19 +2526,36 @@ function syncPlanDay(){
     if(missed>0){ state.__pendingMissed=(state.__pendingMissed||0)+missed; }
     persistStateNow();
   }
-  // If the calendar has run past the final day and the plan was never formally closed (the
-  // owner never opened the last check-in / plan-end screen), close it now. Otherwise the plan
-  // sits "stuck on day 7" forever - counted as active, blocking the empty state and showing an
-  // old finished plan as if current when another pet is added.
+  // Close + archive anything that has run its course (this pet and every other one).
+  try{ sweepExpiredPlans(); }catch(e){}
+}
+// Close and archive EVERY plan whose seven days have passed - the active pet and all the
+// others. Records what ended in state.__endedWhileAway so the app can show one summary screen
+// when the owner comes back days later. Must be safe to call on every app open.
+function sweepExpiredPlans(){
+  var ended=[];
+  // --- the active pet (lives in the top-level fields) ---
   var L=state.planLength||7;
-  if(!state.planComplete && (state.currentDay||1)>=L){
-    var elapsed = state.planStartDate ? daysBetween(state.planStartDate, todayKey()) : 0;
-    if(elapsed >= L){   // a full L days have passed since the start date
-      try{ archiveCurrentPlan(); }catch(e){}
-      state.planComplete=true;
-      persistStateNow();
-    }
+  var hasPlanToClose = !!(state.aiPlan && state.aiPlan.days && state.aiPlan.days.length
+                          && state.answers && state.answers.petName && state.planStartDate);
+  if(!state.planComplete && !state.frozenSince && hasPlanToClose && planElapsedDays(state)>=L){
+    try{ archiveCurrentPlan(); }catch(e){}
+    state.planComplete=true;
+    state.currentDay=L;
+    ended.push({ name:state.answers.petName||'Your pet', planLength:L });
+    try{ syncActivePet(); }catch(e){}
+    try{ persistStateNow(); }catch(e){}
   }
+  // --- every other pet ---
+  try{
+    var more=archiveExpiredPets();
+    if(Array.isArray(more)) ended=ended.concat(more);
+  }catch(e){}
+  if(ended.length){
+    state.__endedWhileAway=(state.__endedWhileAway||[]).concat(ended);
+    try{ persistStateNow(); }catch(e){}
+  }
+  return ended;
 }
 // A gentle, non-shaming nudge when the user skipped day(s) without checking in.
 function showMissedNudge(n){
@@ -2768,7 +2781,14 @@ const INTRO=[
   {art:ART4,h:'Your words, <span class="accent">any language</span>',p:'Write or speak in whatever language feels natural - just talk, and The Nuci understands. No settings, no switching.'}
 ];
 let introIdx=0;
-function welcomeNew(){ introIdx=0; renderIntro(); showScreen('screen-intro'); }
+// HIDDEN (Aug 2026): the five intro slides are skipped - "Get started" goes straight into the
+// questionnaire. Nothing is deleted: the slides, their art and renderIntro() all stay exactly as
+// they were. Flip INTRO_ENABLED back to true to bring the carousel back.
+var INTRO_ENABLED = false;
+function welcomeNew(){
+  if(!INTRO_ENABLED){ beginQuestionnaire(); return; }
+  introIdx=0; renderIntro(); showScreen('screen-intro');
+}
 // Entry from "Get started": show the tap game first (once), then the carousel. If the game
 // shouldn't show (already played, discount already unlocked), go straight to the carousel.
 function startFlow(){
@@ -2797,10 +2817,10 @@ function renderIntro(){
   $('introDots').innerHTML=INTRO.map((_,i)=>'<span class="'+(i===introIdx?'on':'')+'"></span>').join('');
   $('introBtn').textContent=introIdx>=INTRO.length-1?'Continue':'Next';
 }
-function introNext(){ if(introIdx>=INTRO.length-1){ showScreen('screen-hello'); return; } introIdx++; renderIntro(); }
+function introNext(){ if(introIdx>=INTRO.length-1){ beginQuestionnaire(); return; } introIdx++; renderIntro(); }
 function introBack(){ if(introIdx<=0){ showLanding(); return; } introIdx--; renderIntro(); }
-function helloBack(){ introIdx=INTRO.length-1; renderIntro(); showScreen('screen-intro'); }
-function helloReady(){ try{localStorage.setItem('nuci_intro_seen','1');}catch(e){} kbPrime(); state.currentQ=0; showScreen('screen-assessment'); renderQ(); setTimeout(function(){ var i=document.getElementById('qInput'); if(i){ try{i.focus({preventScroll:true});}catch(e){} } qStabilize(); },30); }
+// Last intro slide -> straight into the questionnaire (the old "Hello." screen is gone).
+function beginQuestionnaire(){ try{localStorage.setItem('nuci_intro_seen','1');}catch(e){} kbPrime(); state.currentQ=0; showScreen('screen-assessment'); renderQ(); setTimeout(function(){ var i=document.getElementById('qInput'); if(i){ try{i.focus({preventScroll:true});}catch(e){} } qStabilize(); },30); }
 
 // ═══════ QUESTIONNAIRE ═══════
 function breedPlaceholder(){ const t=state.answers.petType; return t==='dog'?'e.g. Labrador, mixed…':t==='cat'?'e.g. British Shorthair…':'e.g. breed or "unknown"'; }
@@ -2985,6 +3005,23 @@ function placesFor(cfg, environment){
   }
   return base;
 }
+// The questionnaire asks sex and neutering as ONE question (id 'sexFixed'), but the rest of the
+// app - the pet profile chip, the vet summary, the PDF and the carry-over into a new plan for
+// the same pet - still reads `sex` and `neutered`. Fill both from the combined answer.
+function deriveSexNeutered(v){
+  var map={
+    'Male, neutered'  :{sex:'Male',   neutered:'Neutered'},
+    'Male, intact'    :{sex:'Male',   neutered:'No - intact'},
+    'Female, spayed'  :{sex:'Female', neutered:'Spayed'},
+    'Female, intact'  :{sex:'Female', neutered:'No - intact'},
+    'Not sure'        :{sex:'Unknown',neutered:'Not sure'},
+    'Not applicable'  :{sex:'Unknown',neutered:'Not applicable'}
+  };
+  var m=map[v];
+  if(!m) return;
+  state.answers.sex=m.sex;
+  state.answers.neutered=m.neutered;
+}
 function getQuestions(){
   const name=state.answers.petName||'your pet';
   const t=state.answers.petType;
@@ -2998,13 +3035,19 @@ function getQuestions(){
     q.push({id:'species',title:'What kind of <span class="accent">'+SPECIES[t].label.toLowerCase()+'</span><br>is '+esc(name)+'?',type:'pills',options:SPECIES[t].members});
   }
   q.push(
+    // The reason they came. Asked THIRD, not tenth: everything after it now has an obvious
+    // purpose ("how long has this been happening?"), instead of nine admin questions first.
+    {id:'mainIssue',title:'What is the <span class=\"accent\">main issue</span><br>you are noticing?',type:'textarea',placeholder:cfg.issueEg},
     {id:'breed',title:'What breed or type is <span class="accent">'+esc(name)+'?</span>',type:'text',placeholder:breedPlaceholder()},
     {id:'age',title:'How old is <span class="accent">'+esc(name)+'?</span>',type:'age-slider'},
-    {id:'sex',title:'What is <span class="accent">'+esc(name)+"'s</span> sex?",type:'pills',options:['Male','Female','Unknown']},
-    {id:'neutered',title:'Is '+esc(name)+' <span class=\"accent\">neutered or spayed?</span>',type:'pills',options:['Neutered','Spayed','No - intact','Not sure','Not applicable'],subs:{'Neutered':'For male pets','Spayed':'For female pets','No - intact':'Not fixed - all natural','Not sure':"That's okay - we'll work around it",'Not applicable':'For species where this does not apply'}},
+    // Sex and neutering were two screens; neutering is what actually changes behaviour advice
+    // (marking, roaming, some aggression), so they are one question now. The plain `sex` and
+    // `neutered` answers are still filled in behind the scenes - see deriveSexNeutered().
+    {id:'sexFixed',title:'Is '+esc(name)+' <span class=\"accent\">male or female,</span><br>and neutered?',type:'pills',
+      options:['Male, neutered','Male, intact','Female, spayed','Female, intact','Not sure','Not applicable'],
+      subs:{'Male, intact':'Not neutered','Female, intact':'Not spayed','Not sure':"That's okay - we'll work around it",'Not applicable':'For species where this does not apply'}},
     {id:'environment',title:'Where does '+esc(name)+'<br><span class=\"accent\">mainly live?</span>',type:'options',options:cfg.env},
     {id:'household',title:'Who lives at home<br><span class=\"accent\">with '+esc(name)+'?</span>',type:'multi',options:['Just me','Partner/spouse','Children','Other pets','Other adults']},
-    {id:'mainIssue',title:'What is the <span class=\"accent\">main issue</span><br>you are noticing?',type:'textarea',placeholder:cfg.issueEg},
     {id:'duration',title:'How long has this<br><span class=\"accent\">been happening?</span>',type:'pills',options:['Just started','A few days','1-2 weeks','1-3 months','Over 3 months'],subs:{'Just started':'Within the last day or two'}},
     {id:'frequency',title:'How often<br>does it <span class=\"accent\">happen?</span>',type:'pills',options:['Multiple times daily','Once a day','A few times a week','Once a week','Occasionally']},
     {id:'location',title:'Where does it<br><span class=\"accent\">usually happen?</span>',type:'multi',options:placesFor(cfg, state.answers.environment)}
@@ -3277,7 +3320,7 @@ function renderQ(){
       const b=document.createElement('button'); b.type='button';
       b.className='opt-row'+(state.answers[q.id]===opt?' selected':'');
       b.innerHTML=optRowHtml(opt,q.subs&&q.subs[opt]);
-      b.onclick=()=>{ l.querySelectorAll('.opt-row').forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); state.answers[q.id]=opt; if(nextIsTextQ()){ kbPrime(); advanceSoon(90); } else advanceSoon(); };
+      b.onclick=()=>{ l.querySelectorAll('.opt-row').forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); state.answers[q.id]=opt; if(q.id==='sexFixed'){ try{ deriveSexNeutered(opt); }catch(e){} } if(nextIsTextQ()){ kbPrime(); advanceSoon(90); } else advanceSoon(); };
       l.appendChild(b);
     });
     mid.appendChild(l); staggerOptions(l);
@@ -3587,7 +3630,10 @@ function assessBack(){ kbRelease();
   // of stepping into the skipped/prefilled questions.
   var entry=(typeof state.__entryQ==='number')?state.__entryQ:0;
   if((state.__newPetFlow || state.__buyAnotherPet) && state.currentQ<=entry){ cancelNewPet(); return; }
-  if(state.currentQ<=0){ showScreen('screen-hello'); return; }
+  if(state.currentQ<=0){
+    if(!INTRO_ENABLED){ try{ showLanding(); }catch(e){ showScreen('screen-landing'); } return; }
+    showScreen('screen-intro'); if(typeof INTRO!=='undefined'){ introIdx=INTRO.length-1; renderIntro(); } return;
+  }
   state.currentQ--; renderQ();
 }
 function cancelNewPet(){
@@ -4247,7 +4293,7 @@ function goApp(){
   try{ nuciTrack('landing_cta'); }catch(e){}
   if(isDesktop()){ openQR('start=1','Start on your phone'); return; }
   try{ startFreshState(); }catch(e){}
-  try{ startFlow(); }catch(e){ try{ showScreen('screen-intro'); }catch(_){} }
+  try{ startFlow(); }catch(e){ try{ if(INTRO_ENABLED){ showScreen('screen-intro'); } else { beginQuestionnaire(); } }catch(_){ try{ showScreen('screen-assessment'); }catch(__){} } }
 }
 function goLogin(){
   if(isDesktop()){ openQR('login=1','Log in on your phone'); return; }
@@ -5971,7 +6017,17 @@ async function handlePaidReturn(demo){
 
 // ═══════ APP SHELL ═══════
 let curTab='today';
-function enterApp(){ showScreen('screen-app'); window.__tabStack=['today']; window.__navFromPop=true; showTab('today'); window.__navFromPop=false; requestAnimationFrame(function(){ positionNavPill(curTab||'today'); }); }
+function enterApp(){
+  // Close and archive anything that ran out while the owner was away, BEFORE painting a tab -
+  // otherwise an expired plan quietly shows an empty Today with no explanation.
+  try{ sweepExpiredPlans(); }catch(e){}
+  showScreen('screen-app'); window.__tabStack=['today']; window.__navFromPop=true; showTab('today'); window.__navFromPop=false;
+  requestAnimationFrame(function(){ positionNavPill(curTab||'today'); });
+  // One summary screen for every plan that finished while they were away.
+  if((state.__endedWhileAway||[]).length){
+    setTimeout(function(){ try{ openExpiredPlanEnd(); }catch(e){} }, 420);
+  }
+}
 function renderAppHead(){
   const pet=state.answers.petName||'Your pet';
   const t=state.answers.petType||'other';
@@ -6236,7 +6292,6 @@ function selectTodayPet(i){ toggleTodayPets(); if(i!==state.activePet) switchToP
     var asm=document.getElementById('screen-assessment'); if(asm&&asm.classList.contains('active')){ assessBack(); return true; }
     var lnd=document.getElementById('screen-landing'); if(lnd&&lnd.classList.contains('active')){ return true; }
     var intro=document.getElementById('screen-intro'); if(intro&&intro.classList.contains('active')){ introBack(); return true; }
-    var hello=document.getElementById('screen-hello'); if(hello&&hello.classList.contains('active')){ showScreen('screen-intro'); if(typeof INTRO!=='undefined'){ introIdx=INTRO.length-1; renderIntro(); } return true; }
     // In the main app or on the offer screen, swallow the swipe (never let native back go to Stripe)
     var app=document.getElementById('screen-app'); if(app&&app.classList.contains('active')){ return true; }
     var offer=document.getElementById('screen-offer'); if(offer&&offer.classList.contains('active')){ return true; }
@@ -6508,15 +6563,56 @@ function hasActivePlan(){
        && !state.planComplete)) return false;
   // Also treat a plan whose calendar has fully run out as NOT active - covers older plans that
   // expired by date but were never formally closed (so they don't show as if still on day 7).
+  // A FROZEN plan is exempt: the freeze stops the clock, so it stays active until unfrozen.
   var L=state.planLength||7;
+  if(state.frozenSince) return true;
   if(state.planStartDate){
-    try{ if(daysBetween(state.planStartDate, todayKey()) >= L) return false; }catch(e){}
+    try{ if(planElapsedDays(state) >= L) return false; }catch(e){}
   }
   return true;
 }
 function emptyTabHtml(kind){
   // Shown on Today / Plan / Progress / Vet when there is no active plan. One short line of
   // copy per tab, then a single "Start a plan" button.
+  // IMPORTANT: if the owner HAS finished a plan, say so. Falling straight back to "Nothing on
+  // today" made a finished plan look like it had vanished, or like the account was empty.
+  var lastDone=null;
+  try{
+    var arr=state.archive||[];
+    if(arr.length){
+      var wanted=(state.answers&&state.answers.petName||'').toLowerCase();
+      lastDone = wanted ? (arr.find(function(a){ return a && (a.petName||'').toLowerCase()===wanted; }) || arr[0]) : arr[0];
+    }
+  }catch(e){}
+
+  if(lastDone){
+    var dnm=esc(lastDone.petName||'Your pet');
+    var dLen=lastDone.planLength||7;
+    var when='';
+    try{
+      if(lastDone.completedDate){
+        var d=new Date(lastDone.completedDate);
+        if(!isNaN(d)) when=' on '+d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+      }
+    }catch(e){}
+    var heads={
+      today:   ['The plan is finished.', dnm+'\u2019s '+dLen+'-day plan ended'+when+'. It is saved in your history - start a new one whenever you are ready.'],
+      plan:    ['This plan is complete.', dnm+'\u2019s '+dLen+'-day plan has finished'+when+'. You can start a fresh plan for '+dnm+' or for another pet.'],
+      progress:['The plan has ended.', 'Everything you logged during '+dnm+'\u2019s plan is kept in your history. Start a new plan to keep measuring.'],
+      vet:     ['No plan running.', dnm+'\u2019s plan has finished'+when+'. Start a new plan and Nuci can write a fresh vet message.']
+    };
+    var dl=heads[kind]||heads.today;
+    var key=esc((lastDone.petName||'')+'|'+(lastDone.petType||''));
+    return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
+      +'min-height:60vh;text-align:center;padding:0 26px">'
+      +'<div style="width:88px;height:88px;border-radius:50%;background:rgba(107,143,113,0.10);display:flex;align-items:center;justify-content:center;color:var(--sage);margin-bottom:22px">'+icon('check','38px',1.6)+'</div>'
+      +'<h1 style="font-size:1.7rem;letter-spacing:-0.03em;margin-bottom:10px">'+dl[0]+'</h1>'
+      +'<p style="font-size:0.95rem;color:var(--secondary);line-height:1.55;max-width:32ch;margin-bottom:24px">'+dl[1]+'</p>'
+      +'<button class="btn btn-primary" style="max-width:260px" onclick="startPlanFromEmpty()">Start a new plan</button>'
+      +'<button class="btn btn-ghost" style="max-width:260px;margin-top:10px" onclick="openArchivedPetCard(\''+key+'\')">See how it went</button>'
+      +'</div>';
+  }
+
   var lines={
     today:   ['Nothing on today.', 'When you start a plan, your daily steps for '+ '\u2019s' + ' behaviour show up right here.'],
     plan:    ['No plan yet.', 'Your day-by-day behaviour plan will live here once you start one.'],
@@ -7502,9 +7598,23 @@ function renderProfileTab(){
       var a=s.answers||{}; var nm=a.petName||'Pet'; var ty=a.petType||'other';
       var av=(s.petPhoto)?('<img src="'+s.petPhoto+'" style="width:100%;height:100%;object-fit:cover">'):petSvg(ty,'22px');
       var onclick = (typeof s.index==='number') ? ('openPetCard('+s.index+')') : ('openArchivedPetCard(\''+esc((a.petName||'')+'|'+(a.petType||''))+'\')');
+      // Status line: the owner should be able to see at a glance whether this pet's plan is
+      // running, paused, or finished - without opening the card.
+      var stTxt='', stCol='var(--secondary)';
+      try{
+        var pe=(typeof s.index==='number') ? (state.pets||[])[s.index] : null;
+        if(pe && pe.frozenSince){ stTxt='Frozen'; stCol='var(--sage)'; }
+        else if(pe && petEntryIsActive(pe)){
+          var dnum=Math.min((pe.planLength||7), planElapsedDays(pe)+1);
+          stTxt='Day '+dnum+' of '+(pe.planLength||7); stCol='var(--forest)';
+        }
+        else { stTxt='Plan finished'; }
+      }catch(e){ stTxt=''; }
+      var sub=esc(a.breed||(ty.charAt(0).toUpperCase()+ty.slice(1)));
+      var subLine=stTxt ? (sub+' \u00b7 <span style="color:'+stCol+'">'+stTxt+'</span>') : sub;
       return '<div onclick="'+onclick+'" style="display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border);cursor:pointer">'
         +'<div style="width:42px;height:42px;border-radius:13px;overflow:hidden;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage)">'+av+'</div>'
-        +'<div style="flex:1"><div style="font-size:0.95rem">'+esc(nm)+'</div><div style="font-size:0.74rem;color:var(--secondary)">'+esc(a.breed||(ty.charAt(0).toUpperCase()+ty.slice(1)))+'</div></div>'
+        +'<div style="flex:1"><div style="font-size:0.95rem">'+esc(nm)+'</div><div style="font-size:0.74rem;color:var(--secondary)">'+subLine+'</div></div>'
         +chev+'</div>';
     }).join('');
   } else {
@@ -7995,7 +8105,7 @@ function setPhoto(inp){
 function openAnswers(editable){
   const a=state.answers;
   // map answer key -> question id so we can jump straight to it
-  const KEYMAP={petName:'petName',petType:'petType',breed:'breed',age:'age',sex:'sex',neutered:'neutered',environment:'environment',household:'household',mainIssue:'mainIssue',duration:'duration',frequency:'frequency',location:'location',recentChanges:'recentChanges',tried:'tried',warningSigns:'warningSigns'};
+  const KEYMAP={petName:'petName',petType:'petType',breed:'breed',age:'age',sex:'sex',neutered:'neutered',sexFixed:'sexFixed',environment:'environment',household:'household',mainIssue:'mainIssue',duration:'duration',frequency:'frequency',location:'location',recentChanges:'recentChanges',tried:'tried',warningSigns:'warningSigns'};
   const row=(k,label,key)=>{
     var v=a[key]; if(!v) return '';
     var val=esc(Array.isArray(v)?v.join(', '):v);
@@ -8550,10 +8660,25 @@ function petHasActivePlan(name, type){
   });
 }
 // Is a given pets[] entry a currently-running plan?
+// Elapsed plan days, NOT counting time the plan has been frozen. A freeze is meant to stop the
+// clock: days don't advance and no check-ins are due. Without this, the calendar kept running
+// underneath a frozen plan, so after planLength days the plan looked "expired" - it was silently
+// closed, dropped out of the active list, and could be discarded as the loser in a dedupe.
+// (Past freezes need no correction here: unfreezing already shifts planStartDate forward.)
+function planElapsedDays(p){
+  if(!p || !p.planStartDate) return 0;
+  var e=0;
+  try{ e=daysBetween(p.planStartDate, todayKey()); }catch(_){ return 0; }
+  if(p.frozenSince){
+    try{ e -= Math.max(0, daysBetween(p.frozenSince, todayKey())); }catch(_){}
+  }
+  return Math.max(0, e);
+}
 function petEntryIsActive(p){
   if(!p || !(p.aiPlan && p.aiPlan.days && p.aiPlan.days.length) || p.planComplete) return false;
   var L=p.planLength||7;
-  if(p.planStartDate){ try{ if(daysBetween(p.planStartDate, todayKey())>=L) return false; }catch(e){} }
+  if(p.frozenSince) return true;          // frozen = paused, still very much an active plan
+  if(p.planStartDate){ try{ if(planElapsedDays(p)>=L) return false; }catch(e){} }
   return true;
 }
 // After the active pet's plan finishes, move the active pointer to another pet that still has a
@@ -8585,7 +8710,7 @@ function proceedNewPet(prefillFrom, targetName, targetType, petPhoto){
   showScreen('screen-assessment');
   if(prefillFrom){
     // Carry over only the fields that don't change between plans for the same pet.
-    var keep=['petName','petType','species','breed','age','ageIdx','ageKey','ageYears','ageMonths','sex','neutered','environment','household'];
+    var keep=['petName','petType','species','breed','age','ageIdx','ageKey','ageYears','ageMonths','sex','neutered','sexFixed','environment','household'];
     keep.forEach(function(k){ if(prefillFrom[k]!=null && prefillFrom[k]!=='') state.answers[k]=prefillFrom[k]; });
     state.__prefilledPet=true;
     // Jump to the first question whose answer we did NOT carry over (the first variable one).
@@ -8646,6 +8771,55 @@ function beginBlankPet(){
 }
 function archivedActiveCount(){ return 0; }
 // Archive the finished plan
+// Build an archive record from ANY pet entry (not just the active one).
+function archiveRecordFor(p){
+  var a=(p&&p.answers)||{};
+  var cis=(p.checkins||[]).filter(function(c){return c&&c.occurred==='Yes';});
+  var impr=null;
+  if(cis.length>=2){
+    var first=parseInt(cis[0].freq)||1, last=parseInt(cis[cis.length-1].freq)||1;
+    if(first>0) impr=Math.round((last-first)/first*100);
+  }
+  return {
+    id:'a'+Date.now()+Math.floor(Math.random()*1000),
+    petName:a.petName||'Pet', petType:a.petType||'other',
+    issue:a.mainIssue||'Behaviour plan',
+    planLength:p.planLength||7, completedDate:new Date().toISOString(),
+    improvement:impr, checkinCount:(p.checkins||[]).length,
+    checkins:(p.checkins||[]).map(function(c){return Object.assign({},c);}),
+    answers:Object.assign({},a),
+    aiBehaviorExplain:p.aiBehaviorExplain||null, aiCauses:p.aiCauses||null,
+    dayNotes:Object.assign({},p.dayNotes||{}), petPhoto:p.petPhoto||null,
+    streak:p.streak||0,
+    planStartDate:p.planStartDate||null
+  };
+}
+// Close + archive every pet whose plan has run its course. Without this, only the ACTIVE pet
+// was ever closed, so a second pet's finished plan sat in limbo: not running, not in Past plans.
+function archiveExpiredPets(){
+  var ended=[];
+  if(!Array.isArray(state.pets)) return ended;
+  state.archive=state.archive||[];
+  var changed=false;
+  state.pets.forEach(function(p,i){
+    if(!p || i===state.activePet) return;             // active pet is handled separately
+    if(p.planComplete || p.frozenSince) return;       // done already, or paused on purpose
+    var a=p.answers||{};
+    if(!(a.petName && p.aiPlan && p.aiPlan.days && p.aiPlan.days.length && p.planStartDate)) return;
+    var L=p.planLength||7;
+    if(planElapsedDays(p) < L) return;                // still running
+    var already=state.archive.some(function(ar){
+      return ar && (ar.petName||'').toLowerCase()===(a.petName||'').toLowerCase()
+             && (ar.planStartDate||null)===(p.planStartDate||null);
+    });
+    if(!already){ state.archive.unshift(archiveRecordFor(p)); }
+    p.planComplete=true; p.currentDay=L;
+    ended.push({ name:a.petName, planLength:L });
+    changed=true;
+  });
+  if(changed){ try{ persistStateNow(); }catch(e){} }
+  return ended;
+}
 function archiveCurrentPlan(){
   state.archive=state.archive||[];
   var impr=planImprovement();
@@ -8823,6 +8997,64 @@ function saveMaintenance(val){
     toast('Saved - see you next week');
     showTab('today');
   }
+}
+// Shown ONCE when the owner comes back after their plan(s) already ran out while they were
+// away. Same closing survey as the day-seven screen, but with no "not quite there yet" path and
+// no bonus-days offer: those plans are over and already archived. If several plans expired,
+// this single screen covers them all.
+function openExpiredPlanEnd(){
+  var list=(state.__endedWhileAway||[]).filter(function(x){ return x && x.name; });
+  if(!list.length) return false;
+  // one row per pet, de-duplicated by name
+  var seen={}, names=[];
+  list.forEach(function(x){
+    var k=(x.name||'').toLowerCase();
+    if(k && !seen[k]){ seen[k]=1; names.push(x.name); }
+  });
+  state.__endedWhileAway=[];            // never show twice
+  try{ persistStateNow(); }catch(e){}
+  if(!names.length) return false;
+
+  var many=names.length>1;
+  var who = many
+    ? (names.slice(0,-1).map(esc).join(', ')+' and '+esc(names[names.length-1]))
+    : esc(names[0]);
+  var el=document.getElementById('planEndScreen');
+  if(!el) return false;
+  try{ nuciTrack('plan_end_late', names.length); }catch(e){}
+
+  el.innerHTML='<div class="pe-inner" style="text-align:center">'
+    +'<div class="d-eb" style="color:var(--sage)">While you were away</div>'
+    +'<h1 style="font-size:2rem;letter-spacing:-0.04em;line-height:1.14;margin:8px 0 16px">'
+      +(many?'Those plans have<br><span class="accent">finished.</span>':'The plan has<br><span class="accent">finished.</span>')+'</h1>'
+    +'<div style="width:104px;height:104px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage);margin:4px auto 20px">'+icon('check','50px',1.6)+'</div>'
+    +'<p style="font-size:1rem;color:var(--text);line-height:1.55;max-width:32ch;margin:0 auto 20px">'
+      +(many
+        ? 'The seven days for '+who+' ran their course while you were away. '+(names.length)+' plans are saved in your archive.'
+        : who+'\u2019s seven days ran their course while you were away. The plan is saved in your archive.')
+    +'</p>'
+    +(state.__ratedThisPlan?'':'<div id="rateRow" style="margin:0 0 20px"><div style="font-size:.82rem;color:var(--secondary);margin-bottom:8px">How was '+(many?'it':'the plan')+'?</div>'
+      +'<div style="display:flex;gap:10px;justify-content:center">'
+      +[1,2,3,4,5].map(function(n){ return '<button onclick="rateFinishedPlan('+n+')" style="background:none;border:none;font-size:1.9rem;line-height:1;color:rgba(214,168,78,.35);cursor:pointer;padding:4px" id="rateS'+n+'">\u2605</button>'; }).join('')
+      +'</div></div>')
+    +'<button class="btn btn-primary" style="margin:0 0 8px" onclick="closePlanEnd();showTab(\'profile\');openArchive()">See the archive</button>'
+    +'<button class="btn btn-ghost" style="color:var(--secondary);padding:6px" onclick="closePlanEnd()">Close</button>'
+    +'</div>';
+  el.classList.add('open'); lockScroll('planend');
+  return true;
+}
+// Rating on the late/expired screen: records the rating and thanks them. No bonus days - the
+// plan is over and archived, so there is nothing to extend.
+function rateFinishedPlan(n){
+  if(state.__ratedThisPlan) return;
+  state.__ratedThisPlan=true;
+  try{ nuciTrack('rating', n); }catch(e){}
+  for(var i=1;i<=5;i++){ var el=document.getElementById('rateS'+i); if(el){ el.style.color=(i<=n)?'#D6A84E':'rgba(214,168,78,.25)'; el.style.transform=(i<=n)?'scale(1.15)':''; el.style.transition='all .2s'; el.disabled=true; } }
+  try{ haptic(10); }catch(e){}
+  try{ persistStateNow(); }catch(e){}
+  setTimeout(function(){ var r=document.getElementById('rateRow'); if(r){
+    r.innerHTML='<div style="font-size:.85rem;color:var(--sage);margin:6px 0 2px">Thank you \u2764\uFE0E</div>';
+  } },600);
 }
 function openPlanEnd(){
   try{ nuciTrack('plan_end'); }catch(e){}
