@@ -212,6 +212,11 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .op-bar span{display:block;height:100%;width:0%;background:var(--sage);border-radius:999px;
   transition:width .5s cubic-bezier(.22,.72,.2,1)}
 .op-count{font-size:.72rem;color:var(--secondary);letter-spacing:.04em;min-width:34px;text-align:right}
+.op-mark{flex:0 0 auto;font-size:.95rem;font-weight:500;letter-spacing:-.03em;color:var(--text);
+  cursor:pointer;user-select:none;padding:2px 2px 2px 0;transition:opacity .2s}
+.op-mark:active{opacity:.55}
+.op-mark .the{color:var(--sage)}
+.op-mark .stop{color:var(--sage)}
 .op-scroll{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;
   padding:0 22px calc(40px + env(safe-area-inset-bottom))}
 .op-intro{padding:14px 0 22px}
@@ -1600,6 +1605,9 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
      file behind ONEPAGER=false, so nothing is lost. -->
 <section class="screen" id="screen-assess1">
   <div class="op-top">
+    <div class="op-mark" onclick="opHome()" role="button" tabindex="0" aria-label="Back to the start">
+      <span class="the">The</span> Nuci<span class="stop">.</span>
+    </div>
     <div class="op-bar"><span id="opBarFill"></span></div>
     <div class="op-count" id="opCount"></div>
   </div>
@@ -1827,7 +1835,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-31 launch-v38b";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-31 launch-v40";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -3248,6 +3256,18 @@ function opSyncDone(){
     var card=document.getElementById('opq'+i); if(!card) return;
     if(i!==opOpen) card.classList.toggle('done', opAnswered(q));
   });
+}
+// Tapping the wordmark at the top of the questionnaire returns to the landing page.
+// Note: "Get started" begins a fresh questionnaire (startFreshState), so this is a way out,
+// not a pause. The draft is saved to storage, but the next start does not resume it.
+function opHome(){
+  try{ if(window.__opRaf){ cancelAnimationFrame(window.__opRaf); window.__opRaf=null; } }catch(e){}
+  try{ if(opAnimRaf){ cancelAnimationFrame(opAnimRaf); opAnimRaf=null; } }catch(e){}
+  // Write immediately, not on the usual debounce: they may press Get started again within a
+  // second, and the draft has to be there for the resume offer to find it.
+  try{ persistStateNow(); }catch(e){ try{ persistState(); }catch(_){} }
+  try{ showLanding(); }catch(e){ showScreen('screen-landing'); }
+  try{ window.scrollTo(0,0); }catch(e){}
 }
 function opStart(){
   // Question one is already open when the screen appears - no opening animation on arrival,
@@ -4862,8 +4882,68 @@ function closeQR(){ document.getElementById('qrModal').classList.remove('open');
 function goApp(){
   try{ nuciTrack('landing_cta'); }catch(e){}
   if(isDesktop()){ openQR('start=1','Start on your phone'); return; }
+  // If they left a questionnaire half-finished recently, offer to pick it up instead of
+  // silently throwing their answers away. Dropping out mid-questionnaire is the single
+  // biggest place people are lost, so the answers they already gave are worth keeping.
+  try{ if(offerDraftResume()) return; }catch(e){}
+  startFreshFlow();
+}
+function startFreshFlow(){
   try{ startFreshState(); }catch(e){}
   try{ startFlow(); }catch(e){ try{ if(INTRO_ENABLED){ showScreen('screen-intro'); } else { beginQuestionnaire(); } }catch(_){ try{ showScreen('screen-assessment'); }catch(__){} } }
+}
+// A saved draft is only worth offering if it is recent, has real answers, and belongs to
+// someone who has not already got a plan.
+var DRAFT_MAX_H = 24;
+function readDraft(){
+  try{
+    // Drafts live in sessionStorage (localStorage is only written once someone has purchased),
+    // so look there first and fall back to localStorage for returning paid devices.
+    var raw=null;
+    try{ raw=sessionStorage.getItem('nuciState'); }catch(_){}
+    if(!raw){ try{ raw=localStorage.getItem('nuciState'); }catch(_){} }
+    var d=JSON.parse(raw||'null');
+    if(!d || !d.answers || !d.answers.petName) return null;
+    if(d.userEmail || d.purchased || d.trialStart) return null;      // already a real account
+    if(d.aiPlan && d.aiPlan.days && d.aiPlan.days.length) return null; // already has a plan
+    var t=d.savedAt ? new Date(d.savedAt).getTime() : 0;
+    if(!t || (Date.now()-t) > DRAFT_MAX_H*3600000) return null;
+    // how far they had got
+    var answered=0;
+    try{ answered=opQuestions().filter(function(q){
+      var v=d.answers[q.id];
+      if(q.id==='age') return typeof d.answers.ageIdx==='number';
+      return Array.isArray(v) ? v.length>0 : !!(v && String(v).trim());
+    }).length; }catch(_){}
+    if(answered<2) return null;   // barely started - not worth asking about
+    return { answers:d.answers, answered:answered, name:d.answers.petName };
+  }catch(e){ return null; }
+}
+function offerDraftResume(){
+  var d=readDraft();
+  if(!d) return false;
+  var total=8; try{ total=opQuestions().length; }catch(e){}
+  openSheet('<h2 style="font-size:1.3rem;letter-spacing:-0.02em;margin-bottom:8px">Pick up where you left off?</h2>'
+    +'<p style="font-size:.94rem;color:var(--secondary);line-height:1.55;margin-bottom:18px">You had answered '
+      +d.answered+' of '+total+' questions about '+esc(d.name)+'. Carry on from there, or start again.</p>'
+    +'<button class="btn btn-primary" onclick="resumeDraft()">Continue with '+esc(d.name)+'</button>'
+    +'<button class="btn btn-ghost" style="margin-top:8px" onclick="discardDraft()">Start fresh</button>');
+  try{ nuciTrack('draft_offer'); }catch(e){}
+  return true;
+}
+function resumeDraft(){
+  var d=readDraft();
+  closeSheet();
+  if(!d){ startFreshFlow(); return; }
+  try{ startFreshState(); }catch(e){}
+  state.answers=JSON.parse(JSON.stringify(d.answers));
+  try{ nuciTrack('draft_resume'); }catch(e){}
+  beginQuestionnaire();
+}
+function discardDraft(){
+  closeSheet();
+  try{ nuciTrack('draft_discard'); }catch(e){}
+  startFreshFlow();
 }
 function goLogin(){
   if(isDesktop()){ openQR('login=1','Log in on your phone'); return; }
