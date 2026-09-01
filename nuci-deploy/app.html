@@ -2079,6 +2079,13 @@ const LINKS_INTL={
   single:'https://buy.stripe.com/14AcMYd2vet37Zn2PKdIA0d',   // LIVE 9.95  (1 plan  - Single Plan)
   triple:'https://buy.stripe.com/9B65kw4vZ4St93rduodIA08'    // LIVE 19.95 (3 plans - Family Pack)
 };
+// ═══════ IN-APP PAYMENT (embedded Stripe) ═══════
+// Fill in the publishable key to switch checkout from the hosted Stripe payment-link pages
+// to an IN-APP payment sheet drawn entirely with the app's own graphics (Stripe Payment
+// Element restyled through the Appearance API). Leave empty ('') and everything keeps using
+// the payment links above - nothing breaks while this is unconfigured.
+// Requires the companion Netlify function: /.netlify/functions/create-payment-intent
+var STRIPE_PK = 'pk_live_51TgpuU38TKGlSfSu58kiEkHXinPEFME2w6bN1PhuLeSOs9sCf9u3vEOsHuew49JItXeCn9jWM6dqnP9bfIXCqkke00YW2Hc5fc';   // Stripe Dashboard -> Developers -> API keys
 const DISCOUNT_LINKS_INTL={};  // no discounts - regular prices only
 // Back-compat aliases used elsewhere
 const STRIPE_PAYMENT_LINK=LINKS_INTL.single;
@@ -4151,7 +4158,8 @@ function renderTrialGate(){
         ? 'The rest of '+pet+'\u2019s week is written and waiting. Unlock it to carry on from day two.'
         : 'Unlock the remaining six days to carry on with '+pet+'\u2019s plan.')
     +'</p>'
-    +(grace?'<p style="font-size:.8rem;color:var(--clay);margin-bottom:20px">The plan is on hold and will be archived soon.</p>':'<div style="height:12px"></div>')
+    +(grace?'<p style="font-size:.8rem;color:var(--clay);margin-bottom:6px">The plan is on hold and will be archived soon.</p>':'')
+    +'<p style="font-size:.78rem;color:var(--secondary);margin-bottom:18px">One-time payment \u00b7 no subscription</p>'
     +'<button class="btn btn-primary" style="max-width:280px" onclick="openTrialOffer()">Unlock the full week</button>'
     +'</div>';
 }
@@ -4194,16 +4202,34 @@ function trialFmtLeft(){
   var s=Math.floor((ms%60000)/1000);
   return m+'m '+s+'s';
 }
-// Only the very first plan on an account is free.
+// Only the very first plan on an account is free. ANY trace of a purchase disqualifies it:
+// someone who has bought (even a 3-pack whose credits are all used up) already knows exactly
+// what a plan is - they never get another free day, only credits or the offer.
 function trialEligible(){
   if(state.purchased || (state.planCredits||0)>0) return false;
+  if(Array.isArray(state.transactions) && state.transactions.length>0) return false;
   if((state.plansGenerated||0)>0) return false;
   if(state.trialStart) return false;
   if(Array.isArray(state.pets) && state.pets.some(function(p){ return p&&p.aiPlan&&p.aiPlan.days&&p.aiPlan.days.length; })) return false;
   return !!(state.answers && state.answers.petName && state.answers.mainIssue);
 }
-// Where to go once the account exists: free day one, or the paywall.
+// Where to go once the account exists: a waiting paid credit, the free day one, or the paywall.
 function goAfterAuth(){
+  // A spare paid credit is already on the account (e.g. a 3-pack owner starting their next
+  // plan): consume it and generate straight away. Someone who has bought knows exactly what
+  // they are getting - no free day, no offer, no second payment.
+  if(typeof spareCredits==='function' && spareCredits()>0){
+    state.purchased=true; state.paid=true;
+    state.plansGenerated=(state.plansGenerated||0)+1;   // this plan consumes one paid credit
+    state.planStartDate=todayKey(); state.currentDay=1; state.viewDay=1; state.planComplete=false;
+    runGenerating(function(){
+      try{ commitScratchPet(); }catch(e){}
+      try{ mergePlanIntoExistingPet(); }catch(e){}
+      try{ syncActivePet(); }catch(e){}
+      enterApp(); toast('New plan ready for '+(state.answers.petName||'your pet')); persistStateNow();
+    });
+    return;
+  }
   if(trialEligible()){ startFreeDayOne(); return; }
   buildOffer(); showScreen('screen-offer');
 }
@@ -4775,6 +4801,15 @@ function startFreshState(){
   // login-only (unpurchased) user arrives, so they never inherit a stale questionnaire.
   var keepEmail=state.userEmail, keepName=state.userName;
   var keepConsent=state.marketingConsent, keepConsentAt=state.marketingConsentAt;
+  // ACCOUNT-LEVEL FACTS SURVIVE. This function used to wipe purchased/planCredits/pets too,
+  // which meant a paying customer (e.g. a 3-pack owner) who came through here was treated
+  // like a brand-new visitor: at the end of the questionnaire the clean slate could route
+  // them to the offer to pay AGAIN, or - if the counters were gone too - even hand them a
+  // "free day one" for a plan they had already paid for. Purchase facts are not
+  // questionnaire progress, so they are carried across the wipe.
+  var keepPurchased=!!state.purchased, keepPaid=!!state.paid, keepCredits=state.planCredits||0;
+  var keepPlansGen=state.plansGenerated||0, keepTrialStart=state.trialStart||null;
+  var keepTx=state.transactions||[], keepPets=state.pets||[], keepArchive=state.archive||[];
   state.answers={}; state.currentQ=0; state.currentDay=1; state.viewDay=1; state.planLength=7;
   state.checkins=[]; state.streak=0; state.lastCheckinDate=null; state.lastCheckinDay=0;
   state.aiPlan=null; state.aiBehaviorExplain=null; state.aiCauses=null; state.aiWhatNotToDo=null;
@@ -4785,6 +4820,19 @@ function startFreshState(){
   state.pets=[]; state.archive=[]; state.activePet=0;
   state.userEmail=keepEmail; state.userName=keepName;
   state.marketingConsent=keepConsent; state.marketingConsentAt=keepConsentAt;
+  // restore the account-level facts
+  state.plansGenerated=keepPlansGen; state.trialStart=keepTrialStart; state.transactions=keepTx;
+  state.archive=keepArchive;
+  if(keepPurchased || keepCredits>0){
+    state.purchased=keepPurchased; state.paid=keepPaid; state.planCredits=keepCredits;
+    state.pets=keepPets;
+    // Point activePet PAST the saved list and raise the pending flag, exactly like
+    // beginBlankPet does: the new questionnaire's scratch answers must never be written
+    // OVER a saved pet by a stray syncActivePet(). commitScratchPet()/cancelNewPet()
+    // clear the flag once the new plan is committed or abandoned.
+    state.activePet=keepPets.length;
+    state.__pendingBlankPet=keepPets.length>0;
+  }
   // clear any lingering local questionnaire snapshot (session copy is rewritten as they go)
   try{ var _ex=localStorage.getItem('nuciState'); var _exp=_ex?JSON.parse(_ex):null;
     if(!(_exp&&_exp.purchased)) localStorage.removeItem('nuciState');
@@ -6252,10 +6300,111 @@ function proceedToPayment(pkg){
         body:JSON.stringify({action:'save', email:state.userEmail, ctx:_sc}), keepalive:true}).catch(function(){});
     }
   }catch(e){}
+  // In-app sheet takes over when a publishable key is configured; the pendingState and
+  // server checkout note above have ALREADY been written, so the embedded completion can
+  // reuse the exact same restore path as the payment-link redirect.
+  if(STRIPE_PK){ openEmbeddedPay(pkg); return; }
   var payLink=pkgLink(pkg);
   if(payLink){ window.location.href=payLink; return; }
   // no link configured -> complete locally so the flow isn't blocked
   handlePaidReturn(true);
+}
+
+// ═══════ IN-APP PAYMENT SHEET (Stripe Payment Element) ═══════
+// Everything the buyer sees is drawn by the app - palette, type, copy, button. Only the card
+// fields are Stripe's secure iframe, restyled via the Appearance API to match the Nuci look,
+// so card details never touch our page OR our server. Card + Apple/Google Pay only (no
+// redirect methods), which means the whole payment - 3-D Secure included - finishes inside
+// the sheet with no page navigation. Any failure falls back to the hosted payment link, so
+// a buyer can never be stuck on a broken sheet.
+var __stripeJs=null, __stripeInst=null, __payElements=null, __payBusy=false;
+function loadStripeJs(){
+  if(window.Stripe) return Promise.resolve();
+  if(__stripeJs) return __stripeJs;
+  __stripeJs=new Promise(function(res,rej){
+    var s=document.createElement('script'); s.src='https://js.stripe.com/v3/';
+    s.onload=res; s.onerror=function(){ __stripeJs=null; rej(new Error('stripe.js failed to load')); };
+    document.head.appendChild(s);
+  });
+  return __stripeJs;
+}
+function openEmbeddedPay(pkg){
+  var price=pkgPrice(pkg);
+  openSheet(
+    '<div style="text-align:center;padding-top:2px">'
+    +'<div style="font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:var(--sage);margin-bottom:8px">Secure checkout</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-.02em;margin:0 0 4px">'+esc(pkg.name)+'</h2>'
+    +'<div style="font-size:1.6rem;letter-spacing:-.03em;margin-bottom:2px">\u20ac'+price.toFixed(2)+'</div>'
+    +'<div style="font-size:.78rem;color:var(--secondary);margin-bottom:16px">One-time payment \u00b7 no subscription</div>'
+    +'<div id="payElHost" style="min-height:220px;text-align:left">'
+      +'<div id="payElWait" style="display:flex;align-items:center;justify-content:center;min-height:220px;color:var(--secondary);font-size:.85rem">Loading secure payment\u2026</div>'
+    +'</div>'
+    +'<div id="payErr" style="display:none;color:var(--danger);font-size:.82rem;margin-top:10px"></div>'
+    +'<button class="btn btn-primary" id="payBtn" style="margin-top:16px" onclick="submitEmbeddedPay()">Pay \u20ac'+price.toFixed(2)+'</button>'
+    +'<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:.72rem;color:var(--secondary)">'
+      +icon('lock','13px',1.8)+'<span>Payments handled by Stripe \u00b7 card details never touch our servers</span></div>'
+    +'</div>');
+  Promise.resolve()
+    .then(loadStripeJs)
+    .then(function(){
+      return fetch('/.netlify/functions/create-payment-intent',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ packageId:pkg.id, discount:discountActive(), email:state.userEmail||null })});
+    })
+    .then(function(r){ if(!r.ok) throw new Error('create-payment-intent '+r.status); return r.json(); })
+    .then(function(out){
+      if(!out||!out.clientSecret) throw new Error('no client secret');
+      __stripeInst=__stripeInst||Stripe(STRIPE_PK);
+      __payElements=__stripeInst.elements({
+        clientSecret:out.clientSecret,
+        fonts:[{cssSrc:'https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap'}],
+        appearance:{ theme:'flat',
+          variables:{ colorPrimary:'#3E5A47', colorBackground:'#FBFBF8', colorText:'#1A211C',
+            colorTextSecondary:'#5C6660', colorDanger:'#C77A7A',
+            fontFamily:'Inter, -apple-system, sans-serif', borderRadius:'14px', spacingUnit:'4px' },
+          rules:{
+            '.Input':{ border:'1.5px solid rgba(0,0,0,0.07)', boxShadow:'0 2px 14px rgba(0,0,0,0.05)', padding:'14px' },
+            '.Input:focus':{ border:'1.5px solid #6B8F71', boxShadow:'none' },
+            '.Label':{ color:'#5C6660', fontSize:'0.8rem' },
+            '.Tab':{ border:'1.5px solid rgba(0,0,0,0.07)' },
+            '.Tab--selected':{ border:'1.5px solid #6B8F71', backgroundColor:'rgba(107,143,113,.10)' } } }
+      });
+      var pe=__payElements.create('payment',{ layout:'tabs' });
+      var w=document.getElementById('payElWait'); if(w) w.remove();
+      pe.mount('#payElHost');
+    })
+    .catch(function(err){
+      console.warn('embedded pay failed, falling back to the payment link', err);
+      closeSheet();
+      var link=pkgLink(pkg);
+      if(link){ window.location.href=link; } else { handlePaidReturn(true); }
+    });
+}
+function submitEmbeddedPay(){
+  if(__payBusy||!__stripeInst||!__payElements) return;
+  __payBusy=true;
+  var btn=document.getElementById('payBtn'), err=document.getElementById('payErr');
+  if(btn){ btn.disabled=true; btn.style.opacity='.6'; btn.textContent='Processing\u2026'; }
+  if(err) err.style.display='none';
+  __stripeInst.confirmPayment({ elements:__payElements, redirect:'if_required',
+    confirmParams:{ return_url: location.origin + location.pathname + '?paid=true' } })
+  .then(function(res){
+    __payBusy=false;
+    if(res.error){
+      if(btn){ btn.disabled=false; btn.style.opacity=''; btn.textContent='Try again'; }
+      if(err){ err.textContent=res.error.message||'Payment failed. Please try again.'; err.style.display='block'; }
+      return;
+    }
+    var pi=res.paymentIntent;
+    if(pi && (pi.status==='succeeded'||pi.status==='processing')){
+      try{ nuciTrack('purchase_embedded', pi.id); }catch(e){}
+      closeSheet();
+      // Same completion path as the "no payment link" local case: pendingState was written
+      // by proceedToPayment, so credits, the add-pet context and the trial unlock all behave
+      // exactly as after a Stripe redirect - just without ever leaving the app.
+      handlePaidReturn(true);
+    }
+  })
+  .catch(function(){ __payBusy=false; if(btn){ btn.disabled=false; btn.style.opacity=''; btn.textContent='Try again'; } });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -7425,7 +7574,7 @@ function renderToday(){
   // Late check-in banner: missed last night's window -> can still log it until noon.
   var __lateD=lateCheckinDay();
   var trialBanner = trialActive() ? ('<div onclick="openTrialOffer()" style="display:flex;align-items:center;gap:11px;background:rgba(107,143,113,.12);border:1px solid rgba(107,143,113,.34);border-radius:16px;padding:12px 14px;margin:6px 0 12px;cursor:pointer">'
-    +'<span style="flex:1;font-size:.84rem;line-height:1.45;color:var(--text)">Day one is free. <b id="trialLeft">'+trialFmtLeft()+'</b> left to unlock the rest of '+esc(state.answers.petName||'your pet')+'\u2019s week.</span>'
+    +'<span style="flex:1;font-size:.84rem;line-height:1.45;color:var(--text)">Day one is free. In <b id="trialLeft">'+trialFmtLeft()+'</b> the plan pauses until you unlock the rest of '+esc(state.answers.petName||'your pet')+'\u2019s week.</span>'
     +'<span style="font-size:.8rem;color:var(--forest);white-space:nowrap">Unlock \u2192</span></div>') : '';
   var lateBanner=__lateD?('<div onclick="openLateCheckin()" style="display:flex;align-items:center;gap:11px;background:rgba(214,168,78,.13);border:1px solid rgba(214,168,78,.4);border-radius:16px;padding:12px 14px;margin:6px 0 12px;cursor:pointer">'
     +'<span style="font-size:20px">\uD83C\uDF19</span>'
@@ -10116,6 +10265,23 @@ async function adaptNextDay(nextDay){
   }
   try{ var _ref=params.get('ref'); if(_ref){ localStorage.setItem('nuci_ref', _ref.slice(0,40)); } }catch(e){}
   try{ nuciTrack('app_open'); }catch(e){}
+  // Paint the landing INSTANTLY. route() below is async - it awaits the Supabase session
+  // check before showing anything, which left the page blank for up to ~1s. The logo and
+  // Login "appearing after a second" was really the whole landing appearing late. For any
+  // visit that cannot need a different first screen, show the landing right now; route()
+  // still runs afterwards and simply replaces it in the rare cases where the visitor turns
+  // out to be a paid returner or mid-flow (those cases are excluded below, so they never
+  // even flash the landing).
+  try{
+    var __instant = !isPaid && !wantLogin && !wantStart && !wantResume && !wantCheckin && !unsubKind;
+    if(__instant){ try{ var _l0=JSON.parse(localStorage.getItem('nuciState')||'null'); if(_l0&&_l0.purchased) __instant=false; }catch(e){} }
+    if(__instant){ try{ var _s0=JSON.parse(sessionStorage.getItem('nuciState')||'null'); if(_s0&&_s0.answers&&_s0.answers.petName) __instant=false; }catch(e){} }
+    if(__instant){
+      var __paintLanding=function(){ try{ showScreen('screen-landing'); initLanding(); }catch(e){} };
+      if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', __paintLanding, {once:true}); }
+      else __paintLanding();
+    }
+  }catch(e){}
   const route=async()=>{
     if(isPaid){
       await runPaidReturn();
