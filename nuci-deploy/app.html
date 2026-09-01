@@ -205,7 +205,43 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .opt-row.selected .opt-check{opacity:1;transform:translateY(-50%) scale(1)}
 .opt-row .opt-ico{position:absolute;left:17px;top:50%;transform:translateY(-50%);color:var(--forest);width:24px;height:24px}
 .opt-row .opt-sub{display:block;font-size:0.8rem;color:var(--secondary);margin-top:2px}
+/* ── one-page questionnaire (accordion) ── */
+.op-top{position:sticky;top:0;z-index:6;background:var(--bg);padding:calc(env(safe-area-inset-top) + 14px) 22px 12px;
+  display:flex;align-items:center;gap:12px}
+.op-bar{flex:1;height:3px;border-radius:999px;background:rgba(26,33,28,.10);overflow:hidden}
+.op-bar span{display:block;height:100%;width:0%;background:var(--sage);border-radius:999px;
+  transition:width .5s cubic-bezier(.22,.72,.2,1)}
+.op-count{font-size:.72rem;color:var(--secondary);letter-spacing:.04em;min-width:34px;text-align:right}
+.op-scroll{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:0 22px calc(40px + env(safe-area-inset-bottom))}
+.op-intro{padding:14px 0 22px}
+.op-h{font-size:clamp(2rem,9vw,2.6rem);letter-spacing:-.045em;line-height:1.06}
+.op-sub{color:var(--secondary);font-size:.95rem;margin-top:10px}
+.opq{border-bottom:1px solid var(--border)}
+.opq:first-child{border-top:1px solid var(--border)}
+.opq-head{display:flex;align-items:center;gap:12px;padding:17px 2px;cursor:pointer;user-select:none}
+.opq-n{flex:0 0 auto;width:23px;height:23px;border-radius:50%;border:1.5px solid rgba(26,33,28,.18);
+  display:flex;align-items:center;justify-content:center;font-size:.68rem;color:var(--secondary);transition:all .3s}
+.opq.done .opq-n{background:var(--sage);border-color:var(--sage);color:#fff}
+.opq.open .opq-n{border-color:var(--forest);color:var(--forest)}
+.opq-t{flex:1;font-size:.98rem;letter-spacing:-.015em;line-height:1.3}
+.opq.done .opq-t{color:var(--secondary)}
+.opq-v{font-size:.82rem;color:var(--forest);max-width:44%;text-align:right;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.opq-wrap{overflow:hidden;height:0;opacity:0;will-change:height,opacity}
+.opq.open .opq-wrap{opacity:1}
+.opq-in{padding:2px 2px 22px}
+.opq-q{font-size:1.35rem;letter-spacing:-.035em;line-height:1.15;margin-bottom:16px}
+.op-foot{padding:30px 0 20px;opacity:0;transform:translateY(10px);pointer-events:none;
+  transition:opacity .5s cubic-bezier(.22,.72,.2,1),transform .5s cubic-bezier(.22,.72,.2,1)}
+.op-foot.show{opacity:1;transform:none;pointer-events:auto}
+.op-note{text-align:center;font-size:.75rem;color:var(--secondary);margin-top:10px}
+.opage{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.opage button{background:var(--card);border:1.5px solid var(--border);border-radius:13px;padding:13px 4px;
+  font-family:inherit;font-size:.9rem;color:var(--text);cursor:pointer}
+.opage button.selected{border-color:var(--sage);background:rgba(107,143,113,.10)}
 .petgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;width:100%}
+
 .petcard{background:var(--card);border:1.5px solid var(--border);border-radius:16px;box-shadow:var(--shadow);
   padding:22px 10px;display:flex;flex-direction:column;align-items:center;gap:11px;transition:border-color .16s,background .16s}
 .petcard.selected{border-color:var(--sage);background:rgba(107,143,113,0.10)}
@@ -1342,19 +1378,19 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
 <header class="hero2">
   <div class="wrap2">
     <h1 class="rv in d1">Every behaviour<br>has a <span class="l-accent">cause.</span></h1>
-    <p class="sub rv in d2">Tell Nuci what your pet does at home. It writes a calm, personalised 7-day plan in any language, and adjusts it every evening.</p>
+    <p class="sub rv in d2">Tell Nuci what your pet does at home. A 7-day plan that adjusts every evening.</p>
 
     <!-- PRICE: the thing people came to find out -->
     <div class="price-card rv in d3">
-      <div class="price-lead">One plan, one price</div>
+      <div class="price-lead">Day one</div>
       <div class="price-row">
-        <span class="price-amount price-glow"><span class="amt" id="phAmount">9.95</span><span class="cur">&euro;</span></span>
+        <span class="price-amount price-glow"><span class="amt" id="phAmount">Free</span></span>
       </div>
-      <div class="price-note">One-time payment &middot; no subscription</div>
-      <button class="price-cta" onclick="goApp()">Get my pet's plan <span class="arw">&rarr;</span></button>
+      <div class="price-note">No card needed to start</div>
+      <button class="price-cta" onclick="goApp()">Start day one <span class="arw">&rarr;</span></button>
       <div class="price-trust">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="11" width="13" height="8.5" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></svg>
-        Secure checkout via Stripe
+        No payment to start &middot; Stripe when you continue
       </div>
     </div>
 
@@ -1503,10 +1539,10 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
   <div class="final2-inner rv">
     <div class="eyebrow">Start today</div>
     <h2>Begin your pet's<br><span class="l-accent">calmer week.</span></h2>
-    <div class="price-inline">for just</div>
-    <div class="price-row final-price"><span class="price-amount price-glow price-glow-light"><span class="amt" id="phAmount2">9.95</span><span class="cur">&euro;</span></span></div>
-    <button class="cta-big2" onclick="goApp()">Get my pet's plan <span class="arw">&rarr;</span></button>
-    <div class="fine">One-time payment &middot; no subscription &middot; secure via Stripe</div>
+    <div class="price-inline">day one is</div>
+    <div class="price-row final-price"><span class="price-amount price-glow price-glow-light"><span class="amt" id="phAmount2">Free</span></span></div>
+    <button class="cta-big2" onclick="goApp()">Start day one <span class="arw">&rarr;</span></button>
+    <div class="fine">No card needed &middot; rest of the week <span class="js-fullprice">&euro;9.95</span> if you want it</div>
   </div>
 </div>
 
@@ -1560,6 +1596,27 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
 
 
 <!-- ASSESSMENT -->
+<!-- ONE-PAGE QUESTIONNAIRE (accordion). The old one-question-per-screen flow is still in the
+     file behind ONEPAGER=false, so nothing is lost. -->
+<section class="screen" id="screen-assess1">
+  <div class="op-top">
+    <div class="op-bar"><span id="opBarFill"></span></div>
+    <div class="op-count" id="opCount"></div>
+  </div>
+  <div class="op-scroll" id="opScroll">
+    <div class="op-intro">
+      <h1 class="op-h">Tell us about<br><span class="accent" id="opPetName">your pet</span><span class="stop">.</span></h1>
+      <p class="op-sub">Eight quick questions. <span class="accent">Day one is free,</span> no card needed.</p>
+    </div>
+    <div id="opList"></div>
+    <div id="opSpacer" style="height:0"></div>
+    <div class="op-foot" id="opFoot">
+      <button class="btn btn-primary" id="opDone" onclick="opFinish()">Start day one, free</button>
+      <p class="op-note">No payment now. Day one is yours to try.</p>
+    </div>
+  </div>
+</section>
+
 <section class="screen" id="screen-assessment">
   <div class="qtop">
     <div class="pring" id="qRing"></div>
@@ -1770,7 +1827,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-29 launch-v34";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-31 launch-v38";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -2523,6 +2580,8 @@ function syncPlanDay(){
     state.currentDay=target;
     // make sure the newly active days have plan content
     try{ for(var d2=prev+1; d2<=target; d2++){ if(!state.planOverrides[d2] && state.aiPlan && state.aiPlan.days && state.aiPlan.days[d2-1]){ var ad=state.aiPlan.days[d2-1]; state.planOverrides[d2]={title:ad.title,sub:ad.sub,desc:ad.desc,tasks:ad.tasks}; } } }catch(e){}
+    // Second, independent trigger: the day we just landed on must have real tasks.
+    try{ ensureDayWritten(target); }catch(e){}
     if(missed>0){ state.__pendingMissed=(state.__pendingMissed||0)+missed; }
     persistStateNow();
   }
@@ -2534,6 +2593,8 @@ function syncPlanDay(){
 // when the owner comes back days later. Must be safe to call on every app open.
 function sweepExpiredPlans(){
   var ended=[];
+  // A free day-one plan is governed by trialCheck(), not by the 7-day calendar.
+  if(trialActive()) return ended;
   // --- the active pet (lives in the top-level fields) ---
   var L=state.planLength||7;
   var hasPlanToClose = !!(state.aiPlan && state.aiPlan.days && state.aiPlan.days.length
@@ -2820,7 +2881,400 @@ function renderIntro(){
 function introNext(){ if(introIdx>=INTRO.length-1){ beginQuestionnaire(); return; } introIdx++; renderIntro(); }
 function introBack(){ if(introIdx<=0){ showLanding(); return; } introIdx--; renderIntro(); }
 // Last intro slide -> straight into the questionnaire (the old "Hello." screen is gone).
-function beginQuestionnaire(){ try{localStorage.setItem('nuci_intro_seen','1');}catch(e){} kbPrime(); state.currentQ=0; showScreen('screen-assessment'); renderQ(); setTimeout(function(){ var i=document.getElementById('qInput'); if(i){ try{i.focus({preventScroll:true});}catch(e){} } qStabilize(); },30); }
+// ═══════ ONE-PAGE QUESTIONNAIRE ═══════
+// Eight questions on a single scrollable page. Answering one collapses it and opens the next.
+// The remaining questions (breed, sex, environment, household, recent changes, what you tried,
+// and the adaptive follow-ups) are asked AFTER payment, when the full week is built.
+// Set ONEPAGER=false to fall back to the original one-question-per-screen flow, which is intact.
+var ONEPAGER = true;
+var OP_ANIM_MS = 700;          // accordion open/close duration - raise to 1000 for a slower feel
+var opOpen = -1;
+
+function opQuestions(){
+  var cfg=spCfg();
+  var name=state.answers.petName||'your pet';
+  return [
+    {id:'petName', t:'Name', q:'What is your pet\u2019s <span class="accent">name?</span>', type:'text', ph:'e.g. Molly'},
+    {id:'petType', t:'Animal', q:'What kind of animal<br>is <span class="accent">'+esc(name)+'?</span>', type:'pet-type'},
+    // Deliberately concrete wording: "main issue" was being read as "describe your pet".
+    {id:'mainIssue', t:'The behaviour', q:'What is '+esc(name)+' <span class="accent">doing</span><br>that you want to change?', type:'textarea', ph:cfg.issueEg},
+    {id:'duration', t:'How long', q:'How long has this<br><span class="accent">been happening?</span>', type:'pills',
+      options:['Just started','A few days','1-2 weeks','1-3 months','Over 3 months']},
+    {id:'frequency', t:'How often', q:'How often<br>does it <span class="accent">happen?</span>', type:'pills',
+      options:['Multiple times daily','Once a day','A few times a week','Once a week','Occasionally']},
+    {id:'location', t:'Where', q:'Where does it<br><span class="accent">usually happen?</span>', type:'multi', options:placesFor(cfg, state.answers.environment)},
+    {id:'age', t:'Age', q:'How old is <span class="accent">'+esc(name)+'?</span>', type:'age'},
+    {id:'warningSigns', t:'Health check', q:'Any of these<br><span class="accent">warning signs?</span>', type:'multi',
+      options:cfg.warn, warning:cfg.warnFlag}
+  ];
+}
+function opAnswered(q){
+  var v=state.answers[q.id];
+  if(q.id==='age') return typeof state.answers.ageIdx==='number';
+  if(Array.isArray(v)) return v.length>0;
+  return !!(v && String(v).trim());
+}
+function opSummary(q){
+  if(q.id==='age'){ var s=AGE_STEPS[state.answers.ageIdx]; return s?s.label:''; }
+  var v=state.answers[q.id];
+  if(Array.isArray(v)) return v.length>1 ? (v[0]+' +'+(v.length-1)) : (v[0]||'');
+  if(q.id==='petType' && v) return v.charAt(0).toUpperCase()+v.slice(1);
+  return v? String(v).slice(0,26) : '';
+}
+function opRender(){
+  var list=document.getElementById('opList'); if(!list) return;
+  var qs=opQuestions();
+  list.innerHTML='';
+  qs.forEach(function(q,i){
+    var card=document.createElement('div');
+    card.className='opq'+(opAnswered(q)?' done':'')+(i===opOpen?' open':'');
+    card.id='opq'+i;
+    var head=document.createElement('div'); head.className='opq-head';
+    head.innerHTML='<span class="opq-n">'+(opAnswered(q)&&i!==opOpen?'\u2713':(i+1))+'</span>'
+      +'<span class="opq-t">'+q.t+'</span>'
+      +'<span class="opq-v">'+(i===opOpen?'':esc(opSummary(q)))+'</span>';
+    head.onclick=function(){ opToggle(i); };
+    var wrap=document.createElement('div'); wrap.className='opq-wrap';
+    var inner=document.createElement('div'); inner.className='opq-in';
+    inner.innerHTML='<div class="opq-q">'+q.q+'</div>';
+    inner.appendChild(opInput(q,i));
+    wrap.appendChild(inner);
+    card.appendChild(head); card.appendChild(wrap);
+    list.appendChild(card);
+    if(i===opOpen){ wrap.style.height='auto'; }
+  });
+  opProgress();
+  try{ opSizeSpacer(); }catch(e){}
+  var pn=document.getElementById('opPetName');
+  if(pn) pn.textContent=state.answers.petName||'your pet';
+}
+function opInput(q,i){
+  var box=document.createElement('div');
+  if(q.type==='text' || q.type==='textarea'){
+    var el=document.createElement(q.type==='textarea'?'textarea':'input');
+    el.className='op-field'; el.placeholder=q.ph||''; el.value=state.answers[q.id]||'';
+    el.style.cssText='width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:14px;'
+      +'padding:15px 16px;font-family:inherit;font-size:1rem;color:var(--text);outline:none;'
+      +(q.type==='textarea'?'min-height:104px;resize:none;line-height:1.5':'');
+    el.oninput=function(){ state.answers[q.id]=el.value; opProgress(); opSyncDone(); };
+    el.onfocus=function(){ el.style.borderColor='var(--sage)'; };
+    el.onblur=function(){ el.style.borderColor='var(--border)'; };
+    box.appendChild(el);
+    var b=document.createElement('button'); b.className='btn btn-primary'; b.textContent='Next';
+    b.style.cssText='margin-top:14px;width:100%';
+    b.onclick=function(){ if(!opAnswered(q)){ toast('Please fill this in'); return; } opAdvance(i); };
+    box.appendChild(b);
+  } else if(q.type==='pet-type'){
+    var items=[['dog','Dog'],['cat','Cat'],['rabbit','Rabbit'],['bird','Bird'],['rodent','Small pet'],['reptile','Reptile']];
+    var g=document.createElement('div'); g.className='petgrid';
+    items.forEach(function(it){
+      var b2=document.createElement('button'); b2.type='button';
+      b2.className='petcard'+(state.answers.petType===it[0]?' selected':'');
+      b2.innerHTML='<span class="pi">'+icon(PET_ICON[it[0]],'32px')+'</span><span class="pl">'+it[1]+'</span>';
+      b2.onclick=function(){ state.answers.petType=it[0]; haptic(8); opAdvance(i); };
+      g.appendChild(b2);
+    });
+    box.appendChild(g);
+  } else if(q.type==='pills'){
+    var l=document.createElement('div'); l.className='opt-list';
+    q.options.forEach(function(opt){
+      var b3=document.createElement('button'); b3.type='button';
+      b3.className='opt-row'+(state.answers[q.id]===opt?' selected':'');
+      b3.innerHTML='<span>'+esc(opt)+'</span>';
+      b3.onclick=function(){ state.answers[q.id]=opt; haptic(8); opAdvance(i); };
+      l.appendChild(b3);
+    });
+    box.appendChild(l);
+  } else if(q.type==='multi'){
+    var cur=Array.isArray(state.answers[q.id])?state.answers[q.id].slice():[];
+    var l2=document.createElement('div'); l2.className='opt-list';
+    q.options.forEach(function(opt){
+      var b4=document.createElement('button'); b4.type='button';
+      b4.className='opt-row'+(cur.indexOf(opt)>-1?' selected':'');
+      b4.innerHTML='<span>'+esc(opt)+'</span>';
+      b4.onclick=function(){
+        var none=/^none of these$/i.test(opt);
+        if(none){ cur=[opt]; }
+        else {
+          cur=cur.filter(function(x){ return !/^none of these$/i.test(x); });
+          var ix=cur.indexOf(opt); if(ix>-1) cur.splice(ix,1); else cur.push(opt);
+        }
+        state.answers[q.id]=cur;
+        l2.querySelectorAll('.opt-row').forEach(function(row,ri){
+          row.classList.toggle('selected', cur.indexOf(q.options[ri])>-1);
+        });
+        haptic(6); opProgress(); opSyncDone();
+      };
+      l2.appendChild(b4);
+    });
+    box.appendChild(l2);
+    var b5=document.createElement('button'); b5.className='btn btn-primary'; b5.textContent='Next';
+    b5.style.cssText='margin-top:14px;width:100%';
+    b5.onclick=function(){ if(!opAnswered(q)){ toast('Please choose at least one'); return; } opAdvance(i); };
+    box.appendChild(b5);
+  } else if(q.type==='age'){
+    var g2=document.createElement('div'); g2.className='opage';
+    AGE_STEPS.forEach(function(st,si){
+      var b6=document.createElement('button'); b6.type='button';
+      b6.textContent=st.tick;
+      if(state.answers.ageIdx===si) b6.className='selected';
+      b6.onclick=function(){ applyAgeStep(state.answers, si); haptic(8); opAdvance(i); };
+      g2.appendChild(b6);
+    });
+    box.appendChild(g2);
+  }
+  return box;
+}
+// Smooth scroll inside the questionnaire, on the same curve and duration as the accordion, so
+// the card opening and the page settling read as ONE movement instead of two competing ones.
+function opScroller(){
+  // The questionnaire lives on a normally-flowing screen, so the page itself is what scrolls.
+  // Fall back to the inner container if it ever becomes a real scroller.
+  var sc=document.getElementById('opScroll');
+  if(sc && sc.scrollHeight > sc.clientHeight + 2) return {el:sc, win:false};
+  return {el:(document.scrollingElement||document.documentElement), win:true};
+}
+function opScrollTop(){ var s=opScroller(); return s.win ? (window.pageYOffset||s.el.scrollTop||0) : s.el.scrollTop; }
+function opScrollSet(v){
+  var s=opScroller();
+  if(s.win){ window.scrollTo(0, v); } else { s.el.scrollTop=v; }
+}
+function opViewH(){ var s=opScroller(); return s.win ? window.innerHeight : s.el.clientHeight; }
+function opMaxScroll(){
+  var s=opScroller();
+  return Math.max(0, (s.win ? s.el.scrollHeight : s.el.scrollHeight) - opViewH());
+}
+function opScrollTo(top, ms){
+  top=Math.max(0, Math.min(top, opMaxScroll()));
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){ opScrollSet(top); return; }
+  var start=opScrollTop(), dist=top-start, t0=null;
+  if(Math.abs(dist)<2) return;
+  var dur=Math.max(260, ms||OP_ANIM_MS);
+  if(window.__opRaf) cancelAnimationFrame(window.__opRaf);
+  function ease(x){ return x<0.5 ? 4*x*x*x : 1-Math.pow(-2*x+2,3)/2; }   // easeInOutCubic
+  function step(ts){
+    if(t0===null) t0=ts;
+    var p=Math.min(1,(ts-t0)/dur);
+    opScrollSet(start + dist*ease(p));
+    if(p<1){ window.__opRaf=requestAnimationFrame(step); } else { window.__opRaf=null; }
+  }
+  window.__opRaf=requestAnimationFrame(step);
+}
+// The open question's header always sits at ONE fixed height on screen - just under the sticky
+// progress bar. Two things are needed for that to actually hold:
+//  1. enough room below the last card, otherwise the page cannot scroll far enough;
+//  2. holding the position when the on-screen keyboard opens, because the browser otherwise
+//     scrolls the focused field into view and the question jumps further up.
+var OP_ANCHOR_EXTRA = 4;
+function opAnchorPad(){
+  var top=document.querySelector('.op-top');
+  return (top?top.offsetHeight:0)+OP_ANCHOR_EXTRA;
+}
+function opCardTop(card){
+  // distance from the top of the scrollable content to this card
+  var s=opScroller();
+  if(s.win){ return card.getBoundingClientRect().top + (window.pageYOffset||0); }
+  return card.offsetTop;
+}
+// Give the page enough tail so even the last question can rise to the anchor.
+function opSizeSpacer(){
+  var sp=document.getElementById('opSpacer');
+  var list=document.getElementById('opList');
+  if(!sp||!list) return;
+  var last=list.lastElementChild;
+  if(!last){ sp.style.height='0px'; return; }
+  sp.style.height='0px';
+  var foot=document.getElementById('opFoot');
+  var footH=foot?foot.offsetHeight:0;
+  var need = opViewH() - opAnchorPad() - last.offsetHeight - footH - 24;
+  sp.style.height = Math.max(0, Math.round(need)) + 'px';
+}
+// Park the opened card at the anchor - the "magnet" position.
+function opMagnet(card, ms){
+  if(!card) return;
+  opSizeSpacer();
+  opScrollTo(opCardTop(card) - opAnchorPad(), ms);
+}
+// Re-assert the anchor without animation (used when the keyboard opens/closes).
+function opHoldAnchor(){
+  if(opOpen<0) return;
+  var card=document.getElementById('opq'+opOpen);
+  if(!card) return;
+  // an animated scroll started before the previous card collapsed would land in the wrong
+  // place - this correction is authoritative, so stop it first
+  if(window.__opRaf){ cancelAnimationFrame(window.__opRaf); window.__opRaf=null; }
+  opSizeSpacer();
+  var want=Math.max(0, Math.min(opCardTop(card)-opAnchorPad(), opMaxScroll()));
+  if(Math.abs(opScrollTop()-want)>1){ opScrollSet(want); }
+}
+// The keyboard changes the visual viewport; hold our position instead of letting the browser
+// decide where the focused field should sit.
+(function(){
+  if(!window.visualViewport) return;
+  var t=null;
+  var onVV=function(){
+    var s=document.getElementById('screen-assess1');
+    if(!s || !s.classList.contains('active')) return;
+    clearTimeout(t);
+    t=setTimeout(function(){ opHoldAnchor(); }, 60);
+  };
+  window.visualViewport.addEventListener('resize', onVV);
+})();
+// ONE animation. Heights and page scroll are driven together in a single rAF loop, on one
+// easing curve, so there is nothing to fight: no CSS transition racing a scroll, and no
+// corrective jump afterwards. The final scroll target is measured from the FINAL layout
+// before the animation starts, which is what used to be wrong.
+var opAnimRaf=null;
+function opToggle(i){
+  var qs=opQuestions();
+  if(opOpen===i) return;
+  var prev=opOpen; opOpen=i;
+  var pc=(prev>=0)?document.getElementById('opq'+prev):null;
+  var nc=document.getElementById('opq'+i);
+  if(!nc) return;
+  var pw=pc?pc.querySelector('.opq-wrap'):null;
+  var nw=nc.querySelector('.opq-wrap');
+
+  if(opAnimRaf){ cancelAnimationFrame(opAnimRaf); opAnimRaf=null; }
+
+  // --- header states swap immediately (text only, no layout jump) ---
+  if(pc){
+    pc.classList.remove('open');
+    var pq=qs[prev];
+    if(pq){
+      pc.classList.toggle('done', opAnswered(pq));
+      var pv=pc.querySelector('.opq-v'); if(pv) pv.textContent=opSummary(pq);
+      var pn2=pc.querySelector('.opq-n'); if(pn2) pn2.textContent=opAnswered(pq)?'\u2713':(prev+1);
+    }
+  }
+  nc.classList.add('open');
+  var nv=nc.querySelector('.opq-v'); if(nv) nv.textContent='';
+  var nn=nc.querySelector('.opq-n'); if(nn) nn.textContent=(i+1);
+
+  // --- measure: where we are now, and where we must end up ---
+  var pStart = pw ? pw.getBoundingClientRect().height : 0;
+  var nStart = nw ? nw.getBoundingClientRect().height : 0;
+  if(pw) pw.style.height = pStart+'px';
+  if(nw) nw.style.height = nStart+'px';
+
+  var nEnd = 0;
+  if(nw){ nw.style.height='auto'; nEnd = nw.getBoundingClientRect().height; nw.style.height = nStart+'px'; }
+
+  // Final scroll target, measured with the FINAL heights applied, so it cannot drift.
+  if(pw) pw.style.height='0px';
+  if(nw) nw.style.height=nEnd+'px';
+  opSizeSpacer();
+  var target = Math.max(0, Math.min(opCardTop(nc) - opAnchorPad(), opMaxScroll()));
+  // put the start heights back for the first frame
+  if(pw) pw.style.height=pStart+'px';
+  if(nw) nw.style.height=nStart+'px';
+
+  var sStart = opScrollTop();
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var dur = reduce ? 0 : OP_ANIM_MS;
+
+  var settle=function(){
+    if(pw) pw.style.height='0px';
+    if(nw) nw.style.height='auto';
+    opSizeSpacer();
+    var t2=Math.max(0, Math.min(opCardTop(nc)-opAnchorPad(), opMaxScroll()));
+    opScrollSet(t2);
+    opProgress();
+  };
+  if(!dur){ settle(); opFocusOpen(nc, qs[i]); return; }
+
+  // easeOutQuint - fast start, long soft landing. Reads as smooth on a phone.
+  function ease(x){ return 1-Math.pow(1-x,5); }
+  var t0=null;
+  function frame(ts){
+    if(t0===null) t0=ts;
+    var p=Math.min(1,(ts-t0)/dur), e=ease(p);
+    if(pw) pw.style.height = (pStart*(1-e))+'px';
+    if(nw) nw.style.height = (nStart+(nEnd-nStart)*e)+'px';
+    opScrollSet(sStart + (target-sStart)*e);
+    if(p<1){ opAnimRaf=requestAnimationFrame(frame); }
+    else { opAnimRaf=null; settle(); }
+  }
+  opAnimRaf=requestAnimationFrame(frame);
+  opFocusOpen(nc, qs[i]);
+}
+// Focus a text field mid-animation, without letting the browser scroll us anywhere.
+function opFocusOpen(card, q, delay){
+  if(!q || (q.type!=='text' && q.type!=='textarea')) return;
+  setTimeout(function(){
+    var f=card.querySelector('.op-field'); if(!f) return;
+    try{ f.focus({preventScroll:true}); }catch(e){ try{ f.focus(); }catch(_){} }
+  }, (delay!=null?delay:Math.round(OP_ANIM_MS*0.45)));
+}
+function opAdvance(i){
+  var qs=opQuestions();
+  var next=-1;
+  for(var k=i+1;k<qs.length;k++){ if(!opAnswered(qs[k])){ next=k; break; } }
+  if(next<0){ for(var k2=0;k2<qs.length;k2++){ if(!opAnswered(qs[k2])){ next=k2; break; } } }
+  if(next<0){
+    // everything answered - close up and offer Continue
+    var cur=document.getElementById('opq'+opOpen);
+    if(cur){
+      var w=cur.querySelector('.opq-wrap');
+      if(w){ w.style.height=w.scrollHeight+'px'; void w.offsetHeight; w.style.height='0px'; }
+      cur.classList.remove('open'); cur.classList.add('done');
+      var q0=qs[opOpen];
+      var v0=cur.querySelector('.opq-v'); if(v0&&q0) v0.textContent=opSummary(q0);
+      var n0=cur.querySelector('.opq-n'); if(n0) n0.textContent='\u2713';
+    }
+    opOpen=-1; opProgress(); opSyncDone();
+    setTimeout(function(){
+      opScrollTo(opMaxScroll(), OP_ANIM_MS);
+    }, Math.round(OP_ANIM_MS*0.5));
+    return;
+  }
+  // If the pet type changed, the later options depend on it - rebuild, then open the next one.
+  if(qs[i] && qs[i].id==='petType'){
+    var keepOpen=next; opOpen=-1; opRender(); opOpen=-1; opToggle(keepOpen); return;
+  }
+  opToggle(next);
+}
+function opProgress(){
+  var qs=opQuestions(), done=0;
+  qs.forEach(function(q){ if(opAnswered(q)) done++; });
+  var fill=document.getElementById('opBarFill'); if(fill) fill.style.width=Math.round(done/qs.length*100)+'%';
+  var c=document.getElementById('opCount'); if(c) c.textContent=done+'/'+qs.length;
+  var foot=document.getElementById('opFoot');
+  if(foot) foot.classList.toggle('show', done>=qs.length);
+}
+function opSyncDone(){
+  var qs=opQuestions();
+  qs.forEach(function(q,i){
+    var card=document.getElementById('opq'+i); if(!card) return;
+    if(i!==opOpen) card.classList.toggle('done', opAnswered(q));
+  });
+}
+function opStart(){
+  // Question one is already open when the screen appears - no opening animation on arrival,
+  // so nothing jumps. The accordion only animates from question two onwards.
+  opOpen=0;
+  showScreen('screen-assess1');
+  opRender();
+  try{ window.scrollTo(0,0); }catch(e){}
+  var sc=document.getElementById('opScroll'); if(sc) sc.scrollTop=0;
+  try{ opSizeSpacer(); }catch(e){}
+  var first=document.getElementById('opq0');
+  var q0=opQuestions()[0];
+  if(first && q0) opFocusOpen(first, q0, 60);
+}
+function opFinish(){
+  var qs=opQuestions();
+  for(var i=0;i<qs.length;i++){ if(!opAnswered(qs[i])){ opToggle(i); toast('One more to go'); return; } }
+  state.answers.initialDescription=state.answers.mainIssue||'';
+  try{ nuciTrack('assessment_done'); }catch(e){}
+  finishAssessment();
+}
+function beginQuestionnaire(){
+  try{localStorage.setItem('nuci_intro_seen','1');}catch(e){}
+  if(ONEPAGER){ opStart(); return; }
+  kbPrime(); state.currentQ=0; showScreen('screen-assessment'); renderQ();
+  setTimeout(function(){ var i=document.getElementById('qInput'); if(i){ try{i.focus({preventScroll:true});}catch(e){} } qStabilize(); },30);
+}
 
 // ═══════ QUESTIONNAIRE ═══════
 function breedPlaceholder(){ const t=state.answers.petType; return t==='dog'?'e.g. Labrador, mixed…':t==='cat'?'e.g. British Shorthair…':'e.g. breed or "unknown"'; }
@@ -3651,6 +4105,121 @@ function cancelNewPet(){
   persistStateNow();
   enterApp(); showTab('profile');   // return to profile where they started
 }
+// The Today tab once the free day is used up: one clear way forward.
+function renderTrialGate(){
+  var pet=esc(state.answers.petName||'your pet');
+  var grace=trialPhase()==='grace';
+  var host=$('tab-today'); if(!host) return;
+  host.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
+    +'min-height:66vh;text-align:center;padding:0 26px">'
+    +'<div style="width:92px;height:92px;border-radius:50%;background:rgba(107,143,113,.12);display:flex;align-items:center;justify-content:center;color:var(--sage);margin-bottom:22px">'+icon('lock','40px',1.6)+'</div>'
+    +'<h1 style="font-size:1.75rem;letter-spacing:-0.03em;margin-bottom:10px">'+(grace?'Day one is done.':'The free day has ended.')+'</h1>'
+    +'<p style="font-size:0.95rem;color:var(--secondary);line-height:1.55;max-width:32ch;margin-bottom:8px">'
+      +(grace
+        ? 'The rest of '+pet+'\u2019s week is written and waiting. Unlock it to carry on from day two.'
+        : 'Unlock the remaining six days to carry on with '+pet+'\u2019s plan.')
+    +'</p>'
+    +(grace?'<p style="font-size:.8rem;color:var(--clay);margin-bottom:20px">The plan is on hold and will be archived soon.</p>':'<div style="height:12px"></div>')
+    +'<button class="btn btn-primary" style="max-width:280px" onclick="openTrialOffer()">Unlock the full week</button>'
+    +'</div>';
+}
+function openTrialOffer(){
+  try{ nuciTrack('trial_offer_open'); }catch(e){}
+  buildOffer(); showScreen('screen-offer');
+}
+// ═══════ FREE DAY ONE ═══════
+// A new account gets day 1 of the plan free, with no card. 24 hours after the plan is created
+// the rest of the week has to be bought. If it isn't, the plan freezes for a 12-hour grace
+// window (payment still unfreezes it); after that it is archived.
+// The whole week IS generated up front, so paying unlocks instantly and the week stays
+// coherent - there is no second AI call that could fail after someone has paid.
+var TRIAL_FREE_H  = 24;    // free access to day 1
+var TRIAL_GRACE_H = 12;    // frozen, still payable
+function trialActive(){ return !!state.trialStart && !state.purchased && (state.planCredits||0)<1; }
+function trialHoursSince(){
+  if(!state.trialStart) return 0;
+  var t=new Date(state.trialStart).getTime();
+  if(isNaN(t)) return 0;
+  return (Date.now()-t)/3600000;
+}
+function trialMsLeft(){
+  if(!state.trialStart) return 0;
+  var t=new Date(state.trialStart).getTime();
+  return Math.max(0, (t + TRIAL_FREE_H*3600000) - Date.now());
+}
+// 'off' | 'free' | 'grace' | 'over'
+function trialPhase(){
+  if(!trialActive()) return 'off';
+  var h=trialHoursSince();
+  if(h < TRIAL_FREE_H) return 'free';
+  if(h < TRIAL_FREE_H + TRIAL_GRACE_H) return 'grace';
+  return 'over';
+}
+function trialFmtLeft(){
+  var ms=trialMsLeft();
+  var h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000);
+  if(h>0) return h+'h '+m+'m';
+  var s=Math.floor((ms%60000)/1000);
+  return m+'m '+s+'s';
+}
+// Only the very first plan on an account is free.
+function trialEligible(){
+  if(state.purchased || (state.planCredits||0)>0) return false;
+  if((state.plansGenerated||0)>0) return false;
+  if(state.trialStart) return false;
+  if(Array.isArray(state.pets) && state.pets.some(function(p){ return p&&p.aiPlan&&p.aiPlan.days&&p.aiPlan.days.length; })) return false;
+  return !!(state.answers && state.answers.petName && state.answers.mainIssue);
+}
+// Where to go once the account exists: free day one, or the paywall.
+function goAfterAuth(){
+  if(trialEligible()){ startFreeDayOne(); return; }
+  buildOffer(); showScreen('screen-offer');
+}
+function startFreeDayOne(){
+  state.__trialPending=true;
+  runGenerating(function(){
+    state.trialStart=new Date().toISOString();
+    state.planStartDate=todayKey();
+    state.currentDay=1; state.viewDay=1; state.planComplete=false;
+    state.plansGenerated=(state.plansGenerated||0)+1;
+    state.__trialPending=false;
+    try{ syncActivePet(); }catch(e){}
+    try{ nuciTrack('trial_start'); }catch(e){}
+    persistStateNow();
+    enterApp();
+    toast('Day one is ready');
+  });
+}
+// Days beyond day 1 are locked until the week is bought.
+function dayLocked(d){ return trialActive() && d>1; }
+// Called on entry and on every Today render: freeze at 24h, archive at 36h.
+function trialCheck(){
+  var ph=trialPhase();
+  if(ph==='off') return;
+  if(ph==='grace'){
+    if(!state.frozenSince){ state.frozenSince=todayKey(); try{ persistStateNow(); }catch(e){} }
+    return;
+  }
+  if(ph==='over'){
+    if(!state.planComplete){
+      try{ archiveCurrentPlan(); }catch(e){}
+      state.planComplete=true; state.frozenSince=null;
+      state.__endedWhileAway=(state.__endedWhileAway||[]).concat([{name:(state.answers&&state.answers.petName)||'Your pet', planLength:state.planLength||7}]);
+      try{ syncActivePet(); }catch(e){}
+      try{ nuciTrack('trial_expired'); }catch(e){}
+      try{ persistStateNow(); }catch(e){}
+    }
+  }
+}
+// Buying from inside the trial: nothing to generate, just unlock the rest of the week.
+function trialUnlock(){
+  state.trialStart=null;
+  state.frozenSince=null;
+  state.purchased=true;
+  try{ nuciTrack('trial_converted'); }catch(e){}
+  try{ syncActivePet(); }catch(e){}
+  try{ persistStateNow(); }catch(e){}
+}
 function finishAssessment(){
   try{ nuciTrack('assessment_done'); }catch(e){}
   state.answers.initialDescription=state.answers.mainIssue||'';
@@ -3696,7 +4265,7 @@ function finishAssessment(){
     });
     return;
   }
-  if(state.userEmail){ buildOffer(); showScreen('screen-offer'); }
+  if(state.userEmail){ goAfterAuth(); }
   else showScreen('screen-register');
   persistState();
 }
@@ -3794,7 +4363,7 @@ async function doRegister(){
       showEmailConfirmNotice(email);
       return;
     }
-    if(Object.keys(state.answers).length>1){ buildOffer(); showScreen('screen-offer'); }
+    if(Object.keys(state.answers).length>1){ goAfterAuth(); }
     else { welcomeNew(); }
   }catch(e){ err.textContent='Something went wrong - please try again.'; btn.disabled=false; btn.textContent='Create account'; }
 }
@@ -4002,7 +4571,8 @@ async function afterEmailVerified(){
   }catch(e){}
   if(state.answers && state.answers.petName){
     if(state.purchased){ enterApp(); return; }
-    buildOffer(); showScreen('screen-offer'); return;
+    if(state.trialStart){ enterApp(); return; }
+    goAfterAuth(); return;
   }
   startFreshState(); startFlow();
 }
@@ -4225,11 +4795,11 @@ function centerNotice(title, html){
   document.body.appendChild(d);
   d.addEventListener('click', function(e){ if(e.target===d) d.remove(); });
 }
-var T_TERMS="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Terms &amp; Conditions</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: August 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>1. Who we are.</b> The Nuci is operated by <b>Urban Rus s.p.</b>, a sole proprietor registered in Slovenia (the \u201cProvider\u201d, \u201cwe\u201d, \u201cus\u201d). Contact: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>2. The service.</b> The Nuci generates a personalised 7-day behaviour plan for your pet based on the information you provide, and lets you track daily check-ins. Plans are produced with the help of AI and general behavioural principles. The app also includes optional tools to help you find nearby veterinary clinics (using your device location, only when you choose) and to draft a message you can send or read to a vet in your chosen language.</p><p style=\"margin-bottom:12px\"><b>3. Not veterinary advice.</b> The Nuci provides educational behavioural guidance only. It is <b>not</b> veterinary advice, diagnosis or treatment, and is not a substitute for an in-person examination by a qualified veterinarian. The vet-finder and vet-message tools are conveniences to help you reach a professional; clinic listings come from a third-party map service and we do not endorse or vet them, and any drafted message is a starting point for you to review before sending. If your pet shows signs of illness, pain, aggression or distress, consult a vet. You use the plan and these tools at your own responsibility.</p><p style=\"margin-bottom:12px\"><b>4. Purchases.</b> Access to a plan is a one-time purchase (no subscription). One purchase provides one plan for one pet; multi-plan packages provide credits for additional pets. Prices are shown at checkout and include any applicable tax. Any promotional discount you unlock (for example through an in-app game) is applied automatically at checkout and has no cash value. Payments are processed by <b>Stripe</b>; we never receive or store your full card details.</p><p style=\"margin-bottom:12px\"><b>5. Digital content &amp; right of withdrawal.</b> Your plan is digital content supplied immediately after purchase. Under Article 43\u010d of the Slovenian Consumer Protection Act (ZVPot-1) and Article 16(m) of EU Directive 2011/83/EU, by completing your purchase you <b>expressly request immediate delivery</b> of the digital content and <b>acknowledge that you thereby lose your 14-day right of withdrawal</b>. Because the plan is generated and delivered instantly, <b>purchases are non-refundable</b>. If a plan fails to generate or has a genuine technical fault, our remedy is to generate a new plan for you at no extra cost, rather than a refund. This does not affect statutory rights that cannot be waived, such as correcting a genuine billing error.</p><p style=\"margin-bottom:12px\"><b>6. Your account.</b> You are responsible for the accuracy of the information you provide and for keeping your account secure. When you create an account we send a confirmation link to your email address, and you confirm it before your account becomes active. You must be at least 16 years old (or the age of digital consent in your country) to use The Nuci.</p><p style=\"margin-bottom:12px\"><b>7. Acceptable use.</b> You may use The Nuci only for your own pets and for lawful, personal purposes. You may not resell, copy or redistribute the generated plans.</p><p style=\"margin-bottom:12px\"><b>8. Liability.</b> To the extent permitted by law, the Provider is not liable for any indirect or consequential loss, or for outcomes arising from how behavioural guidance is applied. Nothing in these terms limits liability that cannot be limited under Slovenian or EU law.</p><p style=\"margin-bottom:12px\"><b>9. Changes.</b> We may update these terms; the current version is always available in the app. Continued use after changes means you accept them.</p><p style=\"margin-bottom:0\"><b>10. Governing law.</b> These terms are governed by the law of the Republic of Slovenia, with the courts of Slovenia having jurisdiction. For consumer disputes you may also use the EU ODR platform at ec.europa.eu/consumers/odr. Questions: hello@thenuci.com.</p></div>";
-var T_PRIV="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Privacy Policy</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: August 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>Controller.</b> The controller of your personal data is <b>Urban Rus s.p.</b> (Slovenia). Contact for any privacy request: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>What we collect.</b> Your account email (which you confirm via a link we email you when you sign up); the pet and behaviour details you enter; your daily check-ins and notes; your plan and progress; email preferences and consent records; and basic technical data needed to run the service. If you use the microphone button, the short audio clip you record is sent for transcription and is <b>not stored by us</b> - only the resulting text is saved with your answer. If you use the \u201cFind a vet\u201d tool, your device location is used <b>once</b> to search for nearby clinics and is <b>not stored</b>; if you decline the location prompt, the tool simply links you to a map search instead. If you ask Nuci to draft a vet message, the relevant details from your answers are used to write it. We do <b>not</b> collect or store your full payment card details. We also keep <b>anonymous usage statistics</b> (which screens and steps are used, counted with a random per-tab identifier that is deleted when the tab closes and is never linked to your account), <b>technical error reports</b> when the app malfunctions (the error message, app version and browser type - with no account identifier), and, if you choose to tap a star at the end of a plan, your <b>1\u20135 plan rating</b>, stored without any personal data; the published average is calculated from these real ratings only.</p><p style=\"margin-bottom:12px\"><b>Why, and legal basis.</b> We process this data to provide the service and your plan (performance of a contract, Art. 6(1)(b) GDPR); to send emails that are part of the service you bought, such as check-in reminders while a plan is active (contract, Art. 6(1)(b)), which you can switch off at any time; to send optional educational emails <b>only where you have separately ticked the box</b> (consent, Art. 6(1)(a)), which you may withdraw at any time in Profile \u2192 Email preferences; and to keep the service secure and comply with law (legitimate interest / legal obligation, Art. 6(1)(f)/(c)).</p><p style=\"margin-bottom:12px\"><b>Processors we use.</b> <b>Supabase</b> (database hosting), <b>Netlify</b> (site and server functions), <b>Stripe</b> (payments), <b>Resend</b> (emails), <b>Anthropic</b> (AI plan generation and vet-message drafting), <b>OpenAI</b> (speech-to-text, only when you use the microphone) and <b>Google</b> (Places, only when you use the \u201cFind a vet\u201d tool, to return nearby clinics for the coordinates sent). Each acts under a data-processing agreement or its own terms and only for the purpose described.</p><p style=\"margin-bottom:12px\"><b>International transfers.</b> Some processors may process data outside the EU/EEA (e.g. in the United States). Where they do, transfers are protected by the European Commission\u2019s <b>Standard Contractual Clauses (SCC)</b> and appropriate safeguards, so your data receives an equivalent level of protection.</p><p style=\"margin-bottom:12px\"><b>Retention.</b> We keep your data while your account is active. You can delete your profile at any time from Profile \u2192 Delete profile. This <b>permanently erases</b> your account and profile data from our database and removes your login, so you are no longer a registered user and receive no further emails. Invoicing and tax records are kept for the period Slovenian tax law requires (currently 10 years). Consent records are kept for as long as needed to prove the consent was validly given. For disaster recovery we also keep <b>short-term backup copies</b> of the database, stored securely and replaced on a rolling basis; data you delete disappears from these copies as they rotate (within a few weeks at most).</p><p style=\"margin-bottom:12px\"><b>Your rights.</b> Under the GDPR you have the right to access, rectify, erase, restrict or object to processing, and to data portability, and to withdraw consent at any time. To exercise these, email hello@thenuci.com. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski poobla\u0161\u010denec, ip-rs.si).</p><p style=\"margin-bottom:12px\"><b>Automated processing.</b> Your plan is generated with AI from the answers you provide. This is not a decision that produces legal or similarly significant effects on you within the meaning of Art. 22 GDPR, and a human can review any plan on request.</p><p style=\"margin-bottom:12px\"><b>We do not sell your data.</b> We never sell or rent personal data, and we do not use it for advertising profiling.</p><p style=\"margin-bottom:12px\"><b>Children.</b> The service is not directed at children under 16. If you believe a child has provided us data, contact us and we will delete it.</p><p style=\"margin-bottom:0\"><b>Contact.</b> For any question about your data, contact hello@thenuci.com.</p></div>";
+var T_TERMS="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Terms &amp; Conditions</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: August 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>1. Who we are.</b> The Nuci is operated by <b>Urban Rus s.p.</b>, a sole proprietor registered in Slovenia (the \u201cProvider\u201d, \u201cwe\u201d, \u201cus\u201d). Contact: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>2. The service.</b> The Nuci generates a personalised 7-day behaviour plan for your pet based on the information you provide, and lets you track daily check-ins. <b>Day one is free and needs no payment details.</b> The remaining six days are unlocked by a one-time payment. Each upcoming day is written from what you report in your evening check-in, so the plan adapts as the week goes on. Plans are produced with the help of AI and general behavioural principles. The app also includes optional tools to help you find nearby veterinary clinics (using your device location, only when you choose) and to draft a message you can send or read to a vet in your chosen language.</p><p style=\"margin-bottom:12px\"><b>3. Not veterinary advice.</b> The Nuci provides educational behavioural guidance only. It is <b>not</b> veterinary advice, diagnosis or treatment, and is not a substitute for an in-person examination by a qualified veterinarian. The vet-finder and vet-message tools are conveniences to help you reach a professional; clinic listings come from a third-party map service and we do not endorse or vet them, and any drafted message is a starting point for you to review before sending. If your pet shows signs of illness, pain, aggression or distress, consult a vet. You use the plan and these tools at your own responsibility.</p><p style=\"margin-bottom:12px\"><b>4. Free day one, then purchase.</b> You can start a plan and use day one without paying and without entering card details. Access to day one lasts <b>24 hours</b> from the moment the plan is created. After that the plan is put on hold for a further <b>12 hours</b>, during which paying still resumes it; if no payment is made in that window, the plan is closed and moved to your archive. Nothing is ever charged automatically: you are only charged if you actively choose to buy, and there is <b>no subscription and no recurring payment</b>. Access to the remaining days is a one-time purchase. One purchase provides one plan for one pet; multi-plan packages provide credits for additional pets. Prices are shown at checkout and include any applicable tax. Any promotional discount you unlock (for example through an in-app game) is applied automatically at checkout and has no cash value. Payments are processed by <b>Stripe</b>; we never receive or store your full card details.</p><p style=\"margin-bottom:12px\"><b>5. Digital content &amp; right of withdrawal.</b> Your plan is digital content supplied immediately after purchase. Under Article 43\u010d of the Slovenian Consumer Protection Act (ZVPot-1) and Article 16(m) of EU Directive 2011/83/EU, by completing your purchase you <b>expressly request immediate delivery</b> of the digital content and <b>acknowledge that you thereby lose your 14-day right of withdrawal</b>. Because the plan is generated and delivered instantly, <b>purchases are non-refundable</b>. If a plan fails to generate or has a genuine technical fault, our remedy is to generate a new plan for you at no extra cost, rather than a refund. This does not affect statutory rights that cannot be waived, such as correcting a genuine billing error.</p><p style=\"margin-bottom:12px\"><b>6. Your account.</b> You are responsible for the accuracy of the information you provide and for keeping your account secure. When you create an account we email you a 6-digit confirmation code, which you enter to activate the account. You must be at least 16 years old (or the age of digital consent in your country) to use The Nuci.</p><p style=\"margin-bottom:12px\"><b>7. Acceptable use.</b> You may use The Nuci only for your own pets and for lawful, personal purposes. You may not resell, copy or redistribute the generated plans.</p><p style=\"margin-bottom:12px\"><b>8. Liability.</b> To the extent permitted by law, the Provider is not liable for any indirect or consequential loss, or for outcomes arising from how behavioural guidance is applied. Nothing in these terms limits liability that cannot be limited under Slovenian or EU law.</p><p style=\"margin-bottom:12px\"><b>9. Changes.</b> We may update these terms; the current version is always available in the app. Continued use after changes means you accept them.</p><p style=\"margin-bottom:0\"><b>10. Governing law.</b> These terms are governed by the law of the Republic of Slovenia, with the courts of Slovenia having jurisdiction. For consumer disputes you may also use the EU ODR platform at ec.europa.eu/consumers/odr. Questions: hello@thenuci.com.</p></div>";
+var T_PRIV="<h2 style=\"font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px\">Privacy Policy</h2><p style=\"font-size:0.72rem;color:var(--secondary);margin-bottom:14px\">Last updated: August 2026</p><div style=\"font-size:0.86rem;color:var(--text);line-height:1.6\"><p style=\"margin-bottom:12px\"><b>Controller.</b> The controller of your personal data is <b>Urban Rus s.p.</b> (Slovenia). Contact for any privacy request: hello@thenuci.com.</p><p style=\"margin-bottom:12px\"><b>What we collect.</b> Your account email (which you confirm with a 6-digit code we email you when you sign up); the pet and behaviour details you enter; your daily check-ins and notes; your plan and progress; email preferences and consent records; and basic technical data needed to run the service. If you use the microphone button, the short audio clip you record is sent for transcription and is <b>not stored by us</b> - only the resulting text is saved with your answer. If you use the \u201cFind a vet\u201d tool, your device location is used <b>once</b> to search for nearby clinics and is <b>not stored</b>; if you decline the location prompt, the tool simply links you to a map search instead. If you ask Nuci to draft a vet message, the relevant details from your answers are used to write it. Any pet photo you add is kept <b>on your own device only</b> and is not uploaded to our database. We do <b>not</b> collect or store your full payment card details. We also keep <b>anonymous usage statistics</b> (which screens and steps are used, counted with a random per-tab identifier that is deleted when the tab closes and is never linked to your account), <b>technical error reports</b> when the app malfunctions (the error message, app version and browser type - with no account identifier), and, if you choose to tap a star at the end of a plan, your <b>1\u20135 plan rating</b>, stored without any personal data; the published average is calculated from these real ratings only.</p><p style=\"margin-bottom:12px\"><b>Why, and legal basis.</b> We process this data to provide the service and your plan (performance of a contract, Art. 6(1)(b) GDPR); to send emails that are part of the service you bought, such as check-in reminders while a plan is active (contract, Art. 6(1)(b)), which you can switch off at any time; to send optional educational emails <b>only where you have separately ticked the box</b> (consent, Art. 6(1)(a)), which you may withdraw at any time in Profile \u2192 Email preferences; and to keep the service secure and comply with law (legitimate interest / legal obligation, Art. 6(1)(f)/(c)).</p><p style=\"margin-bottom:12px\"><b>Processors we use.</b> <b>Supabase</b> (database hosting), <b>Netlify</b> (site and server functions), <b>Stripe</b> (payments), <b>Resend</b> (emails), <b>Anthropic</b> (AI plan generation and vet-message drafting), <b>OpenAI</b> (speech-to-text, only when you use the microphone) and <b>Google</b> (Places, only when you use the \u201cFind a vet\u201d tool, to return nearby clinics for the coordinates sent). Each acts under a data-processing agreement or its own terms and only for the purpose described.</p><p style=\"margin-bottom:12px\"><b>International transfers.</b> Some processors may process data outside the EU/EEA (e.g. in the United States). Where they do, transfers are protected by the European Commission\u2019s <b>Standard Contractual Clauses (SCC)</b> and appropriate safeguards, so your data receives an equivalent level of protection.</p><p style=\"margin-bottom:12px\"><b>Retention.</b> We keep your data while your account is active. You can delete your profile at any time from Profile \u2192 Delete profile. This <b>permanently erases</b> your account and profile data from our database and removes your login, so you are no longer a registered user and receive no further emails. Invoicing and tax records are kept for the period Slovenian tax law requires (currently 10 years). Consent records are kept for as long as needed to prove the consent was validly given. For disaster recovery we also keep <b>short-term backup copies</b> of the database, stored securely and replaced on a rolling basis; data you delete disappears from these copies as they rotate (within a few weeks at most).</p><p style=\"margin-bottom:12px\"><b>Your rights.</b> Under the GDPR you have the right to access, rectify, erase, restrict or object to processing, and to data portability, and to withdraw consent at any time. To exercise these, email hello@thenuci.com. You also have the right to lodge a complaint with the Slovenian Information Commissioner (Informacijski poobla\u0161\u010denec, ip-rs.si).</p><p style=\"margin-bottom:12px\"><b>Automated processing.</b> Your plan is generated with AI from the answers you provide. This is not a decision that produces legal or similarly significant effects on you within the meaning of Art. 22 GDPR, and a human can review any plan on request.</p><p style=\"margin-bottom:12px\"><b>We do not sell your data.</b> We never sell or rent personal data, and we do not use it for advertising profiling.</p><p style=\"margin-bottom:12px\"><b>Children.</b> The service is not directed at children under 16. If you believe a child has provided us data, contact us and we will delete it.</p><p style=\"margin-bottom:0\"><b>Contact.</b> For any question about your data, contact hello@thenuci.com.</p></div>";
 var T_IMPRESSUM=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Legal notice (Impressum)</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>Service provider.</b> This website and the The Nuci service are operated by:</p><p style="margin-bottom:12px"><b>Prodaja spletnih storitev, Urban Rus s.p.</b><br>Sole proprietor (samostojni podjetnik) registered in the Republic of Slovenia<br>Registered as a flat-rate sole proprietor (normiranec).</p><p style="margin-bottom:12px"><b>Contact.</b> Email: hello@thenuci.com<br>Website: thenuci.com</p><p style="margin-bottom:12px"><b>Registration.</b> Registered in the Slovenian Business Register (PRS) kept by AJPES.<br>Registration number (matična številka): 7538863000<br>Tax number (davčna številka): 27831469<br>Not liable for VAT under the flat-rate scheme (small business exemption).</p><p style="margin-bottom:12px"><b>Responsible for content.</b> Urban Rus, in the capacity of sole proprietor.</p><p style="margin-bottom:0"><b>Online dispute resolution.</b> The European Commission provides a platform for online dispute resolution for consumers at ec.europa.eu/consumers/odr. We can be reached for such matters at hello@thenuci.com.</p></div>`;
-var T_COOKIES=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Cookies &amp; local storage</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>The short version.</b> The Nuci does <b>not</b> use advertising or tracking cookies, and does not build advertising profiles. We use only what is technically necessary to run the service.</p><p style="margin-bottom:12px"><b>What we store on your device.</b> We use your browser\u2019s local storage (not third-party cookies) to keep you signed in and to remember your plan and progress between visits. This includes a saved copy of your current answers and plan, your sign-in session, and a note that you have seen the intro. This information stays on your device and is needed for the app to work.</p><p style="margin-bottom:12px"><b>Authentication.</b> Our authentication provider (Supabase) sets storage strictly necessary to keep your login session active. Without it you could not stay signed in.</p><p style="margin-bottom:12px"><b>Payments.</b> When you pay, Stripe may set its own strictly-necessary cookies on its checkout page to process the transaction securely and prevent fraud. These are governed by Stripe\u2019s own privacy policy.</p><p style="margin-bottom:12px"><b>No analytics or ad trackers.</b> We do not load Google Analytics, advertising pixels, or similar cross-site trackers. We keep only anonymous, first-party usage counts (for example, how many visitors opened the app) - with no cookies and no personal data. These counts use only a random per-tab identifier in sessionStorage, which disappears when you close the tab and is never linked to your account. Because we only use strictly-necessary storage, no cookie-consent banner is required under the ePrivacy rules - but we tell you anyway, in the interest of transparency.</p><p style="margin-bottom:0"><b>Clearing it.</b> You can clear this storage at any time by signing out (Profile \u2192 Sign out), deleting your profile, or clearing site data in your browser settings.</p></div>`;
-var T_REFUND=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">No-refund policy</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>All sales are final.</b> The Nuci sells a personalised digital behaviour plan that is generated and delivered to you instantly. Because the plan is created for you and delivered in full at the moment of purchase, <b>all purchases are final and non-refundable.</b></p><p style="margin-bottom:12px"><b>If something goes wrong, we fix the plan - not refund it.</b> If your plan fails to generate, arrives incomplete, or has a genuine technical problem, we will <b>generate a new plan for you at no extra cost</b>. Our remedy for any issue with the plan is a replacement plan, not a return of money. In practice this means you always end up with a working plan.</p><p style="margin-bottom:12px"><b>You agree to this at checkout.</b> Before paying, you expressly request immediate delivery of your digital plan and acknowledge that you therefore <b>lose the 14-day right of withdrawal</b> that would otherwise apply to distance purchases (Article 43č of the Slovenian Consumer Protection Act ZVPot-1, implementing Article 16(m) of Directive 2011/83/EU). Changing your mind after purchase is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Please decide before you buy.</b> You can read exactly what the plan includes on this site before purchasing. If you are unsure whether The Nuci is right for you, contact us <b>before</b> paying and we will gladly answer.</p><p style="margin-bottom:12px"><b>Not veterinary advice.</b> The plan is educational behavioural guidance, not a cure or a guarantee of any outcome. A plan that did not produce the result you hoped for is not a faulty product; we can generate a fresh plan, but this is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Genuine billing errors.</b> The one thing a replacement plan cannot fix is a payment mistake - for example being charged twice for the same purchase. Consumer law does not let us waive that, so in a true billing error we will correct the charge. This does not apply to change-of-mind or dissatisfaction with the guidance.</p><p style="margin-bottom:0"><b>Contact.</b> Email <b>hello@thenuci.com</b> with your account email and Stripe receipt and we will sort it out - a new plan for any plan problem, or a corrected charge for a genuine billing error. Please reach out before opening a bank chargeback; we can usually resolve things faster.</p></div>`;
+var T_COOKIES=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">Cookies &amp; local storage</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>The short version.</b> The Nuci does <b>not</b> use advertising or tracking cookies, and does not build advertising profiles. We use only what is technically necessary to run the service.</p><p style="margin-bottom:12px"><b>What we store on your device.</b> We use your browser\u2019s local storage (not third-party cookies) to keep you signed in and to remember your plan and progress between visits. This includes a saved copy of your current answers and plan, any pet photo you add (which stays on your device and is not uploaded), and your sign-in session. This information stays on your device and is needed for the app to work.</p><p style="margin-bottom:12px"><b>Authentication.</b> Our authentication provider (Supabase) sets storage strictly necessary to keep your login session active. Without it you could not stay signed in.</p><p style="margin-bottom:12px"><b>Payments.</b> When you pay, Stripe may set its own strictly-necessary cookies on its checkout page to process the transaction securely and prevent fraud. These are governed by Stripe\u2019s own privacy policy.</p><p style="margin-bottom:12px"><b>No analytics or ad trackers.</b> We do not load Google Analytics, advertising pixels, or similar cross-site trackers. We keep only anonymous, first-party usage counts (for example, how many visitors opened the app) - with no cookies and no personal data. These counts use only a random per-tab identifier in sessionStorage, which disappears when you close the tab and is never linked to your account. Because we only use strictly-necessary storage, no cookie-consent banner is required under the ePrivacy rules - but we tell you anyway, in the interest of transparency.</p><p style="margin-bottom:0"><b>Clearing it.</b> You can clear this storage at any time by signing out (Profile \u2192 Sign out), deleting your profile, or clearing site data in your browser settings.</p></div>`;
+var T_REFUND=`<h2 style="font-size:1.35rem;letter-spacing:-0.02em;margin-bottom:4px">No-refund policy</h2><p style="font-size:0.72rem;color:var(--secondary);margin-bottom:14px">Last updated: August 2026</p><div style="font-size:0.86rem;color:var(--text);line-height:1.6"><p style="margin-bottom:12px"><b>All sales are final.</b> Day one of every plan is free. A purchase unlocks the remaining days of a personalised digital behaviour plan, which are made available to you immediately. Because the plan is created for you and delivered in full at the moment of purchase, <b>all purchases are final and non-refundable.</b></p><p style="margin-bottom:12px"><b>If something goes wrong, we fix the plan - not refund it.</b> If your plan fails to generate, arrives incomplete, or has a genuine technical problem, we will <b>generate a new plan for you at no extra cost</b>. Our remedy for any issue with the plan is a replacement plan, not a return of money. In practice this means you always end up with a working plan.</p><p style="margin-bottom:12px"><b>You agree to this at checkout.</b> Before paying, you expressly request immediate delivery of your digital plan and acknowledge that you therefore <b>lose the 14-day right of withdrawal</b> that would otherwise apply to distance purchases (Article 43č of the Slovenian Consumer Protection Act ZVPot-1, implementing Article 16(m) of Directive 2011/83/EU). Changing your mind after purchase is not grounds for a refund.</p><p style="margin-bottom:12px"><b>You try it before you buy.</b> Day one of your plan is free, with no card details, so you can see exactly what the guidance looks like for your own pet before deciding whether to pay for the rest of the week. If you are unsure whether The Nuci is right for you, contact us <b>before</b> paying and we will gladly answer.</p><p style="margin-bottom:12px"><b>Not veterinary advice.</b> The plan is educational behavioural guidance, not a cure or a guarantee of any outcome. A plan that did not produce the result you hoped for is not a faulty product; we can generate a fresh plan, but this is not grounds for a refund.</p><p style="margin-bottom:12px"><b>Genuine billing errors.</b> The one thing a replacement plan cannot fix is a payment mistake - for example being charged twice for the same purchase. Consumer law does not let us waive that, so in a true billing error we will correct the charge. This does not apply to change-of-mind or dissatisfaction with the guidance.</p><p style="margin-bottom:0"><b>Contact.</b> Email <b>hello@thenuci.com</b> with your account email and Stripe receipt and we will sort it out - a new plan for any plan problem, or a corrected charge for a genuine billing error. Please reach out before opening a bank chargeback; we can usually resolve things faster.</p></div>`;
 function openLegal(kind){
   var map={terms:T_TERMS, privacy:T_PRIV, impressum:T_IMPRESSUM, cookies:T_COOKIES, refund:T_REFUND};
   openSheet(map[kind] || T_TERMS);
@@ -4778,7 +5348,10 @@ function syncPriceHero(){
     if(!p) return;
     var price=Number(p.price).toFixed(2);
     var anchor=p.anchor?Number(p.anchor).toFixed(2):null;
-    ['phAmount','phAmount2'].forEach(function(id){ var e=document.getElementById(id); if(e) e.textContent=price; });
+    // The landing now leads with the free first day, so the two big numbers stay as "Free".
+    // The 9.95 that follows is written into the supporting line instead, and is kept in sync
+    // here so a price change never leaves the landing saying something untrue.
+    document.querySelectorAll('.js-fullprice').forEach(function(e){ e.textContent='\u20AC'+price; });
     // regular price only - no struck-through anchor, no save badge
   }catch(e){}
 }
@@ -4794,6 +5367,21 @@ const DAY_FALLBACK=[
   {title:'Consolidate',sub:'Lock in the change',desc:'Repeat the successful pattern.',tasks:['Repeat the successful setup from Day 5','Keep rewards frequent','Let your pet set the pace','Note the difference vs Day 1']},
   {title:'New normal',sub:'Life after the plan',desc:'Keep the wins and plan the future.',tasks:['Do the full new routine start to finish','Celebrate the progress you both made','Write down what worked best','Decide what to keep doing weekly']}
 ];
+// An outline day (title only, no tasks yet) must be written before the owner reaches it.
+// Normally the evening check-in does this; this is the safety net for every other route in.
+function ensureDayWritten(n){
+  if(!n || n<1) return;
+  if(dayLocked(n)) return;                       // not theirs to see yet
+  var ov=state.planOverrides&&state.planOverrides[n];
+  if(ov && ov.tasks && ov.tasks.length) return;  // already written
+  var ad=state.aiPlan&&state.aiPlan.days&&state.aiPlan.days[n-1];
+  if(ad && ad.tasks && ad.tasks.length) return;  // came with the plan
+  window.__writingDay=window.__writingDay||{};
+  if(window.__writingDay[n]) return;             // already in flight
+  window.__writingDay[n]=true;
+  try{ adaptNextDay(n); }catch(e){}
+  setTimeout(function(){ try{ delete window.__writingDay[n]; }catch(e){} }, 30000);
+}
 function dayData(n){
   const ov=state.planOverrides&&state.planOverrides[n];
   const base=DAY_FALLBACK[n-1]||DAY_FALLBACK[0];
@@ -5384,8 +5972,10 @@ async function generatePlanAI(){
       }
     }catch(e){}
     if(!res){
+      // On the free day-one trial we only need day 1 in full plus the shape of the week; days
+      // 2-7 are written one at a time each evening from the owner's check-ins.
       res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({answers:state.answers,lang:appLang()})});
+        body:JSON.stringify({answers:state.answers,lang:appLang(),dayOneOnly:!!state.__trialPending})});
     }
     try{ nuciTrack('gen_target', (state.answers&&state.answers.petName)||'?'); }catch(e){}
     if(!res.ok) throw new Error('ai '+res.status);
@@ -5764,6 +6354,16 @@ async function runPaidReturn(){
 
 async function handlePaidReturn(demo){
   window.__handlingPaidReturn=true;
+  // On the free day-one trial the whole week already exists - payment just unlocks it.
+  if(state.trialStart && !state.purchased && !state.__addPetPending){
+    trialUnlock();
+    state.planCredits=Math.max(1,(state.planCredits||0));
+    try{ localStorage.removeItem('pendingState'); }catch(e){}
+    try{ history.replaceState({},'',location.pathname); }catch(e){}
+    enterApp(); toast('Unlocked - your full week is ready');
+    window.__handlingPaidReturn=false;
+    return;
+  }
   // The Stripe redirect reloads the page, so the in-memory add-pet context is gone. Restore it
   // from pendingState first - otherwise the new pet overwrites the existing one, the extra plan
   // isn't counted, and the pet switcher never appears.
@@ -6020,6 +6620,7 @@ let curTab='today';
 function enterApp(){
   // Close and archive anything that ran out while the owner was away, BEFORE painting a tab -
   // otherwise an expired plan quietly shows an empty Today with no explanation.
+  try{ trialCheck(); }catch(e){}
   try{ sweepExpiredPlans(); }catch(e){}
   showScreen('screen-app'); window.__tabStack=['today']; window.__navFromPop=true; showTab('today'); window.__navFromPop=false;
   requestAnimationFrame(function(){ positionNavPill(curTab||'today'); });
@@ -6378,7 +6979,9 @@ function segTaskHtml(segTasks,day){
 }
 function setTodaySeg(seg){
   state.__todaySeg=seg;
-  var day=state.currentDay||1, d=dayData(day), done=getTasksDone(day);
+  var day=state.currentDay||1;
+  try{ ensureDayWritten(day); }catch(e){}
+  var d=dayData(day), done=getTasksDone(day);
   var tasks=d.tasks.map(function(x,i){ return {label:taskLabel(x),detail:taskDetail(x),done:done.indexOf(i)>-1,i:i}; });
   var n=tasks.length, a1=Math.ceil(n/3), a2=Math.ceil(2*n/3);
   var checkedIn=state.lastCheckinDate===todayKey();
@@ -6558,7 +7161,9 @@ function hasActivePlan(){
   // An active plan = the user has purchased, has answers with a pet, an AI plan, and it isn't
   // archived/complete. This is what every tab checks to decide between content and the empty
   // "start a plan" state.
-  if(!(state.purchased && state.answers && state.answers.petName
+  // A free day-one trial counts as an active plan too - it is a real plan, just time-limited.
+  var entitled = state.purchased || (!!state.trialStart && trialPhase()==='free');
+  if(!(entitled && state.answers && state.answers.petName
        && state.aiPlan && state.aiPlan.days && state.aiPlan.days.length
        && !state.planComplete)) return false;
   // Also treat a plan whose calendar has fully run out as NOT active - covers older plans that
@@ -6686,6 +7291,9 @@ function renderFrozenToday(){
 }
 function renderToday(){
   if(state.maintenance){ renderMaintenanceToday(); return; }
+  try{ trialCheck(); }catch(e){}
+  // Free trial is over and unpaid: the only thing to show is how to carry on.
+  if(trialActive() && trialPhase()!=='free'){ renderTrialGate(); return; }
   if(!hasActivePlan()){ $('tab-today').innerHTML=emptyTabHtml('today'); return; }
   if(planFrozen()){ renderFrozenToday(); return; }
   // Advance the plan by the calendar (user's local date), independent of check-ins.
@@ -6699,6 +7307,9 @@ function renderToday(){
   var t=state.answers.petType||'other';
   // Late check-in banner: missed last night's window -> can still log it until noon.
   var __lateD=lateCheckinDay();
+  var trialBanner = trialActive() ? ('<div onclick="openTrialOffer()" style="display:flex;align-items:center;gap:11px;background:rgba(107,143,113,.12);border:1px solid rgba(107,143,113,.34);border-radius:16px;padding:12px 14px;margin:6px 0 12px;cursor:pointer">'
+    +'<span style="flex:1;font-size:.84rem;line-height:1.45;color:var(--text)">Day one is free. <b>'+trialFmtLeft()+'</b> left to unlock the rest of '+esc(state.answers.petName||'your pet')+'\u2019s week.</span>'
+    +'<span style="font-size:.8rem;color:var(--forest);white-space:nowrap">Unlock \u2192</span></div>') : '';
   var lateBanner=__lateD?('<div onclick="openLateCheckin()" style="display:flex;align-items:center;gap:11px;background:rgba(214,168,78,.13);border:1px solid rgba(214,168,78,.4);border-radius:16px;padding:12px 14px;margin:6px 0 12px;cursor:pointer">'
     +'<span style="font-size:20px">\uD83C\uDF19</span>'
     +'<span style="flex:1;font-size:.84rem;line-height:1.45;color:var(--text)">You missed yesterday\u2019s check-in. You can still log it <b>until 12:00</b>.</span>'
@@ -6765,7 +7376,7 @@ function renderToday(){
     h+='<div style="text-align:center;margin-top:18px">'
       +'<button onclick="openNotWorking()" style="background:none;border:none;color:var(--secondary);font-family:inherit;font-size:.84rem;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:8px">This isn\u2019t working for '+esc(pet)+'</button></div>';
   }
-  $('tab-today').innerHTML=lateBanner+h;
+  $('tab-today').innerHTML=trialBanner+lateBanner+h;
   hookGrow('todayNote');
 }
 // notes are stored per day as an array of {text,ts}. Migrate old string form transparently.
@@ -6899,10 +7510,14 @@ function renderPlanTab(){
       : st==='cur'?'background:#B9825B;border-color:#B9825B;color:#fff'
       : 'background:var(--bg);border-color:rgba(0,0,0,.14);color:var(--secondary)';
     var nodeTxt = st==='done'?icon('check','13px',2.6):nn;
-    h+='<div class="a-dayrow" style="position:relative;margin-bottom:14px">'
-      +'<div id="daynode-'+nn+'" class="a-daynode" onclick="openDay('+nn+')" style="position:absolute;left:-34px;top:0;width:24px;height:24px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;'+nodeBg+(isView?';box-shadow:0 0 0 3px rgba(107,143,113,.25)':'')+'">'+nodeTxt+'</div>'
-      +'<div id="daylbl-'+nn+'" class="a-daylbl" onclick="openDay('+nn+')" style="font-size:14px;padding-top:2px;cursor:pointer;'+(st==='lock'?'color:var(--secondary)':'color:var(--text)')+(isView?';font-weight:500':'')+'">Day '+nn+' \u00b7 '+esc(dd2.title)+'</div>'
-      +'<div id="dayexp-'+nn+'" class="a-dayexp'+(isView?' open':'')+'"><div class="a-dayexp-inner">'+(isView?dayCardHtml(nn):'')+'</div></div>'
+    // On the free day-one trial every later day is visible but locked behind payment.
+    var paywalled = dayLocked(nn);
+    if(paywalled){ nodeBg='background:var(--bg);border-color:rgba(0,0,0,.14);color:var(--secondary)'; nodeTxt=icon('lock','12px',2); }
+    var openFn = paywalled ? 'openTrialOffer()' : ('openDay('+nn+')');
+    h+='<div class="a-dayrow" style="position:relative;margin-bottom:14px'+(paywalled?';opacity:.55':'')+'">'
+      +'<div id="daynode-'+nn+'" class="a-daynode" onclick="'+openFn+'" style="position:absolute;left:-34px;top:0;width:24px;height:24px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;'+nodeBg+(isView?';box-shadow:0 0 0 3px rgba(107,143,113,.25)':'')+'">'+nodeTxt+'</div>'
+      +'<div id="daylbl-'+nn+'" class="a-daylbl" onclick="'+openFn+'" style="font-size:14px;padding-top:2px;cursor:pointer;'+(st==='lock'?'color:var(--secondary)':'color:var(--text)')+(isView?';font-weight:500':'')+'">Day '+nn+' \u00b7 '+esc(dd2.title)+'</div>'
+      +'<div id="dayexp-'+nn+'" class="a-dayexp'+((isView&&!paywalled)?' open':'')+'"><div class="a-dayexp-inner">'+((isView&&!paywalled)?dayCardHtml(nn):'')+'</div></div>'
       +'</div>';
   }
   h+='</div>';
@@ -8412,7 +9027,8 @@ async function finishCheckin(){
       +'<p style="font-size:0.92rem;color:var(--secondary);line-height:1.5;max-width:32ch;margin:0 auto 18px">'
       +'Tomorrow\u2019s plan is being adapted to what you told us. Streak: '+(state.streak||0)+' day'+((state.streak||0)>1?'s':'')+'.'
       +'</p><button class="btn btn-primary" onclick="closeSheet()">Done</button></div>');
-    adaptNextDay(nextDay);
+    // Don't spend an AI call adapting a day the owner cannot see yet (free trial, unpaid).
+    if(!dayLocked(nextDay)) adaptNextDay(nextDay);
     showTab('today');
     persistStateNow(); try{ checkNewBadges(); }catch(e){};
   }else{
@@ -8707,6 +9323,16 @@ function proceedNewPet(prefillFrom, targetName, targetType, petPhoto){
     ? { name:targetName, type:targetType||(prefillFrom.petType||'') } : null;
   state.__carryPetPhoto = petPhoto||null;   // keep the pet's existing photo on the new plan
   beginBlankPet();
+  if(ONEPAGER){
+    if(prefillFrom){
+      var keepOP=['petName','petType','species','breed','age','ageIdx','ageKey','ageYears','ageMonths','sex','neutered','sexFixed','environment','household'];
+      keepOP.forEach(function(k){ if(prefillFrom[k]!=null && prefillFrom[k]!=='') state.answers[k]=prefillFrom[k]; });
+      state.__prefilledPet=true;
+    } else { state.__prefilledPet=false; }
+    if(state.__carryPetPhoto){ state.petPhoto=state.__carryPetPhoto; }
+    opStart();
+    return;
+  }
   showScreen('screen-assessment');
   if(prefillFrom){
     // Carry over only the fields that don't change between plans for the same pet.
@@ -8745,11 +9371,11 @@ function startAnotherPet_OLD(){
   if(spareCredits() < 1){
     // no spare plan -> need to buy: go to a fresh assessment then the offer (payment) at the end
     state.__newPetFlow=false; state.__buyAnotherPet=true;
-    beginBlankPet(); showScreen('screen-assessment'); state.currentQ=0; renderQ(); return;
+    beginBlankPet(); if(ONEPAGER){ opStart(); return; } showScreen('screen-assessment'); state.currentQ=0; renderQ(); return;
   }
   // spare credit available -> free new pet, no payment/signup
   state.__newPetFlow=true; state.__buyAnotherPet=false;
-  beginBlankPet(); showScreen('screen-assessment'); state.currentQ=0; renderQ();
+  beginBlankPet(); if(ONEPAGER){ opStart(); return; } showScreen('screen-assessment'); state.currentQ=0; renderQ();
 }
 function beginBlankPet(){
   // RULE: nothing in the app changes until a plan is actually paid-for (if needed) AND generated.

@@ -85,8 +85,8 @@ exports.handler = async (event) => {
   // Cap request body size so a huge payload can't be used to run up token costs.
   if ((event.body || '').length > 12000) return { statusCode: 413, headers: CORS, body: JSON.stringify({ error: 'too_large' }) };
 
-  let answers = {}, lang = 'en', previewOnly = false, sorryMessage = false, extend = false, fromDay = 0, days = 0, priorCheckins = null, issue = '';
-  try { const b = JSON.parse(event.body || '{}'); answers = b.answers || {}; lang = b.lang || 'en'; previewOnly = !!b.previewOnly; sorryMessage = !!b.sorryMessage; extend = !!b.extend; fromDay = b.fromDay || 0; days = b.days || 0; priorCheckins = b.priorCheckins || null; issue = b.issue || ''; }
+  let answers = {}, lang = 'en', previewOnly = false, sorryMessage = false, extend = false, fromDay = 0, days = 0, priorCheckins = null, issue = '', dayOneOnly = false;
+  try { const b = JSON.parse(event.body || '{}'); answers = b.answers || {}; lang = b.lang || 'en'; previewOnly = !!b.previewOnly; dayOneOnly = !!b.dayOneOnly; sorryMessage = !!b.sorryMessage; extend = !!b.extend; fromDay = b.fromDay || 0; days = b.days || 0; priorCheckins = b.priorCheckins || null; issue = b.issue || ''; }
   catch (e) { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Bad JSON' }) }; }
 
   // A short, warm "we're sorry it didn't resolve" note, written around this pet and behaviour,
@@ -122,7 +122,24 @@ Write ONE short paragraph (55-80 words), second person, addressed to the owner. 
   // Preview mode: generate ONLY day 1 (plus the short explanation the preview shows). This
   // is ~7x less text than the full plan, so it returns in a couple of seconds instead of ~10.
   // The full 7-day plan is generated after payment, on the "generating" screen.
-  const sys = previewOnly ? `You are an expert companion-animal behaviourist. Produce just the FIRST day of a 7-day behaviour plan, as a teaser.
+  // DAY-ONE MODE: a full, usable day 1 plus the shape of the week (titles only for days 2-7).
+  // Much faster and cheaper than writing the whole week, and days 2-7 are written properly
+  // later, one at a time, from what the owner actually reports each evening.
+  const sysDayOne = `You are an expert companion-animal behaviourist. Produce day 1 of a 7-day behaviour plan IN FULL, plus the titles only for days 2 to 7.
+Return ONLY valid minified JSON (no markdown, no preamble) with EXACTLY these keys:
+{"behaviorExplain":string,"assessment":string,"seekProfessional":boolean,"professionalNote":string,"causes":string[],"whatNotToDo":string[],"days":[{"title":string,"sub":string,"desc":string,"tasks":[{"title":string,"detail":string}]}]}
+Rules:
+- "days" MUST contain exactly 7 items (day 1..7), in order.
+- Day 1 is COMPLETE: 4-5 tasks, each an OBJECT with "title" (short imperative action, 3-7 words) and "detail" (one concise sentence, 10-18 words, on HOW or WHY), specific to this pet and issue.
+- Days 2 to 7 are OUTLINE ONLY: give "title", "sub" and "desc", and set "tasks" to an empty array []. Do NOT write tasks for them.
+- The six outline days must form a sensible progression for this specific issue, so the owner can see where the week is going.
+- Titles are 1-3 words. "sub" is a 2-4 word tag. "desc" is one sentence.
+- If any warning sign suggests a medical issue (aggression/biting, not eating or drinking, lethargy, vomiting/diarrhea), set seekProfessional=true and explain briefly in professionalNote.
+- "causes": 2-3 likely causes. "whatNotToDo": 2-3 concise items. Keep behaviorExplain to 2 sentences.
+- Base everything on the owner's answers. Be specific to ${pet}. Language: write in the SAME language the owner used in their answers (detect it from their free-text answers). If their language is unclear, use "${lang}".
+- Never use em-dashes or en-dashes. Use a hyphen, comma, or full stop.`;
+
+  const sys = dayOneOnly ? sysDayOne : previewOnly ? `You are an expert companion-animal behaviourist. Produce just the FIRST day of a 7-day behaviour plan, as a teaser.
 Return ONLY valid minified JSON (no markdown, no preamble) with EXACTLY these keys:
 {"behaviorExplain":string,"causes":string[],"days":[{"title":string,"sub":string,"desc":string,"tasks":[{"title":string,"detail":string}]}]}
 Rules:
@@ -149,7 +166,7 @@ Rules:
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: MODEL, max_tokens: previewOnly ? 1500 : 5000, system: sys, messages: [{ role: 'user', content: user }] })
+      body: JSON.stringify({ model: MODEL, max_tokens: dayOneOnly ? 2200 : (previewOnly ? 1500 : 5000), system: sys, messages: [{ role: 'user', content: user }] })
     });
     if (!resp.ok) {
       const t = await resp.text();

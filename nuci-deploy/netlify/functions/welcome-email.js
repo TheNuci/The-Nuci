@@ -102,12 +102,12 @@ async function markWelcomeSent(email){
 function welcomeHtml(name, toEmail) {
   const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
   return nuciShell({
-      preheader: 'Your 7-day plan is ready.',
+      preheader: 'Day one of your plan is ready.',
       eyebrow: 'Welcome',
       titleHtml: name ? `Welcome, ${nuciAccent(name)}.` : `Welcome to ${nuciAccent('The Nuci')}.`,
-      bodyHtml: nuciPara("Your personalised 7-day behaviour plan is ready. Each day has a few small, specific steps: do them, check in each evening, and watch the pattern change.")
-        + nuciPara("The most important habit? A daily check-in. It's how your plan adapts to what's actually happening.",10)
-        + nuciBtn("Open the plan","https://thenuci.com/")
+      bodyHtml: nuciPara("Day one of your personalised plan is ready, and it is free. A few small, specific steps: do them, then check in this evening.")
+        + nuciPara("That evening check-in is the important habit. It is how each following day gets written around what actually happened.",10)
+        + nuciBtn("Open day one","https://thenuci.com/")
         + nuciBox(`<div style="font-family:Georgia,serif;font-style:italic;font-size:15px;color:${NUCI.ink};line-height:1.5">"Every behaviour has a cause."</div><div style="font-size:13px;color:${NUCI.sec};margin-top:6px;font-family:Arial,sans-serif">We'll help you find it, one day at a time.</div>`),
       unsubUrl: unsubUrl
     });

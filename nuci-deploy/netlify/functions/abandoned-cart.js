@@ -50,7 +50,11 @@ function nuciBox(inner){ return `<table role="presentation" width="100%" style="
 //   alter table profiles add column if not exists cart_nudge_sent boolean default false;
 
 const FROM = 'The Nuci <team@thenuci.com>';
-const MIN_AGE_MIN = 15;      // wait at least 15 minutes after signup
+// Retimed for the free day-one model (Aug 2026). Nudging 15 minutes after signup made no
+// sense any more: at that point the owner has a live, free plan and is using it. The three
+// stages now sit around the moments that actually matter - shortly before the free day runs
+// out, during the 12-hour hold, and one last soft note days later.
+const MIN_AGE_MIN = 1200;    // 20h - about four hours before the free day ends
 const MAX_AGE_MIN = 2880;    // ...within 48h (was 3h - too narrow to ever fire)
 
 function escapeHtml(s) {
@@ -84,12 +88,12 @@ function emailHtml(petName, toEmail, stage) {
   // Stage 2 · 48 hours. Address the most common reason people stall.
   if (stage === 2) {
     return nuciShell({
-      preheader: `${pet}'s plan is still waiting.`,
-      eyebrow: 'Two days on',
+      preheader: `${pet}'s plan is on hold.`,
+      eyebrow: 'On hold',
       titleHtml: `Behaviour rarely<br>${nuciAccent('fixes itself')}.`,
-      bodyHtml: nuciPara(`Most unwanted behaviour is a pattern, and patterns hold until something in the routine changes. That is exactly what ${pet}'s plan is for.`)
-        + nuciPara('You have already done the thinking. The plan is built and waiting.',10)
-        + nuciBtn(`Get ${pet}'s plan`, cta)
+      bodyHtml: nuciPara(`${pet}'s plan is paused rather than gone. Continuing picks it up from day two, with everything you logged still in place.`)
+        + nuciPara('Patterns hold until something in the routine changes. That is what the rest of the week is for.',10)
+        + nuciBtn(`Continue ${pet}'s week`, cta)
         + nuciBox([
             'Written from your answers, not a template',
             'One short check-in a day',
@@ -101,16 +105,16 @@ function emailHtml(petName, toEmail, stage) {
 
   // Stage 1 · 15 minutes. Warm, immediate.
   return nuciShell({
-    preheader: `${pet}'s plan is ready whenever you are.`,
-    eyebrow: 'Still thinking?',
-    titleHtml: `${nuciAccent(pet)}'s plan<br>is ready.`,
-    bodyHtml: nuciPara(`You answered the questions, the hard part's done. ${pet}'s personalised 7-day plan is built and waiting for you.`)
-      + nuciPara('One calmer week could start today.',10)
-      + nuciBtn(`Get ${pet}'s plan`, cta)
+    preheader: `A few hours left on ${pet}'s free day.`,
+    eyebrow: 'Your free day',
+    titleHtml: `The rest of the week<br>${nuciAccent('is written')}.`,
+    bodyHtml: nuciPara(`Day one of ${pet}'s plan has been yours to try. The remaining six days are ready, and unlock whenever you decide to carry on.`)
+      + nuciPara('If day one told you something useful, the week is where the pattern actually changes.',10)
+      + nuciBtn(`Continue ${pet}'s week`, cta)
       + nuciBox([
-          'A day-by-day plan built for '+pet,
-          'Daily check-ins that adapt',
-          'Progress you can actually see'
+          'Six more days, written for '+pet,
+          'Each evening adapts the next day',
+          'One payment, no subscription'
         ].map(tick).join('')),
     unsubUrl
   });
@@ -119,8 +123,8 @@ function emailHtml(petName, toEmail, stage) {
 async function sendEmail(apiKey, to, petName, stage) {
   const pet = petName || 'your pet';
   const subjects = {
-    1: petName ? `${petName} is waiting for your help \u{1F43E}` : `Your pet is waiting for your help \u{1F43E}`,
-    2: petName ? `Behaviour rarely fixes itself, ${petName}'s plan is ready` : `Behaviour rarely fixes itself`,
+    1: petName ? `A few hours left on ${petName}'s free day` : `A few hours left on your free day`,
+    2: petName ? `${petName}'s plan is on hold` : `Your plan is on hold`,
     3: petName ? `Still here whenever you are, for ${petName}` : `Still here whenever you are`
   };
   const subject = subjects[stage] || subjects[1];
@@ -194,7 +198,7 @@ export default async (req) => {
       });
       return new Response(
         `[v2 debug] ALL profiles (${rows.length}):\n\n` + (lines.join('\n') || 'table empty') +
-        `\n\nStages: 1st at 15min, 2nd at 48h, 3rd at 5 days. Requires purchased!=true and marketing_opt_out!=true.`,
+        `\n\nStages: 1st at 20h, 2nd at 27h, 3rd at 5 days. Requires purchased!=true and marketing_opt_out!=true.`,
         { status: 200, headers: { 'Content-Type': 'text/plain' } });
     } catch (e) {
       return new Response('[v2] debug2 error: '+String(e), { status: 200 });
@@ -226,7 +230,7 @@ export default async (req) => {
   }
 
   const now = Date.now();
-  const SECOND_NUDGE_MIN = 2880;   // 48 hours
+  const SECOND_NUDGE_MIN = 1620;   // 27h - inside the 12-hour hold, payment still resumes it
   const THIRD_NUDGE_MIN  = 7200;   // 5 days
   let sent = 0, skipped = 0, failed = 0;
   const diag = [];
