@@ -3148,6 +3148,9 @@ function opMagnet(card, ms){
 // Re-assert the anchor without animation (used when the keyboard opens/closes).
 function opHoldAnchor(){
   if(opOpen<0) return;
+  // opToggle drives heights AND scroll on one curve. Correcting mid-flight fights that loop
+  // frame by frame, so the accordion is left alone until it has settled.
+  if(opAnimRaf) return;
   var card=document.getElementById('opq'+opOpen);
   if(!card) return;
   // an animated scroll started before the previous card collapsed would land in the wrong
@@ -3157,20 +3160,49 @@ function opHoldAnchor(){
   var want=Math.max(0, Math.min(opCardTop(card)-opAnchorPad(), opMaxScroll()));
   if(Math.abs(opScrollTop()-want)>1){ opScrollSet(want); }
 }
+// HOLD the anchor across the whole keyboard animation instead of correcting once afterwards.
+//
+// A single late correction IS the jump: iOS scrolls the focused field into view over ~300ms,
+// that scroll gets painted, and one opScrollSet() at +60ms then yanks it back in a single
+// frame. Question 1 never showed it only because its anchor is 0 and the guard below found
+// nothing to correct - the bug was always there, just invisible at the top of the page.
+// Re-asserting every frame means the browser's scroll is undone before it is ever painted.
+var __opHoldT=[];
+function opHoldAnchorSoon(ms){
+  __opHoldT.forEach(clearTimeout); __opHoldT=[];
+  opHoldAnchor();
+  try{ requestAnimationFrame(opHoldAnchor); }catch(e){}
+  [16,32,60,100,150,220,300,400,520,ms||650].forEach(function(t){
+    __opHoldT.push(setTimeout(opHoldAnchor,t));
+  });
+}
+// Focus is the earliest signal we get - earlier than the viewport resize - so the hold starts
+// before iOS has moved anything.
+document.addEventListener('focusin',function(e){
+  var t=e.target;
+  if(!t || !t.classList || !t.classList.contains('op-field')) return;
+  var s=document.getElementById('screen-assess1');
+  if(!s || !s.classList.contains('active')) return;
+  opHoldAnchorSoon();
+},true);
 // The keyboard changes the visual viewport; hold our position instead of letting the browser
 // decide where the focused field should sit.
 (function(){
   if(!window.visualViewport) return;
-  var t=null;
+  var lastH=window.visualViewport.height;
   var onVV=function(){
+    var h=window.visualViewport.height, prev=lastH; lastH=h;
     var s=document.getElementById('screen-assess1');
     if(!s || !s.classList.contains('active')) return;
     // ONLY when a text field is focused, i.e. the on-screen keyboard. Scrolling also fires this
     // event (the browser toolbar collapsing), and correcting then yanked the page to the top.
     var a=document.activeElement;
     if(!a || !a.classList || !a.classList.contains('op-field')) return;
-    clearTimeout(t);
-    t=setTimeout(function(){ opHoldAnchor(); }, 60);
+    // Distinguish the keyboard from the toolbar. A collapsing address bar moves the viewport
+    // by ~50-60px; the keyboard takes several hundred. Only the keyboard earns the full hold,
+    // so scrolling with the keyboard up is never yanked back.
+    if(Math.abs(h-prev) < 100){ return; }
+    opHoldAnchorSoon();
   };
   window.visualViewport.addEventListener('resize', onVV);
 })();
@@ -4460,9 +4492,15 @@ async function doRegister(){
       // memory (savedAt = a minute ago) as a NEWER snapshot OF THIS ACCOUNT: it skipped the
       // download, kept the draft, and uploaded it OVER the real plan in Supabase. Same bug
       // that was fixed in doLogin - this was the second door into it.
-      await loadStateForUser(email);
+      var hadReg=await loadStateForUser(email);
       state.userEmail=email;
       btn.disabled=false; btn.textContent='Create account';
+      if(hadReg===false){
+        // Signed in, but the profile did not load. Never persist on top of that - see
+        // doKnownProfileLogin for the same guard and why it matters.
+        err.textContent='Could not load your profile just now. Check your connection and try again.';
+        return;
+      }
       afterKnownProfileLogin();
       return;
     }
@@ -4612,9 +4650,16 @@ async function doKnownProfileLogin(){
       if(err) err.textContent='That password does not match this email. Try again, or reset it below.';
       return;
     }
-    await loadStateForUser(email);   // load FIRST...
-    state.userEmail=email;           // ...then claim the email (freshness guard - see doRegister)
+    var had=await loadStateForUser(email);   // load FIRST...
+    state.userEmail=email;                   // ...then claim the email (freshness guard - see doRegister)
     if(btn){ btn.disabled=false; btn.textContent='Log in'; }
+    if(had===false){
+      // The sign-in worked but the profile did not come back (network, RLS, a transient
+      // Supabase error). state still holds the anonymous questionnaire from this device, and
+      // persisting it now would upload that draft OVER the real plan. Stop instead.
+      if(err) err.textContent='Could not load your profile just now. Check your connection and try again.';
+      return;
+    }
     closeSheet();
     afterKnownProfileLogin();
   }catch(e){
@@ -4629,6 +4674,17 @@ async function doKnownProfileLogin(){
 function afterKnownProfileLogin(){
   applyPetDraft();
   if(accountEverHadPlan()){
+    // A live plan on the account must show the plan, not a blank app. Older trial plans were
+    // saved before trialStart was persisted at all, so rebuild the clock from planStartDate -
+    // same repair doLogin does, because this path can now be the only way a returner gets in.
+    if(!state.purchased && !state.trialStart
+       && state.aiPlan && state.aiPlan.days && state.aiPlan.days.length && !state.planComplete){
+      try{
+        state.trialStart = state.planStartDate
+          ? new Date(state.planStartDate+'T00:00:00').toISOString()
+          : new Date(Date.now()-48*3600000).toISOString();
+      }catch(e){ state.trialStart=new Date(Date.now()-48*3600000).toISOString(); }
+    }
     try{ persistStateNow(); }catch(e){}
     enterApp();
     var d=state.savedPetDraft;
@@ -4686,9 +4742,7 @@ function discardSavedPetDraft(){
   state.savedPetDraft=null;
   try{ persistState(); }catch(e){}
   closeSheet();
-  var saved=savedPetsList();
-  if(saved.length){ chooseExistingPet(saved); return; }
-  proceedNewPet();
+  proceedNewPet();   // same blank questionnaire as everywhere else
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5259,6 +5313,13 @@ function closeQR(){ document.getElementById('qrModal').classList.remove('open');
 function goApp(){
   try{ nuciTrack('landing_cta'); }catch(e){}
   if(isDesktop()){ openQR('start=1','Start on your phone'); return; }
+  // Safety net. startFreshFlow() calls startFreshState(), so if a live plan is sitting in
+  // memory this one tap wipes it. Open the plan instead - nobody taps the landing CTA meaning
+  // "throw away the week I am on".
+  if(state.answers && state.answers.petName && state.aiPlan
+     && state.aiPlan.days && state.aiPlan.days.length && !state.planComplete){
+    try{ enterApp(); return; }catch(e){}
+  }
   startFreshFlow();
 }
 function startFreshFlow(){
@@ -5769,7 +5830,50 @@ onScroll();
 // Kick the landing's animations the first time it's shown, and re-run the
 // scroll-driven bits on every return so nothing is left mid-animation.
 var __landingInit=false;
+// ═════ HOLD THE LANDING AT THE TOP ═════
+// showScreen() already calls scrollTo(0,0), but on iOS WebKit that is not enough: the browser
+// applies its OWN scroll restoration asynchronously, AFTER our first paint, and the layout
+// height changes again when Fraunces/Inter finish loading. Both overwrite a single early
+// scrollTo, which is how the page opened parked mid-hero with the sticky nav scrolled away
+// and refused to move for a second or two. history.scrollRestoration='manual' does not cover
+// this - it governs history navigation, not a tab being reopened.
+//
+// So we HOLD the top for a short window instead of setting it once, and hand scrolling back
+// the instant the visitor touches the screen. We never fight a real scroll.
+var __landingPinT=[];
+function __landingPinRelease(){
+  __landingPinT.forEach(clearTimeout); __landingPinT=[];
+  window.removeEventListener('touchstart',__landingPinRelease);
+  window.removeEventListener('wheel',__landingPinRelease);
+  window.removeEventListener('keydown',__landingPinRelease);
+}
+function pinLandingTop(){
+  var give=function(){
+    if(!landingActive()) return;
+    // A scroll lock left behind by a previous session (body{position:fixed;top:-Npx}) looks
+    // exactly like a scrolled page that will not scroll. If nothing owns the lock, drop it.
+    try{
+      if(document.body.classList.contains('scroll-locked') && !scrollLocked()){
+        document.body.classList.remove('scroll-locked');
+        document.body.style.top='';
+      }
+    }catch(e){}
+    try{ window.scrollTo(0,0); }catch(e){}
+    try{ document.documentElement.scrollTop=0; document.body.scrollTop=0; }catch(e){}
+  };
+  __landingPinRelease();
+  give();
+  try{ requestAnimationFrame(give); }catch(e){}
+  [40,110,220,380,600,900,1300].forEach(function(t){ __landingPinT.push(setTimeout(give,t)); });
+  // Web fonts resize the headline, which is the other moment WebKit re-applies its offset.
+  try{ if(document.fonts && document.fonts.ready) document.fonts.ready.then(give).catch(function(){}); }catch(e){}
+  // Any deliberate scroll ends the hold immediately.
+  window.addEventListener('touchstart',__landingPinRelease,{passive:true,once:true});
+  window.addEventListener('wheel',__landingPinRelease,{passive:true,once:true});
+  window.addEventListener('keydown',__landingPinRelease,{once:true});
+}
 function initLanding(){
+  try{ pinLandingTop(); }catch(e){}
   try{
     if(!__landingInit){
       __landingInit=true;
@@ -9830,11 +9934,15 @@ function startAnotherPet(){
   // rather than asking the same questions again.
   var __dr=state.savedPetDraft;
   if(__dr && __dr.answers && __dr.answers.petName){ offerSavedPetDraft(__dr); return; }
-  // From INSIDE the profile: if the owner already has saved pets, first ask whether this plan
-  // is for one of them or a brand-new pet. Choosing an existing pet prefills the details that
-  // don't change (name, species, breed, age, sex, neutered) so they only answer what's new.
-  var saved=savedPetsList();
-  if(saved.length){ chooseExistingPet(saved); return; }
+  // Adding a pet opens the SAME blank questionnaire the app itself opens with - no chooser in
+  // between. proceedNewPet() with no prefill runs beginBlankPet() then opStart(), which is
+  // exactly what beginQuestionnaire() does for a first-time visitor.
+  //
+  // The old "Who is this plan for?" sheet is what made this feel like a different screen: if
+  // you picked an existing pet it prefilled name/species/breed/age and jumped the questionnaire
+  // past every question it had already filled, so you landed mid-flow instead of at question
+  // one. chooseExistingPet() and planForExistingPet() are left in place - they still guard the
+  // "one active plan per pet" rule - but nothing routes into them from here any more.
   proceedNewPet();
 }
 // The pets the owner has saved (dedup by name), each with the answers we can prefill from.
@@ -10701,6 +10809,28 @@ async function adaptNextDay(nextDay){
         } else { enterApp(); }
         // Arrived from the "Check in" email button -> jump straight to the check-in if the
         // window is open, otherwise the Today tab shows when it opens.
+        if(wantCheckin){ setTimeout(function(){ try{ if(checkinWindowOpen() && state.lastCheckinDate!==todayKey()) openCheckin(); }catch(e){} }, 400); }
+        return;
+      }
+      // Logged in with a LIVE FREE-DAY (trial) plan. The branch above requires `purchased`,
+      // so a trial owner matched nothing and fell all the way through to the landing page -
+      // and the fall-through runs startFreshState(), which wipes the plan that was just
+      // loaded. Tapping "Start day one" then handed them a brand-new questionnaire on top of
+      // the plan they already had. doLogin has had this branch since the trial shipped;
+      // route() never got it, so it only bit people arriving with a live session.
+      if(had && state.answers && state.answers.petName
+         && state.aiPlan && state.aiPlan.days && state.aiPlan.days.length && !state.planComplete){
+        // Plans created before trialStart was persisted have no clock - rebuild it from the
+        // start date so they land in the app (usually on the unlock gate) instead of nowhere.
+        if(!state.trialStart){
+          try{
+            state.trialStart = state.planStartDate
+              ? new Date(state.planStartDate+'T00:00:00').toISOString()
+              : new Date(Date.now()-48*3600000).toISOString();
+            persistState();
+          }catch(e){ state.trialStart=new Date(Date.now()-48*3600000).toISOString(); }
+        }
+        enterApp();   // enterApp runs trialCheck, so an expired trial shows the unlock gate
         if(wantCheckin){ setTimeout(function(){ try{ if(checkinWindowOpen() && state.lastCheckinDate!==todayKey()) openCheckin(); }catch(e){} }, 400); }
         return;
       }
