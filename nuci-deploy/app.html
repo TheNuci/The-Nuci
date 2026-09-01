@@ -248,6 +248,12 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .op-mark .stop{color:var(--sage)}
 .op-scroll{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   padding:0 22px calc(10px + env(safe-area-inset-bottom))}
+/* When the browser scrolls a focused field into view it stops at the very top of the scroll
+   port, which would put the field under the sticky .op-top bar. This reserves that band so the
+   browser's own scroll lands correctly and no correction from us is needed. */
+html{scroll-padding-top:96px}
+.op-scroll{scroll-padding-top:96px}
+.op-field{scroll-margin-top:96px;scroll-margin-bottom:24px}
 .op-intro{padding:14px 0 22px}
 .op-h{font-size:clamp(2rem,9vw,2.6rem);letter-spacing:-.045em;line-height:1.06}
 .op-sub{color:var(--secondary);font-size:.95rem;margin-top:10px}
@@ -3322,15 +3328,15 @@ function opHoldAnchorSoon(ms){
     __opHoldT.push(setTimeout(opHoldAnchor,t));
   });
 }
-// Focus is the earliest signal we get - earlier than the viewport resize - so the hold starts
-// before iOS has moved anything.
-document.addEventListener('focusin',function(e){
-  var t=e.target;
-  if(!t || !t.classList || !t.classList.contains('op-field')) return;
-  var s=document.getElementById('screen-assess1');
-  if(!s || !s.classList.contains('active')) return;
-  opHoldAnchorSoon();
-},true);
+// DELIBERATELY NOTHING ON FOCUS.
+//
+// "The screen goes down, then up" is two separate movements: DOWN is the browser revealing the
+// focused field as the keyboard opens, UP is us dragging it back to the anchor. Correcting
+// harder only ever made the second movement more reliable - it can never remove the first,
+// because the browser has already painted by the time any of our handlers run.
+// So we let the browser make its ONE scroll and leave it alone. scroll-padding-top on the
+// container (see .op-scroll in the CSS) keeps that scroll from tucking the field under the
+// sticky progress bar, which is the only thing the correction was really buying us.
 // The keyboard changes the visual viewport; hold our position instead of letting the browser
 // decide where the focused field should sit.
 (function(){
@@ -3348,7 +3354,11 @@ document.addEventListener('focusin',function(e){
     // by ~50-60px; the keyboard takes several hundred. Only the keyboard earns the full hold,
     // so scrolling with the keyboard up is never yanked back.
     if(Math.abs(h-prev) < 100){ return; }
-    opHoldAnchorSoon();
+    // Only on the way BACK: when the keyboard closes the viewport grows and re-anchoring is
+    // invisible, because nothing is being revealed at the same time. On the way in we stay out
+    // of it entirely - that is the whole point of the note above.
+    if(h <= prev) return;
+    opHoldAnchorSoon(320);
   };
   window.visualViewport.addEventListener('resize', onVV);
 })();
@@ -3517,9 +3527,6 @@ function opStart(){
   var first=document.getElementById('opq0');
   var q0=opQuestions()[0];
   if(first && q0) opFocusOpen(first, q0, 60);
-  // The focus above opens the keyboard ~60ms from now. Hold the anchor across that, exactly as
-  // every later question does, so entering the questionnaire never flicks either.
-  try{ opHoldAnchorSoon(); }catch(e){}
 }
 function opFinish(){
   var qs=opQuestions();
