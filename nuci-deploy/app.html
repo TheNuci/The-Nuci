@@ -2185,6 +2185,7 @@ function serializeState(){
     trialStart:state.trialStart||null,
     badges:(state.badges&&state.badges.length?state.badges:(state.__badges||[])),
     plansGenerated:state.plansGenerated||0,
+    savedPetDraft:state.savedPetDraft||null,
     __planSig:state.__planSig||null, __previewSig:state.__previewSig||null,
     _newDesign:true
   };
@@ -4426,16 +4427,43 @@ async function doRegister(){
   if(!supa){ err.textContent='Connection error - please try again.'; return; }
   const btn=document.querySelector('#regCta .btn'); btn.disabled=true; btn.textContent='Creating account...';
   try{
-    // Try to SIGN IN first. RLS only lets a user read their own row once authenticated, so an
-    // anonymous "does this email exist?" lookup wouldn't work. Instead: if sign-in succeeds,
-    // the account already exists - load its profile (pets, plans, purchased) and go straight in.
+    // STEP 0 - do we already know this email? RLS makes an anonymous "does this email exist?"
+    // lookup impossible from the client, so it goes through a service-role Netlify function
+    // that answers with exactly two booleans and nothing else.
+    //
+    // THE RULE: the free first day belongs to an email that either does not exist at all, or
+    // exists and has NEVER had a plan of any kind. Everything else - a bought plan, a finished
+    // plan, a used free day, spare credits - is a returning owner: they log in, and a new pet
+    // is started from their Profile at full price.
+    var known={exists:false,hasPlan:false};
+    try{
+      var kres=await fetch('/.netlify/functions/check-email',{method:'POST',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})});
+      if(kres.ok){ var kj=await kres.json(); known.exists=!!kj.exists; known.hasPlan=!!kj.hasPlan; }
+    }catch(e){}   // function unreachable -> fall through to the sign-in probe below
+    if(known.exists){
+      // Do NOT attempt signUp: this email is taken. Keep the questionnaire they just walked
+      // and ask them to log in, with copy that matches which of the two cases this is.
+      stashPetDraft();
+      btn.disabled=false; btn.textContent='Create account';
+      showKnownProfileSheet(email, known.hasPlan);
+      return;
+    }
+    // FALLBACK PROBE, only reached when check-email is unavailable. Try to sign in: if it
+    // succeeds the account exists and we are authenticated, so we can read the profile and
+    // decide from the real data instead.
     const {error:signInErr}=await supa.auth.signInWithPassword({email,password:pass});
     if(!signInErr){
-      // Existing account, correct password -> load it and enter.
-      state.userEmail=email;
+      stashPetDraft();
+      // ORDER MATTERS. state.userEmail is assigned AFTER the load. Assigning it before made
+      // loadStateForUser's freshness guard treat the anonymous questionnaire draft held in
+      // memory (savedAt = a minute ago) as a NEWER snapshot OF THIS ACCOUNT: it skipped the
+      // download, kept the draft, and uploaded it OVER the real plan in Supabase. Same bug
+      // that was fixed in doLogin - this was the second door into it.
       await loadStateForUser(email);
+      state.userEmail=email;
       btn.disabled=false; btn.textContent='Create account';
-      enterApp();
+      afterKnownProfileLogin();
       return;
     }
     // Sign-in failed. Either the email exists but the password is wrong, or there's no account
@@ -4446,11 +4474,11 @@ async function doRegister(){
       options:{ emailRedirectTo: location.origin+'/confirm' }});
     var accountAlreadyExists = !!(error && /already|registered|exists/i.test(error.message||''));
     if(accountAlreadyExists){
-      // Email is taken and the password they typed doesn't match -> send them to log in.
-      err.style.color='';
-      err.textContent='You already have an account with this email. Please log in with your existing password.';
+      // Taken in auth.users but with no profiles row - a signUp that was never confirmed, which
+      // is why check-email said "new". Such an account has by definition never had a plan.
+      stashPetDraft();
       btn.disabled=false; btn.textContent='Create account';
-      try{ setTimeout(function(){ window.__loginFrom='register'; showScreen('screen-login'); var le=document.getElementById('logEmail'); if(le) le.value=email; }, 1400); }catch(e){}
+      showKnownProfileSheet(email, false);
       return;
     }
     if(error){ err.textContent=error.message; btn.disabled=false; btn.textContent='Create account'; return; }
@@ -4491,6 +4519,179 @@ async function doRegister(){
     else { welcomeNew(); }
   }catch(e){ err.textContent='Something went wrong - please try again.'; btn.disabled=false; btn.textContent='Create account'; }
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// "WE ALREADY KNOW THIS EMAIL"
+//
+// One sheet, two outcomes. The split is not "did you pay" but "has this account EVER had a
+// plan" - a used free day counts, because the free day is once per person, for life.
+//
+//   exists:false           -> normal registration, free day
+//   exists, hasPlan:false  -> log in, then the free day they never used, answers intact
+//   exists, hasPlan:true   -> log in, straight into the app. No free day, no offer screen.
+//                             The new pet is started from Profile, at full price.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Has this account ever had a plan? Deliberately the mirror image of trialEligible(), so the
+// two can never disagree. Used AFTER a profile is loaded; check-email answers the same question
+// server-side, before we are authenticated.
+function accountEverHadPlan(){
+  if(state.purchased || (state.planCredits||0)>0) return true;
+  if(Array.isArray(state.transactions) && state.transactions.length>0) return true;
+  if((state.plansGenerated||0)>0) return true;
+  if(state.trialStart) return true;
+  if(Array.isArray(state.archive) && state.archive.length>0) return true;
+  if(Array.isArray(state.pets) && state.pets.some(function(p){ return p&&p.aiPlan&&p.aiPlan.days&&p.aiPlan.days.length; })) return true;
+  return false;
+}
+
+// The questionnaire someone finished before logging in. It is held OUTSIDE state across the
+// load, because restoreState copies every key the server snapshot has - including a null
+// savedPetDraft - and would wipe it. Re-attached by applyPetDraft() once the load is done,
+// from where serializeState carries it to the cloud with the rest of the profile.
+var __petDraft=null;
+function stashPetDraft(){
+  try{
+    if(!(state.answers && state.answers.petName)) return;
+    __petDraft={
+      answers:JSON.parse(JSON.stringify(state.answers)),
+      aiPlan:state.aiPlan?JSON.parse(JSON.stringify(state.aiPlan)):null,
+      previewDay1:state.previewDay1||null,
+      aiBehaviorExplain:state.aiBehaviorExplain||null,
+      savedAt:Date.now()
+    };
+  }catch(e){}
+}
+function applyPetDraft(){ if(__petDraft){ state.savedPetDraft=__petDraft; __petDraft=null; } }
+
+function showKnownProfileSheet(email, hasPlan){
+  var pet=(state.answers&&state.answers.petName)?state.answers.petName:'';
+  var head = hasPlan ? 'We already know this profile' : 'This email is already registered';
+  var body = hasPlan
+    ? ('Log in and you are back where you left off. The free first day is for a first plan only'
+       + (pet ? (', so ' + esc(pet) + ' starts as a new plan from your Profile.') : '.'))
+    : 'You registered before but never started a plan, so your free first day is still waiting. Log in and it carries straight on.';
+  var kept = pet
+    ? '<p style="font-size:.78rem;color:var(--secondary);line-height:1.5;margin-top:14px;text-align:center">Your answers for '+esc(pet)+' are saved.</p>'
+    : '';
+  openSheet(
+    '<div class="d-eb" style="color:var(--sage)">Welcome back</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-.02em;margin:6px 0 8px">'+head+'</h2>'
+    +'<p style="font-size:.9rem;color:var(--secondary);line-height:1.55;margin-bottom:16px">'+body+'</p>'
+    +'<div class="field" style="margin-bottom:12px"><input id="kpEmail" type="email" placeholder="Email" autocomplete="email" value="'+esc(email)+'"></div>'
+    +'<div class="field" style="margin-bottom:14px"><input id="kpPass" type="password" placeholder="Password" autocomplete="current-password"></div>'
+    +'<div class="auth-err" id="kpErr"></div>'
+    +'<button class="btn btn-primary" id="kpBtn" style="width:100%;margin-top:4px" onclick="doKnownProfileLogin()">Log in</button>'
+    +'<p style="font-size:.85rem;color:var(--secondary);margin-top:12px;text-align:center"><span class="auth-link" onclick="forgotPassFor(\''+esc(email)+'\')">Forgot password?</span></p>'
+    +kept
+  );
+  setTimeout(function(){ var p=document.getElementById('kpPass'); if(p){ try{ p.focus({preventScroll:true}); }catch(e){} } },240);
+}
+
+function forgotPassFor(email){
+  closeSheet();
+  var le=document.getElementById('logEmail'); if(le) le.value=email;
+  window.__loginFrom='register';
+  showScreen('screen-login');
+  setTimeout(function(){ try{ forgotPass(); }catch(e){} },280);
+}
+
+async function doKnownProfileLogin(){
+  var ee=document.getElementById('kpEmail'), pp=document.getElementById('kpPass');
+  var err=document.getElementById('kpErr'), btn=document.getElementById('kpBtn');
+  var email=((ee&&ee.value)||'').trim().toLowerCase();
+  var pass=(pp&&pp.value)||'';
+  if(err) err.textContent='';
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ if(err) err.textContent='Enter a valid email address.'; return; }
+  if(!pass){ if(err) err.textContent='Enter your password.'; return; }
+  if(!supa){ if(err) err.textContent='Connection error - please try again.'; return; }
+  if(btn){ btn.disabled=true; btn.textContent='Logging in...'; }
+  try{
+    var r=await supa.auth.signInWithPassword({email:email,password:pass});
+    if(r.error){
+      if(btn){ btn.disabled=false; btn.textContent='Log in'; }
+      if(err) err.textContent='That password does not match this email. Try again, or reset it below.';
+      return;
+    }
+    await loadStateForUser(email);   // load FIRST...
+    state.userEmail=email;           // ...then claim the email (freshness guard - see doRegister)
+    if(btn){ btn.disabled=false; btn.textContent='Log in'; }
+    closeSheet();
+    afterKnownProfileLogin();
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='Log in'; }
+    if(err) err.textContent='Something went wrong - please try again.';
+  }
+}
+
+// Where a known email lands after logging in. Never startFreeDayOne() by way of a history:
+// goAfterAuth() is only reached for an account that has genuinely never had a plan, where
+// trialEligible() will agree.
+function afterKnownProfileLogin(){
+  applyPetDraft();
+  if(accountEverHadPlan()){
+    try{ persistStateNow(); }catch(e){}
+    enterApp();
+    var d=state.savedPetDraft;
+    if(d && d.answers && d.answers.petName){
+      toast('Answers for '+d.answers.petName+' saved - start the plan from Profile');
+    }
+    return;
+  }
+  // Registered but never started anything: treat exactly as a first-time user, with the
+  // answers they just gave put back on top.
+  var dr=state.savedPetDraft;
+  if(dr && dr.answers && dr.answers.petName){
+    state.answers=JSON.parse(JSON.stringify(dr.answers));
+    if(dr.aiPlan) state.aiPlan=dr.aiPlan;
+    if(dr.previewDay1) state.previewDay1=dr.previewDay1;
+    if(dr.aiBehaviorExplain) state.aiBehaviorExplain=dr.aiBehaviorExplain;
+    state.savedPetDraft=null;
+  }
+  try{ persistStateNow(); }catch(e){}
+  goAfterAuth();
+}
+
+// ---- Picking the parked questionnaire back up, from Profile ----
+function offerSavedPetDraft(dr){
+  var nm=dr.answers.petName||'your pet';
+  openSheet(
+    '<div class="d-eb" style="color:var(--sage)">Saved answers</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-.02em;margin:6px 0 8px">Continue with '+esc(nm)+'?</h2>'
+    +'<p style="font-size:.9rem;color:var(--secondary);line-height:1.55;margin-bottom:18px">You answered the questions for '+esc(nm)+' before logging in. Pick those up, or start a different pet.</p>'
+    +'<button class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="resumeSavedPetDraft()">Continue with '+esc(nm)+'</button>'
+    +'<button class="btn" style="width:100%;background:rgba(107,143,113,.12);color:var(--forest);border:none" onclick="discardSavedPetDraft()">Start a different pet</button>'
+  );
+}
+function resumeSavedPetDraft(){
+  var dr=state.savedPetDraft;
+  if(!dr||!dr.answers){ closeSheet(); return; }
+  closeSheet();
+  var needsPayment = spareCredits() < 1;
+  state.__newPetFlow = !needsPayment;
+  state.__buyAnotherPet = needsPayment;
+  state.__planForExistingPet = null;
+  state.__carryPetPhoto = null;
+  beginBlankPet();                 // scratch pet: nothing is committed until a plan exists
+  state.answers=JSON.parse(JSON.stringify(dr.answers));
+  if(dr.aiPlan) state.aiPlan=dr.aiPlan;
+  if(dr.previewDay1) state.previewDay1=dr.previewDay1;
+  if(dr.aiBehaviorExplain) state.aiBehaviorExplain=dr.aiBehaviorExplain;
+  state.savedPetDraft=null;
+  state.__prefilledPet=true;
+  try{ persistState(); }catch(e){}
+  if(typeof ONEPAGER!=='undefined' && ONEPAGER){ opStart(); return; }
+  showScreen('screen-assessment'); state.currentQ=0; state.__entryQ=0; renderQ();
+}
+function discardSavedPetDraft(){
+  state.savedPetDraft=null;
+  try{ persistState(); }catch(e){}
+  closeSheet();
+  var saved=savedPetsList();
+  if(saved.length){ chooseExistingPet(saved); return; }
+  proceedNewPet();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════════════
 // EMAIL CONFIRMATION — 6-DIGIT CODE (replaces the magic-link round trip)
 //
@@ -8636,6 +8837,7 @@ function renderProfileTab(){
           var dnum=Math.min((pe.planLength||7), planElapsedDays(pe)+1);
           stTxt='Day '+dnum+' of '+(pe.planLength||7); stCol='var(--forest)';
         }
+        else if(pe && !(pe.aiPlan && pe.aiPlan.days && pe.aiPlan.days.length)){ stTxt='No plan yet'; }
         else { stTxt='Plan finished'; }
       }catch(e){ stTxt=''; }
       var sub=esc(a.breed||(ty.charAt(0).toUpperCase()+ty.slice(1)));
@@ -9548,6 +9750,14 @@ function syncActivePet(){
   // Never commit a blank pet (no name) into the pets array either.
   var hasPet = state.answers && state.answers.petName;
   if(!hasPet) return;
+  // A NAMED pet with no plan is not a pet yet - it is an unfinished questionnaire. Writing it
+  // into pets[] is what produced ghost rows in "My pets" reading "Plan finished" for a plan
+  // that never existed. Let it through only when it is already a real entry in pets[] (so that
+  // photo/answer edits on an archived pet still save).
+  if(!(state.aiPlan && state.aiPlan.days && state.aiPlan.days.length)){
+    var __cur=state.pets[state.activePet];
+    if(!(__cur && __cur.answers && __cur.answers.petName===state.answers.petName)) return;
+  }
   if(state.pets.length===0){ state.pets=[snapshotPet()]; state.activePet=0; }
   else if(state.activePet>=state.pets.length){ state.pets.push(snapshotPet()); state.activePet=state.pets.length-1; }
   else { state.pets[state.activePet]=snapshotPet(); }
@@ -9588,6 +9798,10 @@ function plansUsed(){
 }
 function spareCredits(){ return (state.planCredits||0) - plansUsed(); }
 function startAnotherPet(){
+  // A questionnaire finished before logging in is parked on the profile - offer to pick it up
+  // rather than asking the same questions again.
+  var __dr=state.savedPetDraft;
+  if(__dr && __dr.answers && __dr.answers.petName){ offerSavedPetDraft(__dr); return; }
   // From INSIDE the profile: if the owner already has saved pets, first ask whether this plan
   // is for one of them or a brand-new pet. Choosing an existing pet prefills the details that
   // don't change (name, species, breed, age, sex, neutered) so they only answer what's new.
