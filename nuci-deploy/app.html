@@ -80,8 +80,9 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
    the tab bar out of place and left a multi-screen blank page after an app switch. It is now
    applied through a temporary .anim class that is always removed again (animationend + a
    timeout, because a backgrounded tab never fires animationend). */
-.screen.active.anim{animation:screenIn .38s var(--ease)}
-@keyframes screenIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.screen.active.anim{animation:screenIn .44s var(--ease)}
+@keyframes screenIn{from{opacity:0;transform:translateY(12px) scale(.992)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.screen.active.anim{animation-duration:.01s}}
 
 /* buttons */
 .btn{width:100%;border:none;border-radius:16px;padding:17px;font-size:1rem;text-align:center;
@@ -217,7 +218,7 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .op-mark:active{opacity:.55}
 .op-mark .the{color:var(--sage)}
 .op-mark .stop{color:var(--sage)}
-.op-scroll{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;
+.op-scroll{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   padding:0 22px calc(10px + env(safe-area-inset-bottom))}
 .op-intro{padding:14px 0 22px}
 .op-h{font-size:clamp(2rem,9vw,2.6rem);letter-spacing:-.045em;line-height:1.06}
@@ -233,9 +234,13 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .opq.done .opq-t{color:var(--secondary)}
 .opq-v{font-size:.82rem;color:var(--forest);max-width:44%;text-align:right;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.opq-wrap{overflow:hidden;height:0;opacity:0;will-change:height,opacity}
+.opq-wrap{overflow:hidden;height:0;opacity:0;transform:translateZ(0);transition:opacity .3s var(--ease)}
 .opq.open .opq-wrap{opacity:1}
-.opq-in{padding:2px 2px 22px}
+/* The content of an opening question glides in on the compositor (opacity+transform run at
+   the display's native refresh - 120Hz on ProMotion - independent of the JS height tween). */
+.opq-in{padding:2px 2px 22px;opacity:0;transform:translateY(10px)}
+.opq.open .opq-in{opacity:1;transform:none;transition:opacity .34s var(--ease) .05s,transform .42s var(--ease) .05s}
+@media(prefers-reduced-motion:reduce){.opq-wrap,.opq-in,.opq.open .opq-in{transition:none;transform:none}}
 .opq-q{font-size:1.35rem;letter-spacing:-.035em;line-height:1.15;margin-bottom:16px}
 /* Always present, so the page ends at a predictable place and nothing shifts underfoot. */
 .op-foot{padding:24px 0 14px}
@@ -244,12 +249,16 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .op-note{text-align:center;font-size:.75rem;color:var(--secondary);margin-top:10px}
 .opage{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .opage button{background:var(--card);border:1.5px solid var(--border);border-radius:13px;padding:13px 4px;
-  font-family:inherit;font-size:.9rem;color:var(--text);cursor:pointer}
+  font-family:inherit;font-size:.9rem;color:var(--text);cursor:pointer;
+  transition:transform .14s var(--ease),border-color .16s,background .16s}
+.opage button:active{transform:scale(.955)}
 .opage button.selected{border-color:var(--sage);background:rgba(107,143,113,.10)}
 .petgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;width:100%}
 
 .petcard{background:var(--card);border:1.5px solid var(--border);border-radius:16px;box-shadow:var(--shadow);
-  padding:22px 10px;display:flex;flex-direction:column;align-items:center;gap:11px;transition:border-color .16s,background .16s}
+  padding:22px 10px;display:flex;flex-direction:column;align-items:center;gap:11px;
+  transition:border-color .16s,background .16s,transform .16s var(--ease)}
+.petcard:active{transform:scale(.965)}
 .petcard.selected{border-color:var(--sage);background:rgba(107,143,113,0.10)}
 .petcard .pi{width:32px;height:32px;color:var(--forest)}
 .petcard .pl{font-size:0.98rem}
@@ -2899,7 +2908,7 @@ function introBack(){ if(introIdx<=0){ showLanding(); return; } introIdx--; rend
 // and the adaptive follow-ups) are asked AFTER payment, when the full week is built.
 // Set ONEPAGER=false to fall back to the original one-question-per-screen flow, which is intact.
 var ONEPAGER = true;
-var OP_ANIM_MS = 700;          // accordion open/close duration - raise to 1000 for a slower feel
+var OP_ANIM_MS = 560;          // accordion open/close duration - raise to 1000 for a slower feel
 var opOpen = -1;
 
 function opQuestions(){
@@ -4234,6 +4243,30 @@ function trialCheck(){
     }
   }
 }
+// Live trial ticker. Without it the 24h boundary only took effect on the NEXT render or
+// reload: someone sitting in the open app kept full access past the deadline, and the
+// countdown banner showed a stale time. Every second: refresh the banner text; the moment
+// the phase leaves 'free', run trialCheck() (sets the grace freeze / archives) and repaint
+// whatever tab is on screen so the gate appears immediately.
+(function(){
+  var lastPh=null;
+  setInterval(function(){
+    try{
+      if(!trialActive()){ lastPh=null; return; }
+      var el=document.getElementById('trialLeft');
+      if(el) el.textContent=trialFmtLeft();
+      var ph=trialPhase();
+      if(ph!=='free' && lastPh!==ph){
+        lastPh=ph;
+        trialCheck();
+        var appOn=document.getElementById('screen-app');
+        if(appOn && appOn.classList.contains('active')){
+          try{ if(typeof curTab!=='undefined' && curTab!=='today' && curTab!=='profile'){ showTab('today'); } else { paintTab(curTab||'today'); } }catch(e){ try{ renderToday(); }catch(_){} }
+        }
+      }
+    }catch(e){}
+  },1000);
+})();
 // Buying from inside the trial: nothing to generate, just unlock the rest of the week.
 function trialUnlock(){
   state.trialStart=null;
@@ -6743,6 +6776,11 @@ function showTab(t){
   if(typeof planFrozen==='function' && planFrozen() && t!=='today' && t!=='profile'){
     haptic(10); toast('Plan is frozen \u2744\uFE0F - unfreeze on Today'); t='today';
   }
+  // Same lock for a trial whose free 24h have run out: planFrozen() requires state.purchased,
+  // so the trial's grace-freeze slipped through it and every other tab stayed reachable.
+  if(typeof trialActive==='function' && trialActive() && trialPhase()!=='free' && t!=='today' && t!=='profile'){
+    haptic(10); toast('The free day has ended - unlock the week to continue'); t='today';
+  }
   var prevTab=curTab;
   curTab=t;
   // Record tab changes for the browser back button, but ONLY while the main app is
@@ -7387,7 +7425,7 @@ function renderToday(){
   // Late check-in banner: missed last night's window -> can still log it until noon.
   var __lateD=lateCheckinDay();
   var trialBanner = trialActive() ? ('<div onclick="openTrialOffer()" style="display:flex;align-items:center;gap:11px;background:rgba(107,143,113,.12);border:1px solid rgba(107,143,113,.34);border-radius:16px;padding:12px 14px;margin:6px 0 12px;cursor:pointer">'
-    +'<span style="flex:1;font-size:.84rem;line-height:1.45;color:var(--text)">Day one is free. <b>'+trialFmtLeft()+'</b> left to unlock the rest of '+esc(state.answers.petName||'your pet')+'\u2019s week.</span>'
+    +'<span style="flex:1;font-size:.84rem;line-height:1.45;color:var(--text)">Day one is free. <b id="trialLeft">'+trialFmtLeft()+'</b> left to unlock the rest of '+esc(state.answers.petName||'your pet')+'\u2019s week.</span>'
     +'<span style="font-size:.8rem;color:var(--forest);white-space:nowrap">Unlock \u2192</span></div>') : '';
   var lateBanner=__lateD?('<div onclick="openLateCheckin()" style="display:flex;align-items:center;gap:11px;background:rgba(214,168,78,.13);border:1px solid rgba(214,168,78,.4);border-radius:16px;padding:12px 14px;margin:6px 0 12px;cursor:pointer">'
     +'<span style="font-size:20px">\uD83C\uDF19</span>'
@@ -10170,9 +10208,14 @@ async function adaptNextDay(nextDay){
       // Explicitly clicked "Log in" but this account has no plan -> send them to the login
       // screen so they can switch account, rather than silently showing the welcome page.
       if(wantLogin){ showScreen('screen-login'); return; }
-      // Otherwise a returning login-only user (no purchase): straight into a fresh start.
+      // Otherwise a returning login-only user (no purchase) with NO explicit intent: show the
+      // landing page, exactly like any other cold visit. This used to call startFlow(), which
+      // is why a device with a live Supabase session (e.g. the developer's own browser) opened
+      // thenuci.com straight into the tap game / questionnaire, while incognito and TikTok's
+      // in-app browser (no session) correctly showed the landing page.
       startFreshState();
-      startFlow(); return;
+      try{ showLanding(); }catch(e){ showScreen('screen-landing'); }
+      return;
     }
 
     // Explicit intent from the landing page takes priority over any restored progress.
