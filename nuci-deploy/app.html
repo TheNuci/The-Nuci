@@ -1659,6 +1659,10 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
 <!-- REGISTER -->
 <section class="screen" id="screen-register">
   <div class="auth-wrap">
+    <button class="auth-back" onclick="regBack()" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M15 18l-6-6 6-6"/></svg>
+      <span>Back</span>
+    </button>
     <h1 class="auth-h">Register to <span class="accent">save your settings.</span></h1>
     <div class="field" style="margin-bottom:12px"><input id="regName" placeholder="Name and surname" autocomplete="name"></div>
     <div class="field" style="margin-bottom:12px"><input id="regEmail" type="email" placeholder="Email" autocomplete="email"></div>
@@ -1681,7 +1685,7 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
 <!-- LOGIN -->
 <section class="screen" id="screen-login">
   <div class="auth-wrap">
-    <button class="auth-back" onclick="backToLanding()" aria-label="Back">
+    <button class="auth-back" onclick="loginBack()" aria-label="Back">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M15 18l-6-6 6-6"/></svg>
       <span>Back</span>
     </button>
@@ -2175,6 +2179,10 @@ function serializeState(){
     pets:state.pets||[], archive:state.archive||[], activePet:state.activePet||0,
     savedAt:Date.now(),
     frozenSince:state.frozenSince||null, freezeUsed:state.freezeUsed||false,
+    // The trial clock MUST survive save/load: without it, logging in again (or on another
+    // device) lost the live free-day plan entirely, and the 24h deadline could not be
+    // enforced across sessions.
+    trialStart:state.trialStart||null,
     badges:(state.badges&&state.badges.length?state.badges:(state.__badges||[])),
     plansGenerated:state.plansGenerated||0,
     __planSig:state.__planSig||null, __previewSig:state.__previewSig||null,
@@ -2712,11 +2720,20 @@ document.addEventListener('animationend',function(e){
   }
 },true);
 function showScreen(id){
+  // Record a REAL history entry for every user-driven screen change. These pushes happen
+  // inside click handlers (user activation), so Chrome/Safari's back-button intervention
+  // does not skip them - which is what made the old load-time "history trap" unreliable and
+  // let the browser back button throw people out of the app entirely.
+  var __prevActive=document.querySelector('.screen.active');
+  var __prevId=__prevActive?__prevActive.id:null;
   document.querySelectorAll('.screen').forEach(s=>{ s.classList.remove('active'); clearAnim(s); });
   // The one-page questionnaire is skipped: its entry animation leaves a transform on the
   // screen, which makes the first upward scroll jump. It appears without one.
   const el=$(id);
   if(el){ el.classList.add('active'); if(id!=='screen-assess1'){ playAnim(el,'anim'); } else { clearAnim(el); } }
+  if(__prevId && __prevId!==id && !window.__navFromPop){
+    try{ history.pushState({nuci:3, screen:id}, ''); }catch(e){}
+  }
   window.scrollTo(0,0);
   // The assessment is the one screen where iOS's focus auto-scroll can shove the whole page
   // out from under the fixed title/Next (.qbody scrolls internally, the window never needs
@@ -3294,6 +3311,18 @@ function opHome(){
   // Write immediately, not on the usual debounce: they may press Get started again within a
   // second, and the draft has to be there for the resume offer to find it.
   try{ persistStateNow(); }catch(e){ try{ persistState(); }catch(_){} }
+  // Back means "back to where I came from", which is not always the landing page:
+  // - adding another pet from inside the app -> abandon the half-filled pet, return to
+  //   the profile (cancelNewPet handles the cleanup, same as the old design's back did);
+  // - an account with a live plan (paid or free-day) -> back into their app;
+  // - everyone else (a brand-new visitor mid-questionnaire) -> the landing page.
+  if(state.__newPetFlow || state.__buyAnotherPet || state.__addPetPending || (state.__pendingBlankPet && state.userEmail)){
+    try{ cancelNewPet(); return; }catch(e){}
+  }
+  var hasLivePlan = state.answers && state.answers.petName && state.aiPlan && state.aiPlan.days
+                    && state.aiPlan.days.length && !state.planComplete
+                    && (state.purchased || state.trialStart);
+  if(hasLivePlan){ try{ enterApp(); return; }catch(e){} }
   try{ showLanding(); }catch(e){ showScreen('screen-landing'); }
   try{ window.scrollTo(0,0); }catch(e){}
 }
@@ -4739,9 +4768,15 @@ async function doLogin(){
     }
     // New routing rules:
     // - has a purchased plan -> straight into their app/profile.
-    // - anything else (no purchase) -> a fresh questionnaire. We never drop a login-only
-    //   user back into a half-finished or previously-abandoned questionnaire.
+    // - has a live FREE-DAY (trial) plan -> also into the app: that IS their account right
+    //   now. enterApp runs trialCheck, so an expired trial shows the unlock gate rather
+    //   than full access. (Previously a trial user logging in on another device - or after
+    //   a sign-out - was dumped into a fresh questionnaire as if they had nothing.)
+    // - anything else (no purchase, no live plan) -> a fresh questionnaire. We never drop a
+    //   login-only user back into a half-finished or previously-abandoned questionnaire.
     if(state.purchased && state.answers && state.answers.petName){ enterApp(); }
+    else if(state.trialStart && state.answers && state.answers.petName
+            && state.aiPlan && state.aiPlan.days && state.aiPlan.days.length && !state.planComplete){ enterApp(); }
     else { startFreshState(); startFreshAssessment(); }
   }catch(e){ err.textContent='Something went wrong - please try again.'; btn.disabled=false; btn.textContent='Log in'; }
 }
@@ -4809,6 +4844,22 @@ function prefillAndRegister(){
   welcomeNew();
   setTimeout(function(){ var e=$('regEmail'); if(e && email) e.value=email; },60);
 }
+// Back from REGISTER: to the questionnaire they just filled (answers stay intact - the
+// one-pager screen keeps its state, the old design re-renders the last question). A visitor
+// who somehow reached register without any answers goes to the landing instead.
+function regBack(){
+  if(state.answers && state.answers.petName){
+    if(ONEPAGER){ showScreen('screen-assess1'); return; }
+    state.currentQ=Math.max(0,getQuestions().length-1); renderQ(); showScreen('screen-assessment'); return;
+  }
+  try{ showLanding(); }catch(e){ showScreen('screen-landing'); }
+}
+// Back from LOGIN: someone mid-funnel (came via the "Already have an account?" link on the
+// register screen) returns to register; everyone else came from the landing and goes there.
+function loginBack(){
+  if(state.answers && state.answers.petName && !state.purchased){ showScreen('screen-register'); return; }
+  try{ showLanding(); }catch(e){ showScreen('screen-landing'); }
+}
 function startFreshState(){
   // Wipe any questionnaire / plan progress but keep who is logged in. Used when a
   // login-only (unpurchased) user arrives, so they never inherit a stale questionnaire.
@@ -4852,7 +4903,11 @@ function startFreshState(){
     sessionStorage.removeItem('nuciState'); }catch(e){}
 }
 function startFreshAssessment(){
-  state.currentQ=0; state.answers=state.answers||{}; showScreen('screen-assessment'); renderQ();
+  // Route through beginQuestionnaire so the ONEPAGER switch is respected. This used to
+  // hardcode screen-assessment + renderQ - the OLD one-question-per-screen design - which
+  // is exactly where a logged-in user without a purchase landed after logging in.
+  state.currentQ=0; state.answers=state.answers||{};
+  beginQuestionnaire();
 }
 async function forgotPass(){
   const email=($('logEmail').value||'').trim().toLowerCase();
@@ -4958,9 +5013,11 @@ function showLanding(){
 })();
 // Anonymous first-party counts (no cookies, no personal data) - same collector as the app.
 
-function isDesktop(){ return window.matchMedia('(min-width:900px)').matches && !('ontouchstart' in window); }
+function isDesktop(){ return window.matchMedia('(min-width:900px)').matches && window.matchMedia('(hover:hover) and (pointer:fine)').matches; }
 function openQR(dest, title){
-  var url = APP_ORIGIN + '/app.html?' + dest;
+  // The QR always leads to the LANDING page (thenuci.com) - the phone visitor starts at the
+  // top of the funnel, not dropped straight into a questionnaire or login form.
+  var url = APP_ORIGIN + '/';
   var t=document.getElementById('qrTitle'); if(t&&title) t.textContent=title;
   var box=document.getElementById('qrCode');
   box.innerHTML='';
@@ -7185,17 +7242,22 @@ function selectTodayPet(i){ toggleTodayPets(); if(i!==state.activePet) switchToP
   var THRESH=64;    // must travel at least 64px right
   window.backToLanding=function(){ showLanding(); };
   function goBack(){
-    // pick the most relevant back action for the current state
+    // pick the most relevant back action for the current state - mirrors the popstate handler
     var warn=document.getElementById('warnModal'); if(warn&&warn.classList.contains('open')){ closeWarnModal(); return true; }
+    var qrm=document.getElementById('qrModal'); if(qrm&&qrm.classList.contains('open')){ closeQR(); return true; }
     var pe=document.getElementById('planEndScreen'); if(pe&&pe.classList.contains('open')){ closePlanEnd(); return true; }
     var sheet=document.getElementById('sheet'); if(sheet&&sheet.classList.contains('open')){ closeSheet(); return true; }
     var ci=document.getElementById('ciOverlay'); if(ci&&ci.classList.contains('open')){ ciBack(); return true; }
+    var gen=document.getElementById('screen-generating'); if(gen&&gen.classList.contains('active')){ return true; }
+    var a1=document.getElementById('screen-assess1'); if(a1&&a1.classList.contains('active')){ opHome(); return true; }
     var asm=document.getElementById('screen-assessment'); if(asm&&asm.classList.contains('active')){ assessBack(); return true; }
+    var reg=document.getElementById('screen-register'); if(reg&&reg.classList.contains('active')){ regBack(); return true; }
+    var lg=document.getElementById('screen-login'); if(lg&&lg.classList.contains('active')){ loginBack(); return true; }
+    var offer=document.getElementById('screen-offer'); if(offer&&offer.classList.contains('active')){ offerBack(); return true; }
     var lnd=document.getElementById('screen-landing'); if(lnd&&lnd.classList.contains('active')){ return true; }
     var intro=document.getElementById('screen-intro'); if(intro&&intro.classList.contains('active')){ introBack(); return true; }
-    // In the main app or on the offer screen, swallow the swipe (never let native back go to Stripe)
+    // In the main app, swallow the swipe (tab back is handled by the browser back / tab bar)
     var app=document.getElementById('screen-app'); if(app&&app.classList.contains('active')){ return true; }
-    var offer=document.getElementById('screen-offer'); if(offer&&offer.classList.contains('active')){ return true; }
     return false;
   }
   document.addEventListener('touchstart',function(e){
@@ -7217,44 +7279,67 @@ function selectTodayPet(i){ toggleTodayPets(); if(i!==state.activePet) switchToP
 })();
 document.addEventListener('click',function(){ var m=document.getElementById('petDropMenu'); if(m&&m.style.display==='block'){ m.style.display='none'; var c=document.getElementById('petDropChev'); if(c)c.style.transform='rotate(0deg)'; } });
 
-// ===== History guard: keep hardware/native back INSIDE the app (never jump back to Stripe) =====
+// ===== Browser back = one step back INSIDE the app =====
+// showScreen() now pushes a real history entry ({nuci:3, screen:id}) on every user-driven
+// screen change, and showTab() pushes tab entries ({nuci:2, tab}) inside the app. The old
+// approach (seed a buffer entry at load and re-push on every popstate) was silently defeated
+// by Chrome/Safari's back-button intervention - entries created without user activation are
+// skipped, so pressing back jumped straight out of the site. Entries created in click
+// handlers are honoured, which makes genuine step-by-step back navigation possible.
 (function(){
   function inApp(){ var a=document.getElementById('screen-app'); return a && a.classList.contains('active'); }
-  // seed a state so there is always something to pop
-  try{ history.replaceState({nuci:1}, ''); history.pushState({nuci:2}, ''); }catch(e){}
+  function stayPut(){ try{ history.pushState(history.state&&history.state.nuci?history.state:{nuci:3,screen:'screen-landing'}, ''); }catch(e){} }
+  function recover(){ // overlay closed on back: put the consumed screen entry back
+    try{ var cur=document.querySelector('.screen.active'); history.pushState({nuci:3, screen:(cur?cur.id:'screen-landing')}, ''); }catch(e){}
+  }
+  // Root entry: whatever screen boots first sits at the bottom of the walk.
+  try{ history.replaceState({nuci:3, screen:'screen-landing'}, ''); }catch(e){}
   window.addEventListener('popstate', function(ev){
-    // Something tried to go back. Decide what to do based on app state.
-    var handled=false;
     try{
-      var warn=document.getElementById('warnModal'); if(warn&&warn.classList.contains('open')){ closeWarnModal(); handled=true; }
-      else { var sheet=document.getElementById('sheet'); if(sheet&&sheet.classList.contains('open')){ closeSheet(); handled=true; } }
-      if(!handled){ var ci=document.getElementById('ciOverlay'); if(ci&&ci.classList.contains('open')){ ciBack(); handled=true; } }
-      if(!handled){ var pe=document.getElementById('planEndScreen'); if(pe&&pe.classList.contains('open')){ closePlanEnd(); handled=true; } }
-      if(!handled && inApp()){
-        // In the main app: walk the tab history back instead of leaving the app.
-        // profile -> (whatever was before) -> ... -> today, then hold at today.
-        handled=true;
+      // 1) An open overlay always closes first - back never navigates "through" it.
+      var warn=document.getElementById('warnModal'); if(warn&&warn.classList.contains('open')){ closeWarnModal(); recover(); return; }
+      var qrm=document.getElementById('qrModal'); if(qrm&&qrm.classList.contains('open')){ closeQR(); recover(); return; }
+      var sheet=document.getElementById('sheet'); if(sheet&&sheet.classList.contains('open')){ closeSheet(); recover(); return; }
+      var ci=document.getElementById('ciOverlay'); if(ci&&ci.classList.contains('open')){ ciBack(); recover(); return; }
+      var pe=document.getElementById('planEndScreen'); if(pe&&pe.classList.contains('open')){ closePlanEnd(); recover(); return; }
+      // 2) Never navigate away mid-generation - the plan callback needs its screen.
+      var gen=document.getElementById('screen-generating'); if(gen&&gen.classList.contains('active')){ stayPut(); return; }
+      // 3) Questionnaires step question-by-question before leaving the screen.
+      var asm=document.getElementById('screen-assessment');
+      if(asm&&asm.classList.contains('active') && (state.currentQ||0)>0){ assessBack(); recover(); return; }
+      var a1=document.getElementById('screen-assess1');
+      if(a1&&a1.classList.contains('active')){
+        window.__navFromPop=true; try{ opHome(); }finally{ window.__navFromPop=false; }
+        return;   // the consumed entry now matches the landing we navigated to
+      }
+      // 4) Inside the app, walk the tab history first (profile -> ... -> today).
+      if(inApp()){
+        window.__tabStack=window.__tabStack||['today'];
+        if(window.__tabStack.length>1 && curTab!=='today'){
+          window.__tabStack.pop();
+          var prev=window.__tabStack[window.__tabStack.length-1]||'today';
+          window.__navFromPop=true; showTab(prev); window.__navFromPop=false;
+          return;
+        }
+        // On Today with no tab history: the app is home base - hold, never dump the user
+        // out to the questionnaire/register screens they passed through on the way in.
+        stayPut(); return;
+      }
+      // 5) A recorded screen entry: go there - this IS the "one step back".
+      if(ev.state && ev.state.nuci===3 && ev.state.screen){
+        var target=ev.state.screen;
+        window.__navFromPop=true;
         try{
-          window.__tabStack=window.__tabStack||['today'];
-          if(window.__tabStack.length>1 && curTab!=='today'){
-            window.__tabStack.pop();                       // drop current
-            var prev=window.__tabStack[window.__tabStack.length-1]||'today';
-            window.__navFromPop=true;                       // prevent re-pushing history
-            showTab(prev);
-            window.__navFromPop=false;
-          }
-          // if already on today (or stack exhausted), stay put - do not exit the app
-        }catch(e){}
+          if(target==='screen-landing'){ try{ showLanding(); }catch(e){ showScreen('screen-landing'); } }
+          else if(target==='screen-app'){ showScreen('screen-app'); try{ paintTab(curTab||'today'); }catch(e){} }
+          else { showScreen(target); }
+        }finally{ window.__navFromPop=false; }
+        return;
       }
-      if(!handled){
-        var asm=document.getElementById('screen-assessment'); if(asm&&asm.classList.contains('active')){ assessBack(); handled=true; }
-      }
-      if(!handled){
-        var off=document.getElementById('screen-offer'); if(off&&off.classList.contains('active')){ /* stay on offer, do not exit to Stripe */ handled=true; }
-      }
-    }catch(e){}
-    // Always re-arm a forward buffer so the next back press has something to consume.
-    try{ history.pushState({nuci:2}, ''); }catch(e){}
+      // 6) History bottom (or a foreign entry): hold on the current screen instead of
+      // letting the browser leave the site mid-flow.
+      stayPut();
+    }catch(e){ stayPut(); }
   });
 })();
 
