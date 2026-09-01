@@ -218,7 +218,7 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .op-mark .the{color:var(--sage)}
 .op-mark .stop{color:var(--sage)}
 .op-scroll{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;
-  padding:0 22px calc(40px + env(safe-area-inset-bottom))}
+  padding:0 22px calc(10px + env(safe-area-inset-bottom))}
 .op-intro{padding:14px 0 22px}
 .op-h{font-size:clamp(2rem,9vw,2.6rem);letter-spacing:-.045em;line-height:1.06}
 .op-sub{color:var(--secondary);font-size:.95rem;margin-top:10px}
@@ -237,9 +237,10 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 .opq.open .opq-wrap{opacity:1}
 .opq-in{padding:2px 2px 22px}
 .opq-q{font-size:1.35rem;letter-spacing:-.035em;line-height:1.15;margin-bottom:16px}
-.op-foot{padding:30px 0 20px;opacity:0;transform:translateY(10px);pointer-events:none;
-  transition:opacity .5s cubic-bezier(.22,.72,.2,1),transform .5s cubic-bezier(.22,.72,.2,1)}
-.op-foot.show{opacity:1;transform:none;pointer-events:auto}
+/* Always present, so the page ends at a predictable place and nothing shifts underfoot. */
+.op-foot{padding:24px 0 14px}
+#opDone{transition:opacity .35s ease}
+#opDone:disabled{opacity:.32}
 .op-note{text-align:center;font-size:.75rem;color:var(--secondary);margin-top:10px}
 .opage{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .opage button{background:var(--card);border:1.5px solid var(--border);border-radius:13px;padding:13px 4px;
@@ -1835,7 +1836,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-31 launch-v41";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-31 launch-v45";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -3089,21 +3090,11 @@ function opCardTop(card){
 }
 // Give the page enough tail so even the last question can rise to the anchor.
 function opSizeSpacer(){
+  // No tail room, ever. The page must end with the last thing on screen, so there is never an
+  // empty area to scroll into. The trade-off is accepted deliberately: the final questions
+  // settle as high as the page allows rather than always reaching the anchor.
   var sp=document.getElementById('opSpacer');
-  var list=document.getElementById('opList');
-  if(!sp||!list) return;
-  var last=list.lastElementChild;
-  if(!last){ sp.style.height='0px'; return; }
-  sp.style.height='0px';
-  var foot=document.getElementById('opFoot');
-  var footH=foot?foot.offsetHeight:0;
-  // Only add tail room while an EARLIER question is open, so it can still rise to the anchor.
-  // With the last question open there is nothing left to reveal, so no space is added and the
-  // page simply ends with the open card - no scrolling into emptiness.
-  var isLast = (opOpen === (document.querySelectorAll('.opq').length - 1));
-  if(isLast){ sp.style.height='0px'; return; }
-  var need = opViewH() - opAnchorPad() - last.offsetHeight - footH - 24;
-  sp.style.height = Math.max(0, Math.round(need)) + 'px';
+  if(sp) sp.style.height='0px';
 }
 // Park the opened card at the anchor - the "magnet" position.
 function opMagnet(card, ms){
@@ -3131,6 +3122,10 @@ function opHoldAnchor(){
   var onVV=function(){
     var s=document.getElementById('screen-assess1');
     if(!s || !s.classList.contains('active')) return;
+    // ONLY when a text field is focused, i.e. the on-screen keyboard. Scrolling also fires this
+    // event (the browser toolbar collapsing), and correcting then yanked the page to the top.
+    var a=document.activeElement;
+    if(!a || !a.classList || !a.classList.contains('op-field')) return;
     clearTimeout(t);
     t=setTimeout(function(){ opHoldAnchor(); }, 60);
   };
@@ -3255,8 +3250,8 @@ function opProgress(){
   qs.forEach(function(q){ if(opAnswered(q)) done++; });
   var fill=document.getElementById('opBarFill'); if(fill) fill.style.width=Math.round(done/qs.length*100)+'%';
   var c=document.getElementById('opCount'); if(c) c.textContent=done+'/'+qs.length;
-  var foot=document.getElementById('opFoot');
-  if(foot) foot.classList.toggle('show', done>=qs.length);
+  var d=document.getElementById('opDone');
+  if(d) d.disabled = (done < qs.length);
 }
 function opSyncDone(){
   var qs=opQuestions();
@@ -10165,7 +10160,12 @@ async function adaptNextDay(nextDay){
           if(state.purchased){ enterApp(); return; }
           buildOffer(); showScreen('screen-offer'); return;
         }
-        startFreshState(); startFlow(); return;
+        // Signed in but nothing started yet: show the landing page. Auto-launching the
+        // questionnaire here meant every refresh on a device with a session dropped straight
+        // into question one, which is not what opening the site should do.
+        startFreshState();
+        try{ showLanding(); }catch(e){ showScreen('screen-landing'); }
+        return;
       }
       // Explicitly clicked "Log in" but this account has no plan -> send them to the login
       // screen so they can switch account, rather than silently showing the welcome page.
