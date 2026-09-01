@@ -87,6 +87,15 @@ input::placeholder,textarea::placeholder{color:var(--text);opacity:0.25}
 /* buttons */
 .btn{width:100%;border:none;border-radius:16px;padding:17px;font-size:1rem;text-align:center;
   display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .12s,opacity .15s}
+/* Animated gradient text - the exact same sweep as the landing page price. Usable anywhere
+   in the app (trial countdown, payment sheet price). */
+.nuci-glow{background:linear-gradient(90deg,var(--sage),var(--forest),#9DB79A,#C9A24A,var(--forest),var(--sage));
+  background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
+  animation:nuciSweep 3.2s linear infinite}
+.nuci-glow-bar{background:linear-gradient(90deg,var(--sage),var(--forest),#C9A24A,var(--sage));
+  background-size:300% 100%;animation:nuciSweep 4s linear infinite}
+@keyframes nuciSweep{0%{background-position:0% 50%}100%{background-position:-300% 50%}}
+@media(prefers-reduced-motion:reduce){.nuci-glow,.nuci-glow-bar{animation:none}}
 .btn:active{transform:scale(0.985)}
 .btn-primary{background:var(--forest);color:#fff;box-shadow:var(--shadow)}
 .btn-muted{background:rgba(0,0,0,0.06);color:var(--text)}
@@ -2091,8 +2100,8 @@ const DISCOUNT_LINKS_INTL={};  // no discounts - regular prices only
 const STRIPE_PAYMENT_LINK=LINKS_INTL.single;
 const STRIPE_PAYMENT_LINK_3PACK=LINKS_INTL.triple;
 const PACKAGES=[
-  {id:'single',credits:1,price:9.95, anchor:null, name:'1 plan', sub:'For one pet or one issue'},
-  {id:'triple',credits:3,price:19.95,anchor:null, name:'3 plans', sub:'For multiple pets or issues'}
+  // Single product only. The 19.95 triple pack was removed - one plan, one price (9.95).
+  {id:'single',credits:1,price:9.95, anchor:null, name:'1 plan', sub:'For one pet or one issue'}
 ];
 let selectedPackage=PACKAGES[0];
 let appliedPromo=null;
@@ -4165,7 +4174,11 @@ function renderTrialGate(){
 }
 function openTrialOffer(){
   try{ nuciTrack('trial_offer_open'); }catch(e){}
-  buildOffer(); showScreen('screen-offer');
+  // Straight into the payment sheet over the app - no separate plans screen. One product
+  // only (9.95). Closing the sheet simply drops back to Today, which also removes the old
+  // "back from payment lands on the register screen" dead end.
+  selectedPackage=PACKAGES[0];
+  proceedToPayment(PACKAGES[0]);
 }
 // ═══════ FREE DAY ONE ═══════
 // A new account gets day 1 of the plan free, with no card. 24 hours after the plan is created
@@ -5559,6 +5572,10 @@ function offerBack(){
     return;
   }
   if(state.purchased){ enterApp(); return; }
+  // A trial user with a live plan came from INSIDE the app (Today) - back must return there,
+  // not to the registration screen. Register-back only makes sense for a brand-new user who
+  // has never seen the app yet and might want to correct a mistyped email before paying.
+  if(state.trialStart && state.aiPlan && state.aiPlan.days && state.aiPlan.days.length){ enterApp(); return; }
   // Back from the plan/pricing screen returns to the registration details, so a
   // mistyped email or name can be corrected before paying.
   var reg=document.getElementById('screen-register');
@@ -6070,10 +6087,6 @@ function buildOffer(){
   var hh=state.answers.household;
   var hasOtherPets = Array.isArray(hh) ? hh.indexOf('Other pets')>-1 : (String(hh||'').indexOf('Other pets')>-1);
   state.__multiPet = hasOtherPets;
-  if(hasOtherPets && !selectedPackage){
-    var triple=PACKAGES.filter(function(p){return p.id==='triple';})[0];
-    if(triple) selectedPackage=triple;     // sensible default, still fully changeable
-  }
   renderPkgs();
   // Adding a pet from an existing account: the owner already knows the product - skip the
   // Day-1 preview entirely (no preview tab, no folded preview panel, and no extra AI call).
@@ -6332,12 +6345,16 @@ function openEmbeddedPay(pkg){
   var price=pkgPrice(pkg);
   openSheet(
     '<div style="text-align:center;padding-top:2px">'
-    +'<div style="font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:var(--sage);margin-bottom:8px">Secure checkout</div>'
-    +'<h2 style="font-size:1.3rem;letter-spacing:-.02em;margin:0 0 4px">'+esc(pkg.name)+'</h2>'
-    +'<div style="font-size:1.6rem;letter-spacing:-.03em;margin-bottom:2px">\u20ac'+price.toFixed(2)+'</div>'
+    +'<div style="font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:var(--sage);margin-bottom:10px">Unlock the full week</div>'
+    +'<div style="font-size:2.5rem;letter-spacing:-.05em;line-height:1;margin-bottom:4px"><span class="nuci-glow" style="font-variant-numeric:tabular-nums">\u20ac'+price.toFixed(2)+'</span></div>'
     +'<div style="font-size:.78rem;color:var(--secondary);margin-bottom:16px">One-time payment \u00b7 no subscription</div>'
-    +'<div id="payElHost" style="min-height:220px;text-align:left">'
-      +'<div id="payElWait" style="display:flex;align-items:center;justify-content:center;min-height:220px;color:var(--secondary);font-size:.85rem">Loading secure payment\u2026</div>'
+    // Apple Pay / Google Pay buttons render here (each on its own row); only the wallets the
+    // device actually supports appear - Safari shows Apple Pay, Chrome shows Google Pay.
+    +'<div id="payExpressHost" style="margin:0 0 4px;min-height:0"></div>'
+    +'<div id="payDivider" style="display:none;align-items:center;gap:10px;margin:12px 0 12px;color:var(--secondary);font-size:.72rem">'
+      +'<span style="flex:1;height:1px;background:var(--border)"></span>or pay with card<span style="flex:1;height:1px;background:var(--border)"></span></div>'
+    +'<div id="payElHost" style="min-height:200px;text-align:left">'
+      +'<div id="payElWait" style="display:flex;align-items:center;justify-content:center;min-height:200px;color:var(--secondary);font-size:.85rem">Loading secure payment\u2026</div>'
     +'</div>'
     +'<div id="payErr" style="display:none;color:var(--danger);font-size:.82rem;margin-top:10px"></div>'
     +'<button class="btn btn-primary" id="payBtn" style="margin-top:16px" onclick="submitEmbeddedPay()">Pay \u20ac'+price.toFixed(2)+'</button>'
@@ -6368,7 +6385,22 @@ function openEmbeddedPay(pkg){
             '.Tab':{ border:'1.5px solid rgba(0,0,0,0.07)' },
             '.Tab--selected':{ border:'1.5px solid #6B8F71', backgroundColor:'rgba(107,143,113,.10)' } } }
       });
-      var pe=__payElements.create('payment',{ layout:'tabs' });
+      // Wallet buttons: Apple Pay above Google Pay, each full-width on its own row.
+      try{
+        var ece=__payElements.create('expressCheckout',{
+          buttonHeight:48,
+          layout:{ maxColumns:1, maxRows:2, overflow:'never' },
+          buttonTheme:{ applePay:'black', googlePay:'black' }
+        });
+        ece.on('ready',function(ev){
+          // Show the "or pay with card" divider only when at least one wallet rendered.
+          try{ if(ev && ev.availablePaymentMethods){ var d=document.getElementById('payDivider'); if(d) d.style.display='flex'; } }catch(e){}
+        });
+        ece.on('confirm',function(){ confirmEmbeddedPay(); });
+        ece.mount('#payExpressHost');
+      }catch(e){ /* wallets unavailable -> card form alone is fine */ }
+      // Card form (wallets are shown above as express buttons, so hide them inside here).
+      var pe=__payElements.create('payment',{ layout:'tabs', wallets:{ applePay:'never', googlePay:'never' } });
       var w=document.getElementById('payElWait'); if(w) w.remove();
       pe.mount('#payElHost');
     })
@@ -6379,7 +6411,8 @@ function openEmbeddedPay(pkg){
       if(link){ window.location.href=link; } else { handlePaidReturn(true); }
     });
 }
-function submitEmbeddedPay(){
+// One confirm path for BOTH the card Pay button and the Apple/Google Pay buttons.
+function confirmEmbeddedPay(){
   if(__payBusy||!__stripeInst||!__payElements) return;
   __payBusy=true;
   var btn=document.getElementById('payBtn'), err=document.getElementById('payErr');
@@ -6406,6 +6439,7 @@ function submitEmbeddedPay(){
   })
   .catch(function(){ __payBusy=false; if(btn){ btn.disabled=false; btn.style.opacity=''; btn.textContent='Try again'; } });
 }
+function submitEmbeddedPay(){ confirmEmbeddedPay(); }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PAID RETURN - one clean, sequential flow. Runs when the user comes back from
@@ -7573,9 +7607,13 @@ function renderToday(){
   var t=state.answers.petType||'other';
   // Late check-in banner: missed last night's window -> can still log it until noon.
   var __lateD=lateCheckinDay();
-  var trialBanner = trialActive() ? ('<div onclick="openTrialOffer()" style="display:flex;align-items:center;gap:11px;background:rgba(107,143,113,.12);border:1px solid rgba(107,143,113,.34);border-radius:16px;padding:12px 14px;margin:6px 0 12px;cursor:pointer">'
-    +'<span style="flex:1;font-size:.84rem;line-height:1.45;color:var(--text)">Day one is free. In <b id="trialLeft">'+trialFmtLeft()+'</b> the plan pauses until you unlock the rest of '+esc(state.answers.petName||'your pet')+'\u2019s week.</span>'
-    +'<span style="font-size:.8rem;color:var(--forest);white-space:nowrap">Unlock \u2192</span></div>') : '';
+  var trialBanner = trialActive() ? ('<div style="background:var(--card);border:1.5px solid var(--border);border-radius:18px;box-shadow:var(--shadow);padding:15px 16px 14px;margin:6px 0 12px;position:relative;overflow:hidden">'
+    +'<div class="nuci-glow-bar" style="position:absolute;top:0;left:0;right:0;height:3px"></div>'
+    +'<div style="font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--sage);margin-bottom:8px">Day one \u00b7 free for the next</div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      +'<div class="nuci-glow" id="trialLeft" style="font-size:1.85rem;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap">'+trialFmtLeft()+'</div>'
+      +'<button class="btn btn-primary" style="width:auto;flex:0 0 auto;padding:12px 20px;font-size:.9rem;border-radius:14px" onclick="openTrialOffer()">Unlock now</button>'
+    +'</div></div>') : '';
   var lateBanner=__lateD?('<div onclick="openLateCheckin()" style="display:flex;align-items:center;gap:11px;background:rgba(214,168,78,.13);border:1px solid rgba(214,168,78,.4);border-radius:16px;padding:12px 14px;margin:6px 0 12px;cursor:pointer">'
     +'<span style="font-size:20px">\uD83C\uDF19</span>'
     +'<span style="flex:1;font-size:.84rem;line-height:1.45;color:var(--text)">You missed yesterday\u2019s check-in. You can still log it <b>until 12:00</b>.</span>'
