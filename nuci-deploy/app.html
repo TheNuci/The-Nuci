@@ -1835,7 +1835,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // button and the "Test: jump to plan end" button are REMOVED from this file, not merely
 // disabled. LIVE stays as a belt-and-braces guard for any future test branches.
 const LIVE = true;
-const BUILD_STAMP = "2026-08-31 launch-v40";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
+const BUILD_STAMP = "2026-08-31 launch-v41";  // updated on each change - shown at the bottom of Profile so you can confirm which version is live
 let DEMO=false;   // launch build: the ?demo=1 / ?test=1 bypass is removed, not just disabled
 // ── Error reporting: ship uncaught errors to a server log so bugs are visible to us,
 // not just to the user. Capped per session; payload contains no personal data.
@@ -2687,7 +2687,10 @@ document.addEventListener('animationend',function(e){
 },true);
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>{ s.classList.remove('active'); clearAnim(s); });
-  const el=$(id); if(el){ el.classList.add('active'); playAnim(el,'anim'); }
+  // The one-page questionnaire is skipped: its entry animation leaves a transform on the
+  // screen, which makes the first upward scroll jump. It appears without one.
+  const el=$(id);
+  if(el){ el.classList.add('active'); if(id!=='screen-assess1'){ playAnim(el,'anim'); } else { clearAnim(el); } }
   window.scrollTo(0,0);
   // The assessment is the one screen where iOS's focus auto-scroll can shove the whole page
   // out from under the fixed title/Next (.qbody scrolls internally, the window never needs
@@ -3094,6 +3097,11 @@ function opSizeSpacer(){
   sp.style.height='0px';
   var foot=document.getElementById('opFoot');
   var footH=foot?foot.offsetHeight:0;
+  // Only add tail room while an EARLIER question is open, so it can still rise to the anchor.
+  // With the last question open there is nothing left to reveal, so no space is added and the
+  // page simply ends with the open card - no scrolling into emptiness.
+  var isLast = (opOpen === (document.querySelectorAll('.opq').length - 1));
+  if(isLast){ sp.style.height='0px'; return; }
   var need = opViewH() - opAnchorPad() - last.offsetHeight - footH - 24;
   sp.style.height = Math.max(0, Math.round(need)) + 'px';
 }
@@ -4882,10 +4890,6 @@ function closeQR(){ document.getElementById('qrModal').classList.remove('open');
 function goApp(){
   try{ nuciTrack('landing_cta'); }catch(e){}
   if(isDesktop()){ openQR('start=1','Start on your phone'); return; }
-  // If they left a questionnaire half-finished recently, offer to pick it up instead of
-  // silently throwing their answers away. Dropping out mid-questionnaire is the single
-  // biggest place people are lost, so the answers they already gave are worth keeping.
-  try{ if(offerDraftResume()) return; }catch(e){}
   startFreshFlow();
 }
 function startFreshFlow(){
