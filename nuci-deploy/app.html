@@ -1677,7 +1677,7 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
       <span>Send me occasional pet behaviour tips by email. Optional, you can unsubscribe any time.</span>
     </div>
     <div class="auth-err" id="regErr"></div>
-    <p style="font-size:0.88rem;color:var(--secondary);margin-top:6px">Already have an account? <span class="auth-link" onclick="showScreen('screen-login')">Log in</span></p>
+    <p style="font-size:0.88rem;color:var(--secondary);margin-top:6px">Already have an account? <span class="auth-link" onclick="window.__loginFrom='register';showScreen('screen-login')">Log in</span></p>
   </div>
   <div class="auth-cta" id="regCta"><button class="btn btn-primary" onclick="doRegister()">Create account</button></div>
 </section>
@@ -2410,7 +2410,7 @@ async function loadStateForUser(email){
     var _ls=null, _lsAt=0;
     try{ var _lr=localStorage.getItem('nuciState'); if(_lr) _ls=JSON.parse(_lr); }catch(e){}
     if(_ls && typeof _ls.savedAt==='number'
-       && (!_ls.userEmail || String(_ls.userEmail).toLowerCase()===em)){ _lsAt=_ls.savedAt; }
+       && _ls.userEmail && String(_ls.userEmail).toLowerCase()===em){ _lsAt=_ls.savedAt; }
     var _bestAt=Math.max(_memAt,_lsAt);
     var _localNewer=!!(_srvAt && _bestAt > _srvAt + 2000);
     var hasServerData=!!_srvAt;
@@ -4390,7 +4390,7 @@ function finishAssessment(){
     return;
   }
   if(state.userEmail){ goAfterAuth(); }
-  else showScreen('screen-register');
+  else { window.__regFrom='assessment'; showScreen('screen-register'); }
   persistState();
 }
 
@@ -4450,7 +4450,7 @@ async function doRegister(){
       err.style.color='';
       err.textContent='You already have an account with this email. Please log in with your existing password.';
       btn.disabled=false; btn.textContent='Create account';
-      try{ setTimeout(function(){ showScreen('screen-login'); var le=document.getElementById('logEmail'); if(le) le.value=email; }, 1400); }catch(e){}
+      try{ setTimeout(function(){ window.__loginFrom='register'; showScreen('screen-login'); var le=document.getElementById('logEmail'); if(le) le.value=email; }, 1400); }catch(e){}
       return;
     }
     if(error){ err.textContent=error.message; btn.disabled=false; btn.textContent='Create account'; return; }
@@ -4750,14 +4750,19 @@ async function doLogin(){
       }
       return;
     }
-    state.userEmail=email;
     // Capture the fresh questionnaire the user may have just filled in (before login),
     // because loadStateForUser is about to overwrite state with their saved account.
     var pendingNewPet = (state.answers && state.answers.petName && !state.purchased)
       ? { answers: JSON.parse(JSON.stringify(state.answers)),
           aiPlan: state.aiPlan ? JSON.parse(JSON.stringify(state.aiPlan)) : null,
           previewDay1: state.previewDay1 || null } : null;
+    // IMPORTANT: state.userEmail is assigned only AFTER the load. Assigning it before made
+    // loadStateForUser's freshness guard believe an anonymous local draft (a questionnaire
+    // walked on this device minutes ago, savedAt = just now) belonged to THIS account and
+    // was "newer" than the server - so it kept the local draft, sent the user to the
+    // questionnaire, and uploaded the draft OVER the real saved plan in Supabase.
     const had=await loadStateForUser(email);
+    state.userEmail=email;
     btn.disabled=false; btn.textContent='Log in';
     // If they arrived with a NEW pet they just filled out, AND this account already has a
     // purchased plan, don't silently discard or merge - ask what they want to do.
@@ -4775,8 +4780,22 @@ async function doLogin(){
     // - anything else (no purchase, no live plan) -> a fresh questionnaire. We never drop a
     //   login-only user back into a half-finished or previously-abandoned questionnaire.
     if(state.purchased && state.answers && state.answers.petName){ enterApp(); }
-    else if(state.trialStart && state.answers && state.answers.petName
-            && state.aiPlan && state.aiPlan.days && state.aiPlan.days.length && !state.planComplete){ enterApp(); }
+    else if(state.answers && state.answers.petName
+            && state.aiPlan && state.aiPlan.days && state.aiPlan.days.length && !state.planComplete){
+      // A live unpaid plan on the account = a free-day (trial) plan. Older accounts were
+      // saved before trialStart was persisted at all - reconstruct the clock from the plan's
+      // start date so they land in their app (usually on the unlock gate, since the 24h have
+      // long passed) instead of being dumped into a fresh questionnaire.
+      if(!state.trialStart){
+        try{
+          state.trialStart = state.planStartDate
+            ? new Date(state.planStartDate+'T00:00:00').toISOString()
+            : new Date(Date.now()-48*3600000).toISOString();
+          persistState();
+        }catch(e){ state.trialStart=new Date(Date.now()-48*3600000).toISOString(); }
+      }
+      enterApp();
+    }
     else { startFreshState(); startFreshAssessment(); }
   }catch(e){ err.textContent='Something went wrong - please try again.'; btn.disabled=false; btn.textContent='Log in'; }
 }
@@ -4844,20 +4863,23 @@ function prefillAndRegister(){
   welcomeNew();
   setTimeout(function(){ var e=$('regEmail'); if(e && email) e.value=email; },60);
 }
-// Back from REGISTER: to the questionnaire they just filled (answers stay intact - the
-// one-pager screen keeps its state, the old design re-renders the last question). A visitor
-// who somehow reached register without any answers goes to the landing instead.
+// Back from REGISTER: to the questionnaire they just filled ONLY if register was actually
+// entered from the questionnaire (finishAssessment records the origin). Otherwise landing.
+// Guessing from leftover state.answers was wrong - a tester/returning visitor with stale
+// answers in memory got bounced register -> questionnaire even when they came from landing.
 function regBack(){
-  if(state.answers && state.answers.petName){
+  if(window.__regFrom==='offer'){ buildOffer(); showScreen('screen-offer'); return; }
+  if(window.__regFrom==='assessment' && state.answers && state.answers.petName){
     if(ONEPAGER){ showScreen('screen-assess1'); return; }
     state.currentQ=Math.max(0,getQuestions().length-1); renderQ(); showScreen('screen-assessment'); return;
   }
   try{ showLanding(); }catch(e){ showScreen('screen-landing'); }
 }
-// Back from LOGIN: someone mid-funnel (came via the "Already have an account?" link on the
-// register screen) returns to register; everyone else came from the landing and goes there.
+// Back from LOGIN: to wherever login was actually opened FROM (recorded at every entry
+// point): the register link -> register, the landing Login button -> landing. Default is
+// the landing, never the questionnaire.
 function loginBack(){
-  if(state.answers && state.answers.petName && !state.purchased){ showScreen('screen-register'); return; }
+  if(window.__loginFrom==='register'){ showScreen('screen-register'); return; }
   try{ showLanding(); }catch(e){ showScreen('screen-landing'); }
 }
 function startFreshState(){
@@ -5097,6 +5119,7 @@ function discardDraft(){
 }
 function goLogin(){
   if(isDesktop()){ openQR('login=1','Log in on your phone'); return; }
+  window.__loginFrom='landing';
   try{ showScreen('screen-login'); }catch(e){}
 }
 // Footer legal links - open the in-app legal sheet instead of reloading the page.
@@ -5650,6 +5673,7 @@ function offerBack(){
     if(pwField) pwField.style.display = already ? 'none' : '';
     var btn=document.querySelector('#regCta .btn');
     if(btn) btn.textContent = already ? 'Save and continue' : 'Create account';
+    window.__regFrom='offer';
     showScreen('screen-register');
     return;
   }
