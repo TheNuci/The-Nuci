@@ -1329,6 +1329,76 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
   #screen-landing .review{max-width:720px}
   #screen-landing .review-duo{max-width:720px}
 }
+/* The nav CTA is desktop-only: on a phone the hero price card IS the call to action, and a
+   second button in the bar would compete with it. */
+#screen-landing nav .nav-cta{display:none}
+
+/* ===== Desktop (>=1000px) =====
+   The phone layout is one centred column, which on a wide screen leaves the price card
+   floating in the middle of an empty page. On desktop the hero becomes two columns instead:
+   the argument on the left, the price card as a real card on the right, both reading from a
+   single baseline. Everything below the hero stays centred - those sections are already
+   built as grids and only need room and larger type. */
+@media(min-width:1000px){
+  #screen-landing{--maxw:1240px}
+
+  #screen-landing nav{padding:18px var(--pad)}
+  #screen-landing nav .brand{font-size:1.35rem}
+  #screen-landing nav .nav-cta{display:inline-flex;align-items:center}
+
+  /* --- hero: two columns --- */
+  #screen-landing .hero2{padding:clamp(48px,5vw,86px) 0 clamp(64px,6vw,96px)}
+  #screen-landing .hero2 .wrap2{
+    display:grid;
+    grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);
+    column-gap:clamp(48px,5.5vw,96px);
+    align-items:start;
+    text-align:left;
+  }
+  #screen-landing .hero2 h1{grid-column:1;grid-row:1;font-size:clamp(3.3rem,4.9vw,5.2rem);max-width:13ch}
+  #screen-landing .hero2 .sub{grid-column:1;grid-row:2;font-size:1.22rem;max-width:38ch;margin-top:26px}
+  #screen-landing .hero2 .trust-strip{grid-column:1;grid-row:3;justify-content:flex-start;flex-wrap:wrap;white-space:normal;margin-top:36px;gap:26px;font-size:.87rem}
+  #screen-landing .hero2 .trust-strip svg{width:16px;height:16px}
+  #screen-landing .hero2 .badge-live{grid-column:1;grid-row:4;justify-self:start;margin-top:22px}
+  #screen-landing .hero2 .price-card{grid-column:2;grid-row:1 / span 4;justify-self:stretch;max-width:none;margin-top:8px}
+  #screen-landing .hero2 .price-card .price-amount{font-size:clamp(3.4rem,5vw,4.4rem)}
+
+  /* --- sections: more air, larger headings --- */
+  #screen-landing .sec{padding:clamp(96px,7.5vw,140px) 0}
+  #screen-landing .sec-head{max-width:26ch}
+  #screen-landing .sec-head h2{font-size:clamp(2.6rem,3.6vw,3.6rem)}
+
+  /* --- social proof --- */
+  #screen-landing .proof-stars{font-size:1.6rem}
+  #screen-landing .proof-score{font-size:1.8rem}
+  #screen-landing .review{max-width:840px;margin-top:44px}
+  #screen-landing .review-quote{font-size:1.3rem;line-height:1.5}
+  #screen-landing .review-body{padding:36px 40px}
+  #screen-landing .mini-reviews{gap:22px;margin-top:34px}
+  #screen-landing .mini{padding:24px 26px}
+  #screen-landing .mini p{font-size:.96rem}
+
+  /* --- how it works --- */
+  #screen-landing .steps{gap:22px}
+  #screen-landing .step{padding:34px 32px}
+  #screen-landing .step-n{font-size:1.7rem}
+  #screen-landing .step h3{font-size:1.24rem}
+  #screen-landing .step p{font-size:.96rem}
+
+  /* --- before / after --- */
+  #screen-landing .ba2{max-width:900px;gap:26px}
+  #screen-landing .ba2-card .ba2-cap{font-size:.92rem;padding:32px 20px 18px}
+  #screen-landing .ba2-mid{font-size:1.06rem;margin-top:30px}
+
+  /* --- final CTA --- */
+  #screen-landing .final2{margin:clamp(48px,5vw,80px) auto clamp(64px,6vw,96px)}
+  #screen-landing .final2-inner{padding:96px 60px}
+  #screen-landing .final2 h2{font-size:clamp(2.8rem,3.8vw,3.8rem)}
+  #screen-landing .final2 .cta-big2{padding:20px 48px;font-size:1.14rem}
+
+  #screen-landing footer{font-size:.92rem}
+}
+
 @media(max-width:520px){
   #screen-landing .ba2{gap:10px}
   #screen-landing .review-quote{font-size:1.08rem}
@@ -1395,6 +1465,7 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
   <div class="brand"><span class="l-g">The</span> Nuci<span class="l-g">.</span></div>
   <div class="nav-actions">
     <button class="nav-login" onclick="goLogin()">Login</button>
+    <button class="nav-cta" onclick="goApp()">Start day one</button>
   </div>
 </nav>
 
@@ -2340,6 +2411,24 @@ function restoreState(d){
   }catch(e){ console.warn('age migration skipped',e); }
 }
 let _saveTimer=null;
+// Is there anything on this account worth keeping? A questionnaire that has produced nothing
+// is scratch and stays off the profile - that was always the intent. But a GENERATED plan is
+// not scratch, paid for or not.
+//
+// The old test was `state.purchased` alone, which meant a FREE DAY ONE plan was never written
+// to Supabase at all. It lived only in sessionStorage, so signing out (which clears it) or
+// closing the tab destroyed it outright, and logging back in found an account with no plan and
+// dropped the owner into the questionnaire as if they were new. Persisting trialStart to the
+// account could never have worked either, for the same reason: the blob carrying it was gated
+// behind a purchase that a trial user does not have.
+function hasSavablePlan(){
+  if(state.purchased || (state.planCredits||0)>0) return true;
+  if(state.trialStart) return true;
+  if(state.aiPlan && state.aiPlan.days && state.aiPlan.days.length) return true;
+  if(Array.isArray(state.archive) && state.archive.length) return true;
+  if(Array.isArray(state.pets) && state.pets.some(function(p){ return p&&p.aiPlan&&p.aiPlan.days&&p.aiPlan.days.length; })) return true;
+  return false;
+}
 function persistState(){ clearTimeout(_saveTimer); _saveTimer=setTimeout(persistStateNow,900); }
 async function persistStateNow(){
   clearTimeout(_saveTimer);
@@ -2351,7 +2440,7 @@ async function persistStateNow(){
   try{
     var snap=JSON.stringify(serializeState());
     sessionStorage.setItem('nuciState', snap);
-    if(state.purchased){ localStorage.setItem('nuciState', snap); }
+    if(hasSavablePlan()){ localStorage.setItem('nuciState', snap); }
     else {
       // Keep a PURCHASED snapshot: it may be the only copy of work that couldn't reach the
       // server while the session was expired (that's exactly how a freshly paid plan was
@@ -2359,7 +2448,9 @@ async function persistStateNow(){
       // persist deleted the only backup -> re-login restored the old server copy). Only
       // unpurchased scratch is cleared here; sign-out / account deletion clear everything.
       try{ var _ex=localStorage.getItem('nuciState'); var _exp=_ex?JSON.parse(_ex):null;
-        if(!(_exp&&_exp.purchased)) localStorage.removeItem('nuciState'); }catch(e){}
+        var _keep = !!(_exp && (_exp.purchased || _exp.trialStart
+                      || (_exp.aiPlan && _exp.aiPlan.days && _exp.aiPlan.days.length)));
+        if(!_keep) localStorage.removeItem('nuciState'); }catch(e){}
     }
   }catch(e){}
   if(!supa||!state.userEmail) return;
@@ -2376,7 +2467,10 @@ async function persistStateNow(){
       marketing_consent_at: state.marketingConsentAt||null
     };
     if(_uid) _rec.user_id=_uid;
-    if(state.purchased){ _rec.data=serializeStateForCloud(); _rec.purchased=true; }
+    // Write the blob for any real plan. `purchased` is set ONLY by an actual purchase - a
+    // trial must never flip that column, or the free day would unlock the whole week.
+    if(hasSavablePlan()){ _rec.data=serializeStateForCloud(); }
+    if(state.purchased){ _rec.purchased=true; }
     // If they are giving consent now, clear any old opt-out flag (e.g. from a previous
     // delete-profile or unsubscribe) so a returning user actually receives emails again.
     if(state.marketingConsent){ _rec.marketing_opt_out=false; }
