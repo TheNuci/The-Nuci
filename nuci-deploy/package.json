@@ -3,5 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "engines": { "node": ">=18" },
-  "description": "The Nuci - AI pet behaviour plans"
+  "description": "The Nuci - AI pet behaviour plans",
+  "dependencies": {
+    "stripe": "^14.25.0"
+  }
 }
