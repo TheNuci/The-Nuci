@@ -6672,12 +6672,40 @@ function openEmbeddedPay(pkg){
         var ece=__payElements.create('expressCheckout',{
           buttonHeight:48,
           layout:{ maxColumns:1, maxRows:2, overflow:'never' },
-          buttonTheme:{ applePay:'black', googlePay:'black' }
+          buttonTheme:{ applePay:'black', googlePay:'black' },
+          // WHY 'always' AND NOT THE DEFAULT 'auto':
+          // On 'auto' Stripe shows a wallet only when the platform supports it AND Stripe judges
+          // it advantageous for conversion - so it silently hid the buttons and the sheet opened
+          // straight on the card form. 'always' shows the wallet whenever the platform supports
+          // it. It is also the ONLY way to get Apple Pay on desktop Chromium (macOS) and Google
+          // Pay in Safari / Chrome on iOS; on 'auto' those combinations never appear at all.
+          //
+          // Trade-off: 'always' also renders the button for someone who has the platform but no
+          // card in their wallet. They tap it and get Apple's "add a card" prompt rather than a
+          // dead end, and the card form is still right below, so this is the better default here.
+          // It still cannot force a wallet onto an unsupported platform or an unsupported currency.
+          paymentMethods:{ applePay:'always', googlePay:'always' }
+        });
+        // Which wallets actually made it. This is the event Stripe recommends for the question
+        // "is there anything to show?" - 'ready' fires once, this fires whenever the answer
+        // changes. If the list is empty the element renders nothing at all, which is otherwise
+        // indistinguishable from a broken integration.
+        var __payShowDivider=function(list){
+          try{
+            console.log('[pay] wallets available:', list);
+            var d=document.getElementById('payDivider');
+            if(d) d.style.display=(list && list.length)?'flex':'none';
+          }catch(e){}
+        };
+        ece.on('availablepaymentmethodschange',function(ev){
+          var pm=ev&&ev.availablePaymentMethods;
+          __payShowDivider(pm?Object.keys(pm).filter(function(k){ return pm[k]; }):[]);
         });
         ece.on('ready',function(ev){
-          // Show the "or pay with card" divider only when at least one wallet rendered.
-          try{ if(ev && ev.availablePaymentMethods){ var d=document.getElementById('payDivider'); if(d) d.style.display='flex'; } }catch(e){}
+          var pm=ev&&ev.availablePaymentMethods;
+          __payShowDivider(pm?Object.keys(pm).filter(function(k){ return pm[k]; }):[]);
         });
+        ece.on('loaderror',function(ev){ console.warn('[pay] express checkout failed to load:', ev&&ev.error); });
         ece.on('confirm',function(){ confirmEmbeddedPay(); });
         ece.mount('#payExpressHost');
       }catch(e){ /* wallets unavailable -> card form alone is fine */ }
