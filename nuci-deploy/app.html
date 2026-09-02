@@ -7030,6 +7030,20 @@ function openEmbeddedPay(pkg){
     +(PAY_DEBUG?'<div id="payDebug" style="margin:2px 0 10px;padding:8px 10px;border-radius:8px;background:rgba(107,143,113,.10);color:var(--secondary);font-size:.68rem;line-height:1.45;word-break:break-word">1. sheet open, loading stripe.js\u2026</div>':'')
     +'<div id="payDivider" style="display:none;align-items:center;gap:10px;margin:12px 0 12px;color:var(--secondary);font-size:.72rem">'
       +'<span style="flex:1;height:1px;background:var(--border)"></span>or pay with card<span style="flex:1;height:1px;background:var(--border)"></span></div>'
+    // Email and cardholder name, collected by US rather than by Stripe. The hosted payment
+    // link asks for both, so the receipt and any dispute evidence would otherwise be thinner
+    // for in-app buyers than for link buyers. Drawn here so they match the app instead of
+    // arriving in Stripe's own styling, and passed to confirmPayment as billing_details.
+    +'<div style="text-align:left;margin-bottom:14px">'
+      +'<label for="payEmail" style="display:block;font-size:.76rem;color:var(--secondary);margin-bottom:5px">Email</label>'
+      +'<input id="payEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" value="'+esc(state.userEmail||'')+'" '
+        +'style="width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--bg);'
+        +'font-family:inherit;font-size:1rem;color:var(--text);-webkit-appearance:none">'
+      +'<label for="payName" style="display:block;font-size:.76rem;color:var(--secondary);margin:12px 0 5px">Full name</label>'
+      +'<input id="payName" type="text" autocomplete="cc-name" placeholder="Name on the card" '
+        +'style="width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--bg);'
+        +'font-family:inherit;font-size:1rem;color:var(--text);-webkit-appearance:none">'
+    +'</div>'
     +'<div id="payElHost" style="min-height:200px;text-align:left">'
       +'<div id="payElWait" style="display:flex;align-items:center;justify-content:center;min-height:200px;color:var(--secondary);font-size:.85rem">Loading secure payment\u2026</div>'
     +'</div>'
@@ -7057,28 +7071,69 @@ function openEmbeddedPay(pkg){
       __payRevealed=true;
       var ov=document.getElementById('payLoading');
       var bd=document.getElementById('payBody');
+      var st=document.getElementById('payStage');
+      var h=0;
+      try{ h=bd?Math.ceil(bd.getBoundingClientRect().height||bd.scrollHeight):0; }catch(e){}
+      if(h>200 && h<1200){ try{ localStorage.setItem(PAY_H_KEY, String(h)); }catch(e){} }
+      // Only animates when the remembered height was wrong (in practice, the first ever open).
+      if(st && h){ st.style.height=h+'px'; }
       if(ov){ ov.style.opacity='0'; setTimeout(function(){ try{ ov.remove(); }catch(e){} },260); }
-      if(bd){ bd.style.transition='opacity .32s ease'; bd.style.opacity='1'; }
+      if(bd){
+        bd.style.visibility='';
+        bd.style.pointerEvents='';
+        requestAnimationFrame(function(){
+          bd.style.transition='opacity .32s ease';
+          bd.style.opacity='1';
+        });
+      }
+      // Hand the height back to the content once everything has settled, so the card form can
+      // still grow later (a validation error, the 3-D Secure step) without being clipped.
+      setTimeout(function(){
+        if(st){ st.style.transition=''; st.style.height=''; st.style.overflow=''; }
+      }, 420);
     }, wait);
   }
   // Never leave someone staring at a spinner because one piece never reported in.
   setTimeout(function(){ __payWalletReady=true; __payCardReady=true; payReveal(); }, 9000);
+  // The sheet must not change size at all - not while loading, not at the reveal.
+  //
+  // That needs the final height BEFORE anything is shown, which is impossible on a first
+  // visit: only Stripe knows how tall its card iframe will be. So the body is laid out inside
+  // a fixed-height stage with overflow hidden, where it can grow as much as it likes without
+  // moving the panel; the stage is then set to the measured height at reveal, and that height
+  // is remembered. From the second time onwards the spinner box already IS the right size and
+  // nothing moves at all.
+  var PAY_H_KEY='nuciPaySheetH';
+  var __payStageEl=null;
+  function payRememberedH(){
+    try{ var v=parseInt(localStorage.getItem(PAY_H_KEY),10); if(v>200 && v<1200) return v; }catch(e){}
+    return 340;
+  }
   try{
     var _bd=document.getElementById('payBody');
-    if(_bd){ _bd.style.opacity='0'; }
-    var _pn=document.getElementById('sheetPanel');
-    if(_pn && !document.getElementById('payLoading')){
+    if(_bd && _bd.parentNode && !document.getElementById('payStage')){
+      var _st=document.createElement('div');
+      _st.id='payStage';
+      _st.style.cssText='position:relative;overflow:hidden;height:'+payRememberedH()+'px;'
+        +'transition:height .28s cubic-bezier(.32,.9,.28,1)';
+      _bd.parentNode.insertBefore(_st, _bd);
+      _st.appendChild(_bd);
+      __payStageEl=_st;
+      // In flow inside the stage (so it can be measured), but invisible and unclickable.
+      _bd.style.opacity='0';
+      _bd.style.visibility='hidden';
+      _bd.style.pointerEvents='none';
+
       var _ov=document.createElement('div');
       _ov.id='payLoading';
       _ov.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
-        +'background:var(--card,#FBFBF8);border-radius:inherit;z-index:5;transition:opacity .26s ease';
+        +'background:var(--card,#FBFBF8);z-index:5;transition:opacity .26s ease';
       _ov.innerHTML='<div style="text-align:center">'
         +'<div style="width:38px;height:38px;border:3px solid rgba(62,90,71,.16);border-top-color:var(--forest,#3E5A47);'
         +'border-radius:50%;margin:0 auto 14px;animation:paysp .9s linear infinite"></div>'
         +'<div style="font-size:.85rem;color:var(--secondary,#5C6660)">Preparing secure checkout\u2026</div>'
         +'</div><style>@keyframes paysp{to{transform:rotate(360deg)}}</style>';
-      if(getComputedStyle(_pn).position==='static') _pn.style.position='relative';
-      _pn.appendChild(_ov);
+      _st.appendChild(_ov);
     }
   }catch(e){}
 
@@ -7153,7 +7208,9 @@ function openEmbeddedPay(pkg){
       var __pr=__stripeInst.paymentRequest({
         country:'SI', currency:'eur',
         total:{ label:'The Nuci', amount:Math.round(price*100) },
-        requestPayerName:false, requestPayerEmail:false
+        // The wallet already holds both, so it hands them over without asking - the card path
+        // collects the same two fields in the form above. Same receipt either way.
+        requestPayerName:true, requestPayerEmail:true
       });
       var __prSecret=out.clientSecret;
 
@@ -7213,7 +7270,15 @@ function openEmbeddedPay(pkg){
       });
 
       // Card form (wallets are shown above as express buttons, so hide them inside here).
-      var pe=__payElements.create('payment',{ layout:'tabs', wallets:{ applePay:'never', googlePay:'never' } });
+      // name/email are collected by our own inputs above, so Stripe must not ask a second
+      // time. Setting a field to 'never' means WE have to supply it at confirm time - see
+      // billing_details in confirmEmbeddedPay. The address block is left alone so the country
+      // selector stays, which some card networks need.
+      var pe=__payElements.create('payment',{
+        layout:'tabs',
+        wallets:{ applePay:'never', googlePay:'never' },
+        fields:{ billingDetails:{ name:'never', email:'never' } }
+      });
       var w=document.getElementById('payElWait'); if(w) w.remove();
       pe.on('ready',function(){ __payCardReady=true; payReveal(); });
       pe.on('loaderror',function(){ __payCardReady=true; payReveal(); });
@@ -7238,12 +7303,25 @@ function openEmbeddedPay(pkg){
 // One confirm path for BOTH the card Pay button and the Apple/Google Pay buttons.
 function confirmEmbeddedPay(){
   if(__payBusy||!__stripeInst||!__payElements) return;
-  __payBusy=true;
   var btn=document.getElementById('payBtn'), err=document.getElementById('payErr');
+  var _em=((document.getElementById('payEmail')||{}).value||'').trim();
+  var _nm=((document.getElementById('payName')||{}).value||'').trim();
+  function _bad(msg, focusId){
+    if(err){ err.textContent=msg; err.style.display='block'; }
+    var f=document.getElementById(focusId); if(f){ try{ f.focus(); }catch(e){} }
+  }
+  // Checked before anything is charged - Stripe would reject the confirm anyway, but with a
+  // generic message and the button already in its processing state.
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(_em)){ _bad('Enter a valid email address for your receipt.','payEmail'); return; }
+  if(_nm.length<2){ _bad('Enter the name on the card.','payName'); return; }
+  __payBusy=true;
   if(btn){ btn.disabled=true; btn.style.opacity='.6'; btn.textContent='Processing\u2026'; }
   if(err) err.style.display='none';
   __stripeInst.confirmPayment({ elements:__payElements, redirect:'if_required',
-    confirmParams:{ return_url: location.origin + location.pathname + '?paid=true' } })
+    confirmParams:{
+      return_url: location.origin + location.pathname + '?paid=true',
+      payment_method_data:{ billing_details:{ name:_nm, email:_em } }
+    } })
   .then(function(res){
     __payBusy=false;
     if(res.error){
