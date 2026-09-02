@@ -2196,6 +2196,8 @@ const LINKS_INTL={
 // Element restyled through the Appearance API). Leave empty ('') and everything keeps using
 // the payment links above - nothing breaks while this is unconfigured.
 // Requires the companion Netlify function: /.netlify/functions/create-payment-intent
+// Add ?paydebug=1 to the URL to print wallet availability inside the payment sheet itself.
+var PAY_DEBUG = (function(){ try{ return new URLSearchParams(location.search).get('paydebug')==='1'; }catch(e){ return false; } })();
 var STRIPE_PK = 'pk_live_51TgpuU38TKGlSfSu58kiEkHXinPEFME2w6bN1PhuLeSOs9sCf9u3vEOsHuew49JItXeCn9jWM6dqnP9bfIXCqkke00YW2Hc5fc';   // Stripe Dashboard -> Developers -> API keys
 const DISCOUNT_LINKS_INTL={};  // no discounts - regular prices only
 // Back-compat aliases used elsewhere
@@ -3109,6 +3111,25 @@ function opSummary(q){
   if(q.id==='petType' && v) return v.charAt(0).toUpperCase()+v.slice(1);
   return v? String(v).slice(0,26) : '';
 }
+// The LAST question has nothing to advance to, so its button is the finish action rather than
+// "Next". It carries the same label as the footer CTA (#opDone) and runs opFinish() directly,
+// so the questionnaire ends where the owner is already looking instead of asking them to
+// scroll down to a second, identical-looking button.
+function opIsLast(i){ try{ return i === (opQuestions().length-1); }catch(e){ return false; } }
+function opFinishLabel(){
+  var d=document.getElementById('opDone');
+  var t=d && d.textContent ? d.textContent.trim() : '';
+  return t || 'Start day one, free';
+}
+function opWireQuestionButton(btn, q, i, emptyMsg){
+  if(opIsLast(i)){
+    btn.textContent=opFinishLabel();
+    btn.onclick=function(){ if(!opAnswered(q)){ toast(emptyMsg); return; } opFinish(); };
+  } else {
+    btn.textContent='Next';
+    btn.onclick=function(){ if(!opAnswered(q)){ toast(emptyMsg); return; } opAdvance(i); };
+  }
+}
 function opRender(){
   var list=document.getElementById('opList'); if(!list) return;
   var qs=opQuestions();
@@ -3148,9 +3169,9 @@ function opInput(q,i){
     el.onfocus=function(){ el.style.borderColor='var(--sage)'; };
     el.onblur=function(){ el.style.borderColor='var(--border)'; };
     box.appendChild(el);
-    var b=document.createElement('button'); b.className='btn btn-primary'; b.textContent='Next';
+    var b=document.createElement('button'); b.className='btn btn-primary';
     b.style.cssText='margin-top:14px;width:100%';
-    b.onclick=function(){ if(!opAnswered(q)){ toast('Please fill this in'); return; } opAdvance(i); };
+    opWireQuestionButton(b, q, i, 'Please fill this in');
     box.appendChild(b);
   } else if(q.type==='pet-type'){
     var items=[['dog','Dog'],['cat','Cat'],['rabbit','Rabbit'],['bird','Bird'],['rodent','Small pet'],['reptile','Reptile']];
@@ -3196,9 +3217,9 @@ function opInput(q,i){
       l2.appendChild(b4);
     });
     box.appendChild(l2);
-    var b5=document.createElement('button'); b5.className='btn btn-primary'; b5.textContent='Next';
+    var b5=document.createElement('button'); b5.className='btn btn-primary';
     b5.style.cssText='margin-top:14px;width:100%';
-    b5.onclick=function(){ if(!opAnswered(q)){ toast('Please choose at least one'); return; } opAdvance(i); };
+    opWireQuestionButton(b5, q, i, 'Please choose at least one');
     box.appendChild(b5);
   } else if(q.type==='age'){
     var g2=document.createElement('div'); g2.className='opage';
@@ -6893,6 +6914,10 @@ function openEmbeddedPay(pkg){
     // Apple Pay / Google Pay buttons render here (each on its own row); only the wallets the
     // device actually supports appear - Safari shows Apple Pay, Chrome shows Google Pay.
     +'<div id="payExpressHost" style="margin:0 0 4px;min-height:0"></div>'
+    // On-screen wallet diagnostics, shown ONLY with ?paydebug=1 in the URL. Remote-debugging an
+    // iPhone from a Mac is a chore, and the answer we need ("what did Stripe say was available")
+    // is one line - so it can just be printed on the phone.
+    +(PAY_DEBUG?'<div id="payDebug" style="margin:2px 0 10px;padding:8px 10px;border-radius:8px;background:rgba(107,143,113,.10);color:var(--secondary);font-size:.68rem;line-height:1.45;word-break:break-word">wallets: waiting\u2026</div>':'')
     +'<div id="payDivider" style="display:none;align-items:center;gap:10px;margin:12px 0 12px;color:var(--secondary);font-size:.72rem">'
       +'<span style="flex:1;height:1px;background:var(--border)"></span>or pay with card<span style="flex:1;height:1px;background:var(--border)"></span></div>'
     +'<div id="payElHost" style="min-height:200px;text-align:left">'
@@ -6950,9 +6975,17 @@ function openEmbeddedPay(pkg){
         // "is there anything to show?" - 'ready' fires once, this fires whenever the answer
         // changes. If the list is empty the element renders nothing at all, which is otherwise
         // indistinguishable from a broken integration.
+        var __payDbg=function(msg){
+          try{ console.log('[pay]', msg); }catch(e){}
+          try{ var n=document.getElementById('payDebug'); if(n) n.textContent=msg; }catch(e){}
+        };
         var __payShowDivider=function(list){
           try{
-            console.log('[pay] wallets available:', list);
+            __payDbg('wallets: '+((list && list.length)?list.join(', '):'NONE')
+              +' \u00b7 '+(navigator.userAgent.indexOf('CriOS')>-1?'Chrome iOS'
+                     :navigator.userAgent.indexOf('Safari')>-1?'Safari':'other')
+              +' \u00b7 '+(location.protocol==='https:'?'https':'HTTP (wallets need https)')
+              +' \u00b7 '+location.hostname);
             var d=document.getElementById('payDivider');
             if(d) d.style.display=(list && list.length)?'flex':'none';
           }catch(e){}
@@ -6965,7 +6998,11 @@ function openEmbeddedPay(pkg){
           var pm=ev&&ev.availablePaymentMethods;
           __payShowDivider(pm?Object.keys(pm).filter(function(k){ return pm[k]; }):[]);
         });
-        ece.on('loaderror',function(ev){ console.warn('[pay] express checkout failed to load:', ev&&ev.error); });
+        ece.on('loaderror',function(ev){
+          var m=(ev&&ev.error&&(ev.error.message||ev.error.code))||'unknown';
+          try{ console.warn('[pay] express checkout failed to load:', ev&&ev.error); }catch(e){}
+          __payDbg('express checkout FAILED: '+m);
+        });
         ece.on('confirm',function(){ confirmEmbeddedPay(); });
         ece.mount('#payExpressHost');
       }catch(e){ /* wallets unavailable -> card form alone is fine */ }
