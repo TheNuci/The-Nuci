@@ -6929,6 +6929,12 @@ function loadStripeJs(){
 }
 function openEmbeddedPay(pkg){
   var price=pkgPrice(pkg);
+  // Stage-by-stage diagnostics. Reporting only at the end could not distinguish "the chain
+  // never got there" from "Stripe returned nothing" - both looked like the placeholder text.
+  var __payStage=function(msg){
+    try{ console.log('[pay]', msg); }catch(e){}
+    try{ var n=document.getElementById('payDebug'); if(n) n.textContent=msg; }catch(e){}
+  };
   openSheet(
     '<div style="text-align:center;padding-top:2px">'
     +'<div style="font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:var(--sage);margin-bottom:10px">Unlock the full week</div>'
@@ -6940,7 +6946,7 @@ function openEmbeddedPay(pkg){
     // On-screen wallet diagnostics, shown ONLY with ?paydebug=1 in the URL. Remote-debugging an
     // iPhone from a Mac is a chore, and the answer we need ("what did Stripe say was available")
     // is one line - so it can just be printed on the phone.
-    +(PAY_DEBUG?'<div id="payDebug" style="margin:2px 0 10px;padding:8px 10px;border-radius:8px;background:rgba(107,143,113,.10);color:var(--secondary);font-size:.68rem;line-height:1.45;word-break:break-word">wallets: waiting\u2026</div>':'')
+    +(PAY_DEBUG?'<div id="payDebug" style="margin:2px 0 10px;padding:8px 10px;border-radius:8px;background:rgba(107,143,113,.10);color:var(--secondary);font-size:.68rem;line-height:1.45;word-break:break-word">1. sheet open, loading stripe.js\u2026</div>':'')
     +'<div id="payDivider" style="display:none;align-items:center;gap:10px;margin:12px 0 12px;color:var(--secondary);font-size:.72rem">'
       +'<span style="flex:1;height:1px;background:var(--border)"></span>or pay with card<span style="flex:1;height:1px;background:var(--border)"></span></div>'
     +'<div id="payElHost" style="min-height:200px;text-align:left">'
@@ -6954,12 +6960,14 @@ function openEmbeddedPay(pkg){
   Promise.resolve()
     .then(loadStripeJs)
     .then(function(){
+      __payStage('2. stripe.js loaded, asking for payment intent\u2026');
       return fetch('/.netlify/functions/create-payment-intent',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({ packageId:pkg.id, discount:discountActive(), email:state.userEmail||null })});
     })
     .then(function(r){ if(!r.ok) throw new Error('create-payment-intent '+r.status); return r.json(); })
     .then(function(out){
       if(!out||!out.clientSecret) throw new Error('no client secret');
+      __payStage('3. intent ok, building elements\u2026');
       __stripeInst=__stripeInst||Stripe(STRIPE_PK);
       __payElements=__stripeInst.elements({
         clientSecret:out.clientSecret,
@@ -6976,10 +6984,9 @@ function openEmbeddedPay(pkg){
             '.Tab--selected':{ border:'1.5px solid #6B8F71', backgroundColor:'rgba(107,143,113,.10)' } } }
       });
       // Wallet buttons: Apple Pay above Google Pay, each full-width on its own row.
-      var __payDbg=function(msg){
-        try{ console.log('[pay]', msg); }catch(e){}
-        try{ var n=document.getElementById('payDebug'); if(n) n.textContent=msg; }catch(e){}
-      };
+      __payStage('4. elements ok, creating express checkout\u2026');
+      var __payDbg=__payStage;
+      var __payHeard=false;
       var __payShowDivider=function(list){
         try{
           __payDbg('wallets: '+((list && list.length)?list.join(', '):'NONE')
@@ -6992,6 +6999,7 @@ function openEmbeddedPay(pkg){
         }catch(e){}
       };
       var __payAvail=function(ev){
+        __payHeard=true;
         var pm=ev&&ev.availablePaymentMethods;
         __payShowDivider(pm?Object.keys(pm).filter(function(k){ return pm[k]; }):[]);
       };
@@ -7007,6 +7015,12 @@ function openEmbeddedPay(pkg){
         });
         ece.on('confirm',function(){ confirmEmbeddedPay(); });
         ece.mount('#payExpressHost');
+        __payStage('5. express checkout mounted, waiting for Stripe\u2026');
+        // If Stripe never answers, say so rather than sitting on stage 5 forever - silence is
+        // itself a result and needs to look different from "still working".
+        setTimeout(function(){
+          if(!__payHeard) __payStage('6. NO wallet event after 5s \u2014 Stripe never reported availability');
+        },5000);
       };
       try{
         __wireEce(__payElements.create('expressCheckout',{
@@ -7043,6 +7057,7 @@ function openEmbeddedPay(pkg){
       pe.mount('#payElHost');
     })
     .catch(function(err){
+      __payStage('CHAIN FAILED: '+((err&&err.message)||String(err)));
       console.warn('embedded pay failed, falling back to the payment link', err);
       closeSheet();
       var link=pkgLink(pkg);
