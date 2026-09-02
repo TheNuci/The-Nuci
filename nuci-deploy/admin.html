@@ -182,7 +182,27 @@ function render(d){
   c+=card(uPur,'Purchased <b>('+conv+'%)</b>');
   var f7=d.funnelSessions7||{}, f30=d.funnelSessions30||{};
   var op7=f7.app_open||0, cl7=f7.landing_cta||0, cl30=f30.landing_cta||0;
-  c+=card(cl7+' / '+cl30,'Clicked \u201cGet my pet\u2019s plan\u201d \u00b7 7d / 30d'+(op7?' <b>('+Math.round(cl7/op7*100)+'% of opens)</b>':''),'var(--forest)');
+  c+=card(cl7+' / '+cl30,'Tapped \u201cStart day one\u201d \u00b7 7d / 30d'+(op7?' <b>('+Math.round(cl7/op7*100)+'% of opens)</b>':''),'var(--forest)');
+
+  // ── THE NUMBER THAT MATTERS: free day one -> paid ──
+  var ts7=f7.trial_start||0, ts30=f30.trial_start||0;
+  var tc7=f7.trial_converted||0, tc30=f30.trial_converted||0;
+  var te7=f7.trial_expired||0;
+  var tRate7=ts7? Math.round(tc7/ts7*100):null;
+  var tRate30=ts30? Math.round(tc30/ts30*100):null;
+  c+=card(ts7+' / '+ts30,'Free days started \u00b7 7d / 30d','var(--forest)');
+  c+=card((tRate7!=null?tRate7+'%':'\u2013')+' / '+(tRate30!=null?tRate30+'%':'\u2013'),
+          'Free \u2192 paid \u00b7 7d / 30d <b>('+tc7+' / '+tc30+' paid)</b>',
+          (tRate7!=null&&tRate7>=15)?'var(--forest)':(tRate7!=null&&tRate7<5?'var(--amber)':null));
+  c+=card(te7,'Free days that ran out unpaid \u00b7 7d', te7?'var(--amber)':null);
+  // Which checkout people actually use, so the wallet work can be judged on numbers.
+  var pw7=f7.purchase_wallet||0, pe7=f7.purchase_embedded||0;
+  if(pw7+pe7>0){
+    c+=card(pw7+' / '+pe7,'Paid by wallet / card \u00b7 7d <b>('+Math.round(pw7/(pw7+pe7)*100)+'% wallet)</b>');
+  }
+  // The paywall is where the money is decided: how many who saw it went on to checkout.
+  var po7=f7.trial_offer_open||0, cc7=f7.checkout_click||0;
+  if(po7){ c+=card(Math.round(cc7/po7*100)+'%','Paywall \u2192 checkout \u00b7 7d <b>('+cc7+' of '+po7+')</b>'); }
   c+=card(d.plans.active,'Active plans','var(--forest)');
   c+=card(d.plans.checkedInToday,'Checked in today');
   c+=card(d.activity.activeSessionsToday,'Active sessions today');
@@ -229,7 +249,21 @@ function bars(id,lblId,obj,blue,showAll){
   if(showAll){ lbl.innerHTML=ks.map(function(k){ return '<span>'+k.replace('Day ','D')+'·'+obj[k]+'</span>'; }).join(''); }
   else { lbl.innerHTML='<span>'+ks[0]+'</span><span>'+ks[Math.floor(ks.length/2)]+'</span><span>'+ks[ks.length-1]+'</span>'; }
 }
-var STEPS=[['app_open','App opened'],['landing_cta','Clicked \u201cGet my pet\u2019s plan\u201d'],['assessment_start','Assessment started'],['assessment_done','Assessment finished'],['offer_view','Offer seen'],['checkout_click','Checkout click'],['paid_return','Paid'],['checkin_done','Did a check-in'],['plan_end','Finished plan']];
+// The funnel follows the CURRENT product: land, answer the questions, get day one free, come
+// back that evening, hit the paywall, pay. The old version jumped straight from "offer seen"
+// to "paid" and had no idea the free day existed, so every trial user looked like a drop-off.
+var STEPS=[
+  ['app_open','App opened'],
+  ['landing_cta','Tapped \u201cStart day one\u201d'],
+  ['assessment_start','Questions started'],
+  ['assessment_done','Questions finished'],
+  ['trial_start','Free day one started'],
+  ['checkin_done','Did a check-in'],
+  ['trial_offer_open','Opened the paywall'],
+  ['checkout_click','Opened checkout'],
+  ['trial_converted','Paid'],
+  ['plan_end','Finished the week']
+];
 function renderFunnel(d){
   var src=(RANGE===7? d.funnelSessions7 : d.funnelSessions30)||{};
   var max=1; STEPS.forEach(function(s){ if((src[s[0]]||0)>max) max=src[s[0]]||0; });

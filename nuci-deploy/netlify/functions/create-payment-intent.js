@@ -20,21 +20,17 @@
 // Both spellings of the test name are accepted below, so renaming it later breaks nothing.
 const Stripe = require('stripe');
 
-// Test mode is granted for exactly two reasons, and a request body alone is never one of
-// them on its own: the token must MATCH the secret that only Netlify holds.
-function wantsTestMode(event, body) {
-  const secret = process.env.THE_NUCI_DEBUG_KEY;
-  if (secret && body && typeof body.testToken === 'string' && body.testToken === secret) return true;
-  return isTestHost(event);
-}
-
+// Test mode is granted for exactly ONE reason: the request came from localhost.
+//
+// The ?teststripe= token that used to unlock it on thenuci.com was removed. Stripe separates
+// test from live, but Supabase does not, so a test purchase ran the real code against a real
+// profile and converted it permanently. The live domain now has no path into test mode at all.
 function isTestHost(event) {
   try {
     const h = event.headers || {};
     const src = h.origin || h.Origin || h.referer || h.Referer || '';
     const host = src ? new URL(src).hostname.toLowerCase() : '';
-    return host === 'localhost' || host === '127.0.0.1' || host === '::1'
-        || host.endsWith('.netlify.app') || host.endsWith('.netlify.live');
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
   } catch (e) {
     return false;   // unreadable origin -> live, never the permissive direction
   }
@@ -51,7 +47,7 @@ exports.handler = async (event) => {
   }
   try {
     const body0 = (() => { try { return JSON.parse(event.body || '{}'); } catch (e) { return {}; } })();
-    const testMode = wantsTestMode(event, body0);
+    const testMode = isTestHost(event);
     const testKey = process.env.STRIPE_SECERET_KEY_TEST   // current name in Netlify
                  || process.env.STRIPE_SECRET_KEY_TEST;    // correctly spelled, if renamed
     const key = testMode ? testKey : process.env.STRIPE_SECRET_KEY;
