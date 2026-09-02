@@ -69,21 +69,18 @@ exports.handler = async (event) => {
     const intent = await stripe.paymentIntents.create({
       amount,
       currency: 'eur',
-      // WHY automatic_payment_methods AND NOT payment_method_types: ['card'].
+      // BACK TO CARD ONLY, on purpose.
       //
-      // Apple Pay and Google Pay do settle as card payments, so `['card']` looks like it should
-      // cover them - and for the Payment Element it does, because that element draws the card
-      // form itself. The Express Checkout Element is different: it asks Stripe which one-click
-      // methods are available for this intent, and listing payment_method_types explicitly
-      // turns dynamic payment methods OFF. With nothing to evaluate it renders no buttons and
-      // fires no events at all - not even loaderror - which is exactly the silence we chased.
+      // automatic_payment_methods was introduced while chasing the Express Checkout Element,
+      // which needed Stripe to evaluate available wallets. That element is gone - the wallet
+      // button is now the Payment Request Button, which rides on `card` and works fine here.
       //
-      // allow_redirects:'never' keeps the original intent of this function: redirect-based
-      // methods (Klarna, EPS, iDEAL...) are filtered out, so the whole payment including 3-D
-      // Secure still completes inside the in-app sheet with no page navigation, and no
-      // return_url is required. Which wallets appear is now governed by
-      // Dashboard -> Settings -> Payment methods.
-      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+      // What automatic_payment_methods also switched on was LINK: the "Secure, fast checkout
+      // with Link" header and the optional "Save my information for faster checkout" block
+      // with its email field. Card only removes both, leaving exactly the wallet button, the
+      // card fields and nothing else. It also keeps every payment redirect-free, so 3-D
+      // Secure stays an overlay inside the sheet.
+      payment_method_types: ['card'],
       receipt_email: body.email || undefined,
       description: p.name,
       metadata: {

@@ -2296,6 +2296,16 @@ const state={
   pets:[], archive:[], activePet:0, plansGenerated:0
 };
 function serializeState(){
+  // Never persist a placeholder. beginBlankPet() parks a null in pets[] while a new pet is
+  // being built; if a save lands mid-flow that null goes to the server and, on the next
+  // restore, becomes the "active pet" with no plan. Strip them on the way out too.
+  try{
+    if(Array.isArray(state.pets) && state.pets.some(function(p){ return !(p && p.answers && p.answers.petName); })){
+      var _keep=state.pets.filter(function(p){ return p && p.answers && p.answers.petName; });
+      if(state.activePet>=_keep.length) state.activePet=Math.max(0,_keep.length-1);
+      state.pets=_keep;
+    }
+  }catch(e){}
   // CRITICAL: the active pet lives in the top-level fields (state.answers, state.aiPlan, ...)
   // while the other pets live in state.pets[]. Before saving, fold the active pet's current
   // state back into pets[] so the saved snapshot is complete. Without this, a freshly generated
@@ -2444,7 +2454,15 @@ function restoreState(d){
   // out-of-range pointer makes pet switching silently do nothing and lets syncActivePet
   // write ghosts. On every restore, clamp it back onto a real pet.
   if(Array.isArray(state.pets) && state.pets.length){
-    if(typeof state.activePet!=='number' || state.activePet<0 || state.activePet>=state.pets.length || !state.pets[state.activePet]){
+    // FIRST: throw away placeholder entries. beginBlankPet() parks a literal `null` in pets[]
+    // to reserve a slot, which is fine in memory but disastrous once persisted: the clamp
+    // below moves activePet to the LAST index, which is exactly that null, loadPet(null)
+    // returns immediately, and the owner opens the app with no plan at all while their real
+    // pet still shows "2 of 7 days" in the list. Anything without a name is not a pet.
+    state.pets = state.pets.filter(function(p){ return p && p.answers && p.answers.petName; });
+    if(!state.pets.length){ state.activePet=0; }
+    else if(typeof state.activePet!=='number' || state.activePet<0
+            || state.activePet>=state.pets.length || !state.pets[state.activePet]){
       state.activePet=state.pets.length-1;
       try{ loadPet(state.pets[state.activePet]); }catch(e){}
     }
@@ -4614,6 +4632,22 @@ function trialCheck(){
 })();
 // Buying from inside the trial: nothing to generate, just unlock the rest of the week.
 function trialUnlock(){
+  // MIDNIGHT GUARD. The plan day is a calendar difference, which is right almost everywhere -
+  // buying an hour into day one keeps you on day one, because the date has not changed. The
+  // exception is someone who starts their free day late in the evening and pays shortly after
+  // midnight: a couple of hours in, the date has rolled over and computedDay() hands them day
+  // two, skipping most of the day one they just paid to keep.
+  // So: if the free day has been running for less than 24 real hours but the date already
+  // moved on, restart the calendar from today. Anyone genuinely past 24 hours is untouched.
+  try{
+    var _ts = state.trialStart ? new Date(state.trialStart).getTime() : 0;
+    var _hrs = _ts ? (Date.now()-_ts)/3600000 : 999;
+    if(_hrs < 24 && state.planStartDate && daysBetween(state.planStartDate, todayKey()) > 0){
+      state.planStartDate = todayKey();
+      state.currentDay = 1;
+      state.viewDay = 1;
+    }
+  }catch(e){}
   state.trialStart=null;
   state.frozenSince=null;
   state.purchased=true;
@@ -6980,7 +7014,10 @@ function openEmbeddedPay(pkg){
     try{ var n=document.getElementById('payDebug'); if(n) n.textContent=msg; }catch(e){}
   };
   openSheet(
-    '<div style="text-align:center;padding-top:2px">'
+    // Everything the sheet draws lives inside #payBody, which starts invisible and is faded in
+    // as one piece once the wallet button and the card form are both ready (see payReveal).
+    '<div id="payBody">'
+    +'<div style="text-align:center;padding-top:2px">'
     +'<div style="font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:var(--sage);margin-bottom:10px">Unlock the full week</div>'
     +'<div style="font-size:2.5rem;letter-spacing:-.05em;line-height:1;margin-bottom:4px"><span class="nuci-glow" style="font-variant-numeric:tabular-nums">\u20ac'+price.toFixed(2)+'</span></div>'
     +'<div style="font-size:.78rem;color:var(--secondary);margin-bottom:16px">One-time payment \u00b7 no subscription</div>'
@@ -7000,7 +7037,51 @@ function openEmbeddedPay(pkg){
     +'<button class="btn btn-primary" id="payBtn" style="margin-top:16px" onclick="submitEmbeddedPay()">Pay \u20ac'+price.toFixed(2)+'</button>'
     +'<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:.72rem;color:var(--secondary)">'
       +icon('lock','13px',1.8)+'<span>Payments handled by Stripe \u00b7 card details never touch our servers</span></div>'
-    +'</div>');
+    +'</div>'      // centred wrapper
+    +'</div>');   // #payBody
+  // ── ONE REVEAL, NOT THREE ──
+  // The sheet used to assemble itself in front of the buyer: price, then a gap, then the
+  // wallet button popping in, then the card fields. Each piece arrives from a different
+  // async source, so the layout jumped twice. Now the contents are hidden behind a spinner
+  // and shown together, once BOTH the wallet decision and the card form are ready - and never
+  // sooner than MIN_MS, because a flash that is shorter than the eye can follow reads as a
+  // glitch rather than as loading.
+  var PAY_MIN_MS=1500;
+  var __payT0=Date.now(), __payWalletReady=false, __payCardReady=false, __payRevealed=false;
+  function payReveal(){
+    if(__payRevealed) return;
+    if(!(__payWalletReady && __payCardReady)) return;
+    var wait=Math.max(0, PAY_MIN_MS-(Date.now()-__payT0));
+    setTimeout(function(){
+      if(__payRevealed) return;
+      __payRevealed=true;
+      var ov=document.getElementById('payLoading');
+      var bd=document.getElementById('payBody');
+      if(ov){ ov.style.opacity='0'; setTimeout(function(){ try{ ov.remove(); }catch(e){} },260); }
+      if(bd){ bd.style.transition='opacity .32s ease'; bd.style.opacity='1'; }
+    }, wait);
+  }
+  // Never leave someone staring at a spinner because one piece never reported in.
+  setTimeout(function(){ __payWalletReady=true; __payCardReady=true; payReveal(); }, 9000);
+  try{
+    var _bd=document.getElementById('payBody');
+    if(_bd){ _bd.style.opacity='0'; }
+    var _pn=document.getElementById('sheetPanel');
+    if(_pn && !document.getElementById('payLoading')){
+      var _ov=document.createElement('div');
+      _ov.id='payLoading';
+      _ov.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
+        +'background:var(--card,#FBFBF8);border-radius:inherit;z-index:5;transition:opacity .26s ease';
+      _ov.innerHTML='<div style="text-align:center">'
+        +'<div style="width:38px;height:38px;border:3px solid rgba(62,90,71,.16);border-top-color:var(--forest,#3E5A47);'
+        +'border-radius:50%;margin:0 auto 14px;animation:paysp .9s linear infinite"></div>'
+        +'<div style="font-size:.85rem;color:var(--secondary,#5C6660)">Preparing secure checkout\u2026</div>'
+        +'</div><style>@keyframes paysp{to{transform:rotate(360deg)}}</style>';
+      if(getComputedStyle(_pn).position==='static') _pn.style.position='relative';
+      _pn.appendChild(_ov);
+    }
+  }catch(e){}
+
   Promise.resolve()
     .then(loadStripeJs)
     .then(function(){
@@ -7028,7 +7109,15 @@ function openEmbeddedPay(pkg){
             var tb=document.createElement('div');
             tb.id='payTestBanner';
             tb.style.cssText='margin:0 0 12px;padding:10px 12px;border-radius:10px;background:#F6E7C4;color:#5A4413;font-size:.78rem;line-height:1.45;font-weight:600;text-align:center';
-            tb.textContent='TEST MODE \u2014 no real money. Card 4242 4242 4242 4242, any future date, any CVC.';
+            // Stripe splits test from live; SUPABASE DOES NOT. A test purchase runs the same
+            // code as a real one - trialUnlock() clears trialStart and sets purchased=true on
+            // the REAL profile row. Only the money is fake. So the account being modified is
+            // named right here, because doing this on a live account silently converts it.
+            tb.innerHTML='TEST MODE \u2014 fake money, REAL account data.<br>'
+              + 'Card 4242 4242 4242 4242, any future date, any CVC.<br>'
+              + '<span style="font-weight:400">This will modify: <b>'
+              + esc(state.userEmail || 'not logged in')
+              + '</b> \u2014 use a throwaway address, not your own account.</span>';
             var host2=document.getElementById('payExpressHost');
             if(host2 && host2.parentNode) host2.parentNode.insertBefore(tb, host2);
           }
@@ -7106,6 +7195,7 @@ function openEmbeddedPay(pkg){
       __pr.canMakePayment().then(function(avail){
         if(!avail){
           __payStage('wallets: NONE for this device/domain');
+          __payWalletReady=true; payReveal();
           return;
         }
         var prb=__payElements.create('paymentRequestButton',{
@@ -7115,17 +7205,23 @@ function openEmbeddedPay(pkg){
         prb.mount('#payExpressHost');
         var d=document.getElementById('payDivider'); if(d) d.style.display='flex';
         __payStage('wallets: '+Object.keys(avail).filter(function(k){ return avail[k]; }).join(', '));
+        // Give the button a moment to paint inside its iframe before the reveal.
+        setTimeout(function(){ __payWalletReady=true; payReveal(); }, 350);
       }).catch(function(e){
         __payStage('canMakePayment failed: '+((e&&e.message)||e));
+        __payWalletReady=true; payReveal();
       });
 
       // Card form (wallets are shown above as express buttons, so hide them inside here).
       var pe=__payElements.create('payment',{ layout:'tabs', wallets:{ applePay:'never', googlePay:'never' } });
       var w=document.getElementById('payElWait'); if(w) w.remove();
+      pe.on('ready',function(){ __payCardReady=true; payReveal(); });
+      pe.on('loaderror',function(){ __payCardReady=true; payReveal(); });
       pe.mount('#payElHost');
     })
     .catch(function(err){
       __payStage('CHAIN FAILED: '+((err&&err.message)||String(err)));
+      __payWalletReady=true; __payCardReady=true; payReveal();
       console.warn('embedded pay failed, falling back to the payment link', err);
       var link=pkgLink(pkg);   // returns the TEST link while STRIPE_TEST_MODE is on
       if(STRIPE_TEST_MODE && !link){
