@@ -2190,6 +2190,13 @@ const LINKS_INTL={
   single:'https://buy.stripe.com/14AcMYd2vet37Zn2PKdIA0d',   // LIVE 9.95  (1 plan  - Single Plan)
   triple:'https://buy.stripe.com/9B65kw4vZ4St93rduodIA08'    // LIVE 19.95 (3 plans - Family Pack)
 };
+// Test-mode equivalents, used only when the payment sheet falls back to a hosted link while
+// STRIPE_TEST_MODE is on. Without these a test session could be handed a LIVE link and take
+// real money from someone who was only trying things out.
+const LINKS_TEST = {
+  single:'https://buy.stripe.com/test_6oU5kw9Qj1Gh6VjgGAdIA00'   // TEST 9.95 (1 plan)
+  // no triple: the 19.95 pack is no longer sold
+};
 // ═══════ IN-APP PAYMENT (embedded Stripe) ═══════
 // Fill in the publishable key to switch checkout from the hosted Stripe payment-link pages
 // to an IN-APP payment sheet drawn entirely with the app's own graphics (Stripe Payment
@@ -2264,6 +2271,9 @@ function pkgPrice(p){
 // All payments go through the international (global) Stripe account. No Slovenia split.
 var userCountryChoice=null;   // kept for back-compat; no longer used
 function pkgLink(p){
+  // Test mode wins over everything: a live link opened from a test session would charge real
+  // money. There are no discounted test links, so a test session always uses the plain one.
+  if(STRIPE_TEST_MODE && LINKS_TEST[p.id]) return LINKS_TEST[p.id];
   // Discounted set if the tap-game discount is active, otherwise the normal set.
   if(discountActive() && DISCOUNT_LINKS_INTL[p.id]) return DISCOUNT_LINKS_INTL[p.id];
   return LINKS_INTL[p.id];
@@ -7117,16 +7127,15 @@ function openEmbeddedPay(pkg){
     .catch(function(err){
       __payStage('CHAIN FAILED: '+((err&&err.message)||String(err)));
       console.warn('embedded pay failed, falling back to the payment link', err);
-      if(STRIPE_TEST_MODE){
-        // The payment links are LIVE links. Falling back to one from a test session would put
-        // a real 9.95 charge in front of someone who is only testing, so in test mode we show
-        // the failure instead of quietly switching to real money.
+      var link=pkgLink(pkg);   // returns the TEST link while STRIPE_TEST_MODE is on
+      if(STRIPE_TEST_MODE && !link){
+        // No test link for this package - show the failure rather than quietly switching to a
+        // live link and charging someone who is only testing.
         var pe=document.getElementById('payErr');
         if(pe){ pe.textContent='Test mode: payment setup failed - '+((err&&err.message)||err); pe.style.display='block'; }
         return;
       }
       closeSheet();
-      var link=pkgLink(pkg);
       if(link){ window.location.href=link; } else { handlePaidReturn(true); }
     });
 }
