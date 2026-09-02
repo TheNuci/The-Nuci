@@ -2562,6 +2562,14 @@ async function persistStateNow(){
     // trial must never flip that column, or the free day would unlock the whole week.
     if(hasSavablePlan()){ _rec.data=serializeStateForCloud(); }
     if(state.purchased){ _rec.purchased=true; }
+    // Keep pet_name_pending honest. It was written once at signup and never touched again, so
+    // it drifted in two ways: someone who did a second questionnaire for another pet still got
+    // nudge emails naming the FIRST pet, and every paying customer kept a stale "pet in
+    // progress" value forever, which quietly poisons any count taken from this column.
+    // It rides along on the save that is happening anyway, so it costs no extra write.
+    _rec.pet_name_pending = state.purchased
+      ? null                                                     // paid: nothing is pending
+      : ((state.answers && state.answers.petName) || null);      // otherwise: the current pet
     // If they are giving consent now, clear any old opt-out flag (e.g. from a previous
     // delete-profile or unsubscribe) so a returning user actually receives emails again.
     if(state.marketingConsent){ _rec.marketing_opt_out=false; }
@@ -7126,13 +7134,19 @@ function openEmbeddedPay(pkg){
 
       var _ov=document.createElement('div');
       _ov.id='payLoading';
-      _ov.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
+      // NOT inset:0. The stage is as tall as the finished payment form, which is taller than
+      // the part of the sheet you can actually see, so centring inside it put the spinner
+      // below the fold. Capping the centring box at 62vh keeps it in the visible area of a
+      // bottom sheet on any screen, while the background still covers the whole stage.
+      _ov.style.cssText='position:absolute;left:0;right:0;top:0;bottom:0;'
         +'background:var(--card,#FBFBF8);z-index:5;transition:opacity .26s ease';
-      _ov.innerHTML='<div style="text-align:center">'
+      _ov.innerHTML='';   // filled below, inside a centring box of its own
+      _ov.innerHTML='<div style="height:min(100%,62vh);display:flex;align-items:center;justify-content:center">'
+        +'<div style="text-align:center">'
         +'<div style="width:38px;height:38px;border:3px solid rgba(62,90,71,.16);border-top-color:var(--forest,#3E5A47);'
         +'border-radius:50%;margin:0 auto 14px;animation:paysp .9s linear infinite"></div>'
         +'<div style="font-size:.85rem;color:var(--secondary,#5C6660)">Preparing secure checkout\u2026</div>'
-        +'</div><style>@keyframes paysp{to{transform:rotate(360deg)}}</style>';
+        +'</div></div><style>@keyframes paysp{to{transform:rotate(360deg)}}</style>';
       _st.appendChild(_ov);
     }
   }catch(e){}
