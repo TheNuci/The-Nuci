@@ -31,11 +31,21 @@ exports.handler = async (event) => {
     const intent = await stripe.paymentIntents.create({
       amount,
       currency: 'eur',
-      // Card only (Apple Pay / Google Pay ride on card): no redirect-based methods, so the
-      // whole payment - 3-D Secure included - completes inside the in-app sheet without a
-      // page navigation. If you later want Klarna/EPS etc., switch to
-      // automatic_payment_methods and handle the ?paid=true return_url path too.
-      payment_method_types: ['card'],
+      // WHY automatic_payment_methods AND NOT payment_method_types: ['card'].
+      //
+      // Apple Pay and Google Pay do settle as card payments, so `['card']` looks like it should
+      // cover them - and for the Payment Element it does, because that element draws the card
+      // form itself. The Express Checkout Element is different: it asks Stripe which one-click
+      // methods are available for this intent, and listing payment_method_types explicitly
+      // turns dynamic payment methods OFF. With nothing to evaluate it renders no buttons and
+      // fires no events at all - not even loaderror - which is exactly the silence we chased.
+      //
+      // allow_redirects:'never' keeps the original intent of this function: redirect-based
+      // methods (Klarna, EPS, iDEAL...) are filtered out, so the whole payment including 3-D
+      // Secure still completes inside the in-app sheet with no page navigation, and no
+      // return_url is required. Which wallets appear is now governed by
+      // Dashboard -> Settings -> Payment methods.
+      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
       receipt_email: body.email || undefined,
       description: p.name,
       metadata: {
