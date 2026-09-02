@@ -7037,7 +7037,21 @@ function openEmbeddedPay(pkg){
         // If Stripe never answers, say so rather than sitting on stage 5 forever - silence is
         // itself a result and needs to look different from "still working".
         setTimeout(function(){
-          if(!__payHeard) __payStage('6. NO wallet event after 5s \u2014 Stripe never reported availability');
+          if(__payHeard) return;
+          // Events never arrived. Stop asking Stripe and look at the DOM instead: this
+          // separates "the element never rendered at all" from "it rendered but its events
+          // are not reaching us", which no amount of extra listeners could tell apart.
+          var host=document.getElementById('payExpressHost');
+          var kids=host?host.childElementCount:-1;
+          var ifr=host?host.querySelectorAll('iframe').length:-1;
+          var h=host?Math.round(host.getBoundingClientRect().height):-1;
+          var w=host?Math.round(host.getBoundingClientRect().width):-1;
+          var ver='?';
+          try{ ver=(window.Stripe&&window.Stripe.version)||(document.querySelector('script[src*="js.stripe.com"]')||{}).src||'?'; }catch(e){}
+          __payStage('6. no wallet event after 5s \u2014 host children:'+kids+' iframes:'+ifr
+            +' size:'+w+'x'+h+' \u00b7 stripe:'+String(ver).replace('https://js.stripe.com/','')
+            +' \u00b7 '+(navigator.userAgent.indexOf('CriOS')>-1?'Chrome iOS'
+                   :navigator.userAgent.indexOf('Safari')>-1?'Safari':'other'));
         },5000);
       };
       try{
