@@ -7100,10 +7100,37 @@ function openEmbeddedPay(pkg){
           var w=host?Math.round(host.getBoundingClientRect().width):-1;
           var ver='?';
           try{ ver=(window.Stripe&&window.Stripe.version)||(document.querySelector('script[src*="js.stripe.com"]')||{}).src||'?'; }catch(e){}
-          __payStage('6. no wallet event after 5s \u2014 host children:'+kids+' iframes:'+ifr
-            +' size:'+w+'x'+h+' \u00b7 stripe:'+String(ver).replace('https://js.stripe.com/','')
-            +' \u00b7 '+(navigator.userAgent.indexOf('CriOS')>-1?'Chrome iOS'
-                   :navigator.userAgent.indexOf('Safari')>-1?'Safari':'other'));
+          var base='6. iframe:'+ifr+' '+w+'x'+h+' stripe:'+String(ver).replace('https://js.stripe.com/','');
+          // TWO PROBES THAT BYPASS THE EXPRESS CHECKOUT ELEMENT ENTIRELY.
+          //
+          // Everything so far has asked the same component the same question. These ask
+          // somebody else, so they can tell "this device/domain cannot do Apple Pay" apart
+          // from "Apple Pay is available and our element is not showing it".
+          //
+          //   ApplePaySession  - pure WebKit, no Stripe involved. Says whether the DEVICE can
+          //                      do Apple Pay at all.
+          //   paymentRequest   - Stripe's older wallet API. Its canMakePayment() reflects the
+          //                      SAME domain registration and Dashboard settings the Express
+          //                      Checkout Element uses, but through a different code path.
+          var aps='absent';
+          try{
+            if(window.ApplePaySession) aps=ApplePaySession.canMakePayments()?'device-ready':'no-cards';
+          }catch(e){ aps='error'; }
+          __payStage(base+' · ApplePaySession:'+aps+' · asking Stripe…');
+          try{
+            var pr=__stripeInst.paymentRequest({
+              country:'SI', currency:'eur',
+              total:{ label:'The Nuci', amount:Math.round(price*100) }
+            });
+            pr.canMakePayment().then(function(res){
+              __payStage(base+' · ApplePaySession:'+aps
+                +' · stripe.canMakePayment:'+(res?JSON.stringify(res):'NULL (no wallet for this domain/device)'));
+            }).catch(function(e){
+              __payStage(base+' · ApplePaySession:'+aps+' · canMakePayment threw: '+((e&&e.message)||e));
+            });
+          }catch(e){
+            __payStage(base+' · ApplePaySession:'+aps+' · paymentRequest threw: '+((e&&e.message)||e));
+          }
         },5000);
       };
       try{
