@@ -6987,21 +6987,39 @@ function openEmbeddedPay(pkg){
       __payStage('4. elements ok, creating express checkout\u2026');
       var __payDbg=__payStage;
       var __payHeard=false;
-      var __payShowDivider=function(list){
+      // TWO event shapes, and reading only one of them was the bug.
+      //   availablepaymentmethodschange -> ev.paymentMethods, values are {available:boolean}
+      //   ready (legacy)                -> ev.availablePaymentMethods, values are booleans
+      // Stripe deprecated the second in favour of the first. This code read only the
+      // deprecated name, so on the current event it always saw undefined and concluded there
+      // were no wallets - regardless of what Stripe actually reported.
+      var __payMethods=function(ev){
+        var raw=(ev&&ev.paymentMethods) || (ev&&ev.availablePaymentMethods) || null;
+        if(!raw) return null;
+        var on=[], off=[];
+        Object.keys(raw).forEach(function(k){
+          var v=raw[k];
+          var ok=(v && typeof v==='object') ? v.available===true : !!v;
+          (ok?on:off).push(k);
+        });
+        return {on:on, off:off};
+      };
+      var __payShowDivider=function(res){
         try{
-          __payDbg('wallets: '+((list && list.length)?list.join(', '):'NONE')
+          var on=res?res.on:[], off=res?res.off:[];
+          __payDbg('wallets: '+(on.length?on.join(', '):'NONE')
+            +(off.length?('  |  unavailable: '+off.join(', ')):'')
             +' \u00b7 '+(navigator.userAgent.indexOf('CriOS')>-1?'Chrome iOS'
                    :navigator.userAgent.indexOf('Safari')>-1?'Safari':'other')
             +' \u00b7 '+(location.protocol==='https:'?'https':'HTTP (wallets need https)')
             +' \u00b7 '+location.hostname);
           var d=document.getElementById('payDivider');
-          if(d) d.style.display=(list && list.length)?'flex':'none';
+          if(d) d.style.display=on.length?'flex':'none';
         }catch(e){}
       };
       var __payAvail=function(ev){
         __payHeard=true;
-        var pm=ev&&ev.availablePaymentMethods;
-        __payShowDivider(pm?Object.keys(pm).filter(function(k){ return pm[k]; }):[]);
+        __payShowDivider(__payMethods(ev));
       };
       var __wireEce=function(ece){
         // 'availablepaymentmethodschange' is what Stripe recommends for "is there anything to
