@@ -6983,185 +6983,77 @@ function openEmbeddedPay(pkg){
             '.Tab':{ border:'1.5px solid rgba(0,0,0,0.07)' },
             '.Tab--selected':{ border:'1.5px solid #6B8F71', backgroundColor:'rgba(107,143,113,.10)' } } }
       });
-      // ─── THE EXPRESS CHECKOUT ELEMENT NEEDS ITS OWN Elements INSTANCE ───
-      // Stripe's reference for stripe.elements(options) says plainly: for the Express Checkout
-      // Element, use the "Elements object WITHOUT an Intent". It does not work with the
-      // clientSecret variant above. Given a clientSecret instance it has no amount and no
-      // currency to reason about, so it renders no buttons and fires NO events at all - not
-      // ready, not availablepaymentmethodschange, not loaderror. That silence, identical in
-      // Safari and Chrome, is exactly what we were chasing.
+      // ─── WALLETS VIA THE PAYMENT REQUEST BUTTON, NOT THE EXPRESS CHECKOUT ELEMENT ───
       //
-      // So: the Payment Element keeps the clientSecret instance (it needs one), and the wallets
-      // get a deferred-mode instance built from the same amount. The PaymentIntent is already
-      // created either way - at confirm time we submit this instance and then confirm against
-      // the clientSecret we are holding.
-      var __eceElements=__stripeInst.elements({
-        mode:'payment',
-        amount:Math.round(price*100),
-        currency:'eur',
-        appearance:{ theme:'flat',
-          variables:{ colorPrimary:'#3E5A47', colorBackground:'#FBFBF8', colorText:'#1A211C',
-            fontFamily:'Inter, -apple-system, sans-serif', borderRadius:'14px' } }
+      // The Express Checkout Element was measured doing nothing here: its iframe mounted at
+      // 354x2 and it fired no ready, no availablepaymentmethodschange and no loaderror, in
+      // Safari and Chrome alike. Meanwhile stripe.paymentRequest().canMakePayment() on the
+      // same page, same device, same domain answered {"applePay":true} - so the device is
+      // ready, the domain is registered and Stripe does offer the wallet. Only the element
+      // was failing.
+      //
+      // So the wallet button is built from the API that demonstrably works here. It shows one
+      // button - the platform's own - which is all a device can ever offer anyway: Apple Pay
+      // in Safari, Google Pay in Chrome. Nobody sees both.
+      __payStage('4. elements ok, asking for wallet availability…');
+      var __pr=__stripeInst.paymentRequest({
+        country:'SI', currency:'eur',
+        total:{ label:'The Nuci', amount:Math.round(price*100) },
+        requestPayerName:false, requestPayerEmail:false
       });
-      var __eceSecret=out.clientSecret;
-      // Wallet buttons: Apple Pay above Google Pay, each full-width on its own row.
-      __payStage('4. elements ok, creating express checkout\u2026');
-      var __payDbg=__payStage;
-      var __payHeard=false;
-      // TWO event shapes, and reading only one of them was the bug.
-      //   availablepaymentmethodschange -> ev.paymentMethods, values are {available:boolean}
-      //   ready (legacy)                -> ev.availablePaymentMethods, values are booleans
-      // Stripe deprecated the second in favour of the first. This code read only the
-      // deprecated name, so on the current event it always saw undefined and concluded there
-      // were no wallets - regardless of what Stripe actually reported.
-      var __payMethods=function(ev){
-        var raw=(ev&&ev.paymentMethods) || (ev&&ev.availablePaymentMethods) || null;
-        if(!raw) return null;
-        var on=[], off=[];
-        Object.keys(raw).forEach(function(k){
-          var v=raw[k];
-          var ok=(v && typeof v==='object') ? v.available===true : !!v;
-          (ok?on:off).push(k);
-        });
-        return {on:on, off:off};
-      };
-      var __payShowDivider=function(res){
-        try{
-          var on=res?res.on:[], off=res?res.off:[];
-          __payDbg('wallets: '+(on.length?on.join(', '):'NONE')
-            +(off.length?('  |  unavailable: '+off.join(', ')):'')
-            +' \u00b7 '+(navigator.userAgent.indexOf('CriOS')>-1?'Chrome iOS'
-                   :navigator.userAgent.indexOf('Safari')>-1?'Safari':'other')
-            +' \u00b7 '+(location.protocol==='https:'?'https':'HTTP (wallets need https)')
-            +' \u00b7 '+location.hostname);
-          var d=document.getElementById('payDivider');
-          if(d) d.style.display=on.length?'flex':'none';
-        }catch(e){}
-      };
-      var __payAvail=function(ev){
-        __payHeard=true;
-        __payShowDivider(__payMethods(ev));
-      };
-      var __wireEce=function(ece){
-        // 'availablepaymentmethodschange' is what Stripe recommends for "is there anything to
-        // show" - 'ready' fires once, this fires whenever the answer changes.
-        ece.on('availablepaymentmethodschange', __payAvail);
-        ece.on('ready', __payAvail);
-        ece.on('loaderror',function(ev){
-          var m=(ev&&ev.error&&(ev.error.message||ev.error.code))||'unknown';
-          try{ console.warn('[pay] express checkout failed to load:', ev&&ev.error); }catch(e){}
-          __payDbg('express checkout FAILED: '+m);
-        });
-        // Deferred-mode confirmation: submit THIS instance first, then confirm against the
-        // clientSecret. confirmEmbeddedPay() cannot be reused here - it confirms the card
-        // instance, which the wallet never touched.
-        ece.on('confirm',function(){
-          if(__payBusy) return;
-          __payBusy=true;
-          var perr=document.getElementById('payErr');
-          __eceElements.submit().then(function(sub){
-            if(sub && sub.error){ throw sub.error; }
-            return __stripeInst.confirmPayment({
-              elements:__eceElements,
-              clientSecret:__eceSecret,
-              redirect:'if_required',
-              confirmParams:{ return_url: location.origin + location.pathname + '?paid=true' }
-            });
-          }).then(function(res){
-            __payBusy=false;
-            if(res && res.error){
-              if(perr){ perr.textContent=res.error.message||'Payment failed. Please try again.'; perr.style.display='block'; }
-              return;
-            }
-            var pi=res&&res.paymentIntent;
-            if(pi && (pi.status==='succeeded'||pi.status==='processing')){
-              try{ nuciTrack('purchase_wallet', pi.id); }catch(e){}
-              closeSheet();
-              handlePaidReturn(true);
-            }
-          }).catch(function(e){
-            __payBusy=false;
-            if(perr){ perr.textContent=(e&&e.message)||'Payment failed. Please try again.'; perr.style.display='block'; }
-          });
-        });
-        ece.mount('#payExpressHost');
-        __payStage('5. express checkout mounted, waiting for Stripe\u2026');
-        // If Stripe never answers, say so rather than sitting on stage 5 forever - silence is
-        // itself a result and needs to look different from "still working".
-        setTimeout(function(){
-          if(__payHeard) return;
-          // Events never arrived. Stop asking Stripe and look at the DOM instead: this
-          // separates "the element never rendered at all" from "it rendered but its events
-          // are not reaching us", which no amount of extra listeners could tell apart.
-          var host=document.getElementById('payExpressHost');
-          var kids=host?host.childElementCount:-1;
-          var ifr=host?host.querySelectorAll('iframe').length:-1;
-          var h=host?Math.round(host.getBoundingClientRect().height):-1;
-          var w=host?Math.round(host.getBoundingClientRect().width):-1;
-          var ver='?';
-          try{ ver=(window.Stripe&&window.Stripe.version)||(document.querySelector('script[src*="js.stripe.com"]')||{}).src||'?'; }catch(e){}
-          var base='6. iframe:'+ifr+' '+w+'x'+h+' stripe:'+String(ver).replace('https://js.stripe.com/','');
-          // TWO PROBES THAT BYPASS THE EXPRESS CHECKOUT ELEMENT ENTIRELY.
-          //
-          // Everything so far has asked the same component the same question. These ask
-          // somebody else, so they can tell "this device/domain cannot do Apple Pay" apart
-          // from "Apple Pay is available and our element is not showing it".
-          //
-          //   ApplePaySession  - pure WebKit, no Stripe involved. Says whether the DEVICE can
-          //                      do Apple Pay at all.
-          //   paymentRequest   - Stripe's older wallet API. Its canMakePayment() reflects the
-          //                      SAME domain registration and Dashboard settings the Express
-          //                      Checkout Element uses, but through a different code path.
-          var aps='absent';
-          try{
-            if(window.ApplePaySession) aps=ApplePaySession.canMakePayments()?'device-ready':'no-cards';
-          }catch(e){ aps='error'; }
-          __payStage(base+' · ApplePaySession:'+aps+' · asking Stripe…');
-          try{
-            var pr=__stripeInst.paymentRequest({
-              country:'SI', currency:'eur',
-              total:{ label:'The Nuci', amount:Math.round(price*100) }
-            });
-            pr.canMakePayment().then(function(res){
-              __payStage(base+' · ApplePaySession:'+aps
-                +' · stripe.canMakePayment:'+(res?JSON.stringify(res):'NULL (no wallet for this domain/device)'));
-            }).catch(function(e){
-              __payStage(base+' · ApplePaySession:'+aps+' · canMakePayment threw: '+((e&&e.message)||e));
-            });
-          }catch(e){
-            __payStage(base+' · ApplePaySession:'+aps+' · paymentRequest threw: '+((e&&e.message)||e));
+      var __prSecret=out.clientSecret;
+
+      // Wallet confirmation is a two-step handshake: confirm WITHOUT letting Stripe.js handle
+      // actions, close the sheet with success or failure so the wallet UI can dismiss, and
+      // only then run any 3-D Secure step. Closing late leaves the wallet spinning.
+      __pr.on('paymentmethod', function(ev){
+        if(__payBusy){ ev.complete('fail'); return; }
+        __payBusy=true;
+        var perr=document.getElementById('payErr');
+        __stripeInst.confirmCardPayment(__prSecret, { payment_method: ev.paymentMethod.id }, { handleActions:false })
+        .then(function(res){
+          if(res.error){ ev.complete('fail'); throw res.error; }
+          ev.complete('success');
+          if(res.paymentIntent && res.paymentIntent.status==='requires_action'){
+            return __stripeInst.confirmCardPayment(__prSecret);
           }
-        },5000);
-      };
-      try{
-        __wireEce(__eceElements.create('expressCheckout',{
-          buttonHeight:48,
-          layout:{ maxColumns:1, maxRows:2, overflow:'never' },
-          buttonTheme:{ applePay:'black', googlePay:'black' },
-          // WHY 'always' AND NOT THE DEFAULT 'auto':
-          // On 'auto' Stripe shows a wallet only when the platform supports it AND Stripe judges
-          // it advantageous for conversion. 'always' shows it whenever the platform supports it,
-          // and is the only way to get Apple Pay on desktop Chromium and Google Pay in Safari /
-          // Chrome on iOS. It cannot force a wallet onto an unsupported platform or currency.
-          paymentMethods:{ applePay:'always', googlePay:'always' }
-        }));
-      }catch(e1){
-        // Stripe.js validates element options strictly and THROWS on an unknown or malformed
-        // one. This whole block used to sit inside an empty catch, so a single rejected option
-        // meant no element, no listeners and no loaderror - the sheet quietly fell back to the
-        // card form and nothing anywhere said why. That is why the wallets never appeared.
-        //
-        // Now: report which option was rejected, then retry with plain defaults so the buttons
-        // still show up while the offending option is sorted out.
-        var m1=(e1&&e1.message)||String(e1);
-        try{ console.warn('[pay] expressCheckout options rejected:', e1); }catch(e){}
-        try{
-          __wireEce(__eceElements.create('expressCheckout',{}));
-          __payDbg('options rejected, retried with defaults \u2014 ' + m1);
-        }catch(e2){
-          __payDbg('express checkout could not be created: '+((e2&&e2.message)||String(e2)));
+          return res;
+        })
+        .then(function(res){
+          __payBusy=false;
+          if(res && res.error){
+            if(perr){ perr.textContent=res.error.message||'Payment failed. Please try again.'; perr.style.display='block'; }
+            return;
+          }
+          var pi=res&&res.paymentIntent;
+          if(pi && (pi.status==='succeeded'||pi.status==='processing')){
+            try{ nuciTrack('purchase_wallet', pi.id); }catch(e){}
+            closeSheet();
+            handlePaidReturn(true);   // same completion path as the card form
+          }
+        })
+        .catch(function(e){
+          __payBusy=false;
+          if(perr){ perr.textContent=(e&&e.message)||'Payment failed. Please try again.'; perr.style.display='block'; }
+        });
+      });
+
+      __pr.canMakePayment().then(function(avail){
+        if(!avail){
+          __payStage('wallets: NONE for this device/domain');
+          return;
         }
-      }
+        var prb=__payElements.create('paymentRequestButton',{
+          paymentRequest:__pr,
+          style:{ paymentRequestButton:{ type:'default', theme:'dark', height:'48px' } }
+        });
+        prb.mount('#payExpressHost');
+        var d=document.getElementById('payDivider'); if(d) d.style.display='flex';
+        __payStage('wallets: '+Object.keys(avail).filter(function(k){ return avail[k]; }).join(', '));
+      }).catch(function(e){
+        __payStage('canMakePayment failed: '+((e&&e.message)||e));
+      });
+
       // Card form (wallets are shown above as express buttons, so hide them inside here).
       var pe=__payElements.create('payment',{ layout:'tabs', wallets:{ applePay:'never', googlePay:'never' } });
       var w=document.getElementById('payElWait'); if(w) w.remove();
