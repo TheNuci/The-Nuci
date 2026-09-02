@@ -3116,19 +3116,39 @@ function opSummary(q){
 // so the questionnaire ends where the owner is already looking instead of asking them to
 // scroll down to a second, identical-looking button.
 function opIsLast(i){ try{ return i === (opQuestions().length-1); }catch(e){ return false; } }
-function opFinishLabel(){
-  var d=document.getElementById('opDone');
-  var t=d && d.textContent ? d.textContent.trim() : '';
-  return t || 'Start day one, free';
-}
+// Returns false when no button should be rendered at all. On the LAST question there is
+// nothing to advance to, and the footer CTA sits directly beneath the card - so an in-card
+// button there is simply the same button twice.
 function opWireQuestionButton(btn, q, i, emptyMsg){
-  if(opIsLast(i)){
-    btn.textContent=opFinishLabel();
-    btn.onclick=function(){ if(!opAnswered(q)){ toast(emptyMsg); return; } opFinish(); };
+  if(opIsLast(i)) return false;
+  btn.textContent='Next';
+  btn.onclick=function(){ if(!opAnswered(q)){ toast(emptyMsg); return; } opAdvance(i); };
+  return true;
+}
+
+// The footer CTA is not always a free trial. Someone adding a second pet from their Profile
+// has already used their free day, so promising them "Start day one, free" and then showing a
+// paywall is a bait and switch. Three cases, in priority order.
+function opUpdateCta(){
+  var b=document.getElementById('opDone');
+  var n=document.querySelector('#screen-assess1 .op-note');
+  if(!b) return;
+  var price=(PACKAGES&&PACKAGES[0])?pkgPrice(PACKAGES[0]):9.95;
+  var label, note;
+  if(spareCredits()>=1){
+    // Already paid for a plan they have not used - no charge, but not a free trial either.
+    label='Create the plan';
+    note='Uses one of your plans. No payment now.';
+  } else if(!trialEligible()){
+    // Has had a plan before: the free day is spent, so this questionnaire ends at payment.
+    label='Unlock \u00b7 \u20ac'+price.toFixed(2);
+    note='One-time payment \u00b7 no subscription.';
   } else {
-    btn.textContent='Next';
-    btn.onclick=function(){ if(!opAnswered(q)){ toast(emptyMsg); return; } opAdvance(i); };
+    label='Start day one, free';
+    note='No payment now. Day one is yours to try.';
   }
+  b.textContent=label;
+  if(n) n.textContent=note;
 }
 function opRender(){
   var list=document.getElementById('opList'); if(!list) return;
@@ -3171,8 +3191,7 @@ function opInput(q,i){
     box.appendChild(el);
     var b=document.createElement('button'); b.className='btn btn-primary';
     b.style.cssText='margin-top:14px;width:100%';
-    opWireQuestionButton(b, q, i, 'Please fill this in');
-    box.appendChild(b);
+    if(opWireQuestionButton(b, q, i, 'Please fill this in')) box.appendChild(b);
   } else if(q.type==='pet-type'){
     var items=[['dog','Dog'],['cat','Cat'],['rabbit','Rabbit'],['bird','Bird'],['rodent','Small pet'],['reptile','Reptile']];
     var g=document.createElement('div'); g.className='petgrid';
@@ -3219,8 +3238,7 @@ function opInput(q,i){
     box.appendChild(l2);
     var b5=document.createElement('button'); b5.className='btn btn-primary';
     b5.style.cssText='margin-top:14px;width:100%';
-    opWireQuestionButton(b5, q, i, 'Please choose at least one');
-    box.appendChild(b5);
+    if(opWireQuestionButton(b5, q, i, 'Please choose at least one')) box.appendChild(b5);
   } else if(q.type==='age'){
     var g2=document.createElement('div'); g2.className='opage';
     AGE_STEPS.forEach(function(st,si){
@@ -3303,6 +3321,9 @@ function opSizeSpacer(){
   if(!sp) return;
   sp.style.height='0px';
   if(opOpen<0) return;
+  // The last question has no in-card button; its CTA is the footer. Adding tail room there
+  // would push that footer off the bottom of the screen, so the last card keeps none.
+  if(opIsLast(opOpen)) return;
   var card=document.getElementById('opq'+opOpen);
   if(!card) return;
   try{
@@ -3506,6 +3527,7 @@ function opProgress(){
   if(d) d.disabled = (done < qs.length);
 }
 function opSyncDone(){
+  try{ opUpdateCta(); }catch(e){}
   var qs=opQuestions();
   qs.forEach(function(q,i){
     var card=document.getElementById('opq'+i); if(!card) return;
@@ -3544,6 +3566,7 @@ function opStart(){
   opRender();
   try{ window.scrollTo(0,0); }catch(e){}
   var sc=document.getElementById('opScroll'); if(sc) sc.scrollTop=0;
+  try{ opUpdateCta(); }catch(e){}
   try{ opSizeSpacer(); }catch(e){}
   var first=document.getElementById('opq0');
   var q0=opQuestions()[0];
@@ -6953,51 +6976,30 @@ function openEmbeddedPay(pkg){
             '.Tab--selected':{ border:'1.5px solid #6B8F71', backgroundColor:'rgba(107,143,113,.10)' } } }
       });
       // Wallet buttons: Apple Pay above Google Pay, each full-width on its own row.
-      try{
-        var ece=__payElements.create('expressCheckout',{
-          buttonHeight:48,
-          layout:{ maxColumns:1, maxRows:2, overflow:'never' },
-          buttonTheme:{ applePay:'black', googlePay:'black' },
-          // WHY 'always' AND NOT THE DEFAULT 'auto':
-          // On 'auto' Stripe shows a wallet only when the platform supports it AND Stripe judges
-          // it advantageous for conversion - so it silently hid the buttons and the sheet opened
-          // straight on the card form. 'always' shows the wallet whenever the platform supports
-          // it. It is also the ONLY way to get Apple Pay on desktop Chromium (macOS) and Google
-          // Pay in Safari / Chrome on iOS; on 'auto' those combinations never appear at all.
-          //
-          // Trade-off: 'always' also renders the button for someone who has the platform but no
-          // card in their wallet. They tap it and get Apple's "add a card" prompt rather than a
-          // dead end, and the card form is still right below, so this is the better default here.
-          // It still cannot force a wallet onto an unsupported platform or an unsupported currency.
-          paymentMethods:{ applePay:'always', googlePay:'always' }
-        });
-        // Which wallets actually made it. This is the event Stripe recommends for the question
-        // "is there anything to show?" - 'ready' fires once, this fires whenever the answer
-        // changes. If the list is empty the element renders nothing at all, which is otherwise
-        // indistinguishable from a broken integration.
-        var __payDbg=function(msg){
-          try{ console.log('[pay]', msg); }catch(e){}
-          try{ var n=document.getElementById('payDebug'); if(n) n.textContent=msg; }catch(e){}
-        };
-        var __payShowDivider=function(list){
-          try{
-            __payDbg('wallets: '+((list && list.length)?list.join(', '):'NONE')
-              +' \u00b7 '+(navigator.userAgent.indexOf('CriOS')>-1?'Chrome iOS'
-                     :navigator.userAgent.indexOf('Safari')>-1?'Safari':'other')
-              +' \u00b7 '+(location.protocol==='https:'?'https':'HTTP (wallets need https)')
-              +' \u00b7 '+location.hostname);
-            var d=document.getElementById('payDivider');
-            if(d) d.style.display=(list && list.length)?'flex':'none';
-          }catch(e){}
-        };
-        ece.on('availablepaymentmethodschange',function(ev){
-          var pm=ev&&ev.availablePaymentMethods;
-          __payShowDivider(pm?Object.keys(pm).filter(function(k){ return pm[k]; }):[]);
-        });
-        ece.on('ready',function(ev){
-          var pm=ev&&ev.availablePaymentMethods;
-          __payShowDivider(pm?Object.keys(pm).filter(function(k){ return pm[k]; }):[]);
-        });
+      var __payDbg=function(msg){
+        try{ console.log('[pay]', msg); }catch(e){}
+        try{ var n=document.getElementById('payDebug'); if(n) n.textContent=msg; }catch(e){}
+      };
+      var __payShowDivider=function(list){
+        try{
+          __payDbg('wallets: '+((list && list.length)?list.join(', '):'NONE')
+            +' \u00b7 '+(navigator.userAgent.indexOf('CriOS')>-1?'Chrome iOS'
+                   :navigator.userAgent.indexOf('Safari')>-1?'Safari':'other')
+            +' \u00b7 '+(location.protocol==='https:'?'https':'HTTP (wallets need https)')
+            +' \u00b7 '+location.hostname);
+          var d=document.getElementById('payDivider');
+          if(d) d.style.display=(list && list.length)?'flex':'none';
+        }catch(e){}
+      };
+      var __payAvail=function(ev){
+        var pm=ev&&ev.availablePaymentMethods;
+        __payShowDivider(pm?Object.keys(pm).filter(function(k){ return pm[k]; }):[]);
+      };
+      var __wireEce=function(ece){
+        // 'availablepaymentmethodschange' is what Stripe recommends for "is there anything to
+        // show" - 'ready' fires once, this fires whenever the answer changes.
+        ece.on('availablepaymentmethodschange', __payAvail);
+        ece.on('ready', __payAvail);
         ece.on('loaderror',function(ev){
           var m=(ev&&ev.error&&(ev.error.message||ev.error.code))||'unknown';
           try{ console.warn('[pay] express checkout failed to load:', ev&&ev.error); }catch(e){}
@@ -7005,7 +7007,36 @@ function openEmbeddedPay(pkg){
         });
         ece.on('confirm',function(){ confirmEmbeddedPay(); });
         ece.mount('#payExpressHost');
-      }catch(e){ /* wallets unavailable -> card form alone is fine */ }
+      };
+      try{
+        __wireEce(__payElements.create('expressCheckout',{
+          buttonHeight:48,
+          layout:{ maxColumns:1, maxRows:2, overflow:'never' },
+          buttonTheme:{ applePay:'black', googlePay:'black' },
+          // WHY 'always' AND NOT THE DEFAULT 'auto':
+          // On 'auto' Stripe shows a wallet only when the platform supports it AND Stripe judges
+          // it advantageous for conversion. 'always' shows it whenever the platform supports it,
+          // and is the only way to get Apple Pay on desktop Chromium and Google Pay in Safari /
+          // Chrome on iOS. It cannot force a wallet onto an unsupported platform or currency.
+          paymentMethods:{ applePay:'always', googlePay:'always' }
+        }));
+      }catch(e1){
+        // Stripe.js validates element options strictly and THROWS on an unknown or malformed
+        // one. This whole block used to sit inside an empty catch, so a single rejected option
+        // meant no element, no listeners and no loaderror - the sheet quietly fell back to the
+        // card form and nothing anywhere said why. That is why the wallets never appeared.
+        //
+        // Now: report which option was rejected, then retry with plain defaults so the buttons
+        // still show up while the offending option is sorted out.
+        var m1=(e1&&e1.message)||String(e1);
+        try{ console.warn('[pay] expressCheckout options rejected:', e1); }catch(e){}
+        try{
+          __wireEce(__payElements.create('expressCheckout',{}));
+          __payDbg('options rejected, retried with defaults \u2014 ' + m1);
+        }catch(e2){
+          __payDbg('express checkout could not be created: '+((e2&&e2.message)||String(e2)));
+        }
+      }
       // Card form (wallets are shown above as express buttons, so hide them inside here).
       var pe=__payElements.create('payment',{ layout:'tabs', wallets:{ applePay:'never', googlePay:'never' } });
       var w=document.getElementById('payElWait'); if(w) w.remove();
