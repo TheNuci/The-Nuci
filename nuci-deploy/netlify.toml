@@ -97,26 +97,32 @@
   schedule = "0 * * * *"
   timeout = 26
 
-# Morning nudge - runs hourly, function matches the user's local morning
-[functions."morning-nudge"]
-  schedule = "0 * * * *"
-  timeout = 26
+# Morning nudge - RETIRED Sep 2026. It sent a second daily email on top of the evening
+# check-in, and the evening one is the one that does the work (it feeds the next day's plan).
+# The file is left in the repo; with no schedule here it simply never runs.
+# [functions."morning-nudge"]
+#   schedule = "0 * * * *"
+#   timeout = 26
 
-# Weekly themed emails - MUST run hourly: the function itself matches each user's LOCAL
-# 13:00 and picks the weekday theme (Mon/Tue/Wed/Fri/Sun). The old "Mondays 08:00 UTC"
-# value here contradicted the in-file hourly schedule - if this value won, four of the
-# five weekly themes could never send to anyone.
-[functions."weekly-emails"]
-  schedule = "0 * * * *"
-  timeout = 26
+# Weekly themed emails - RETIRED Sep 2026. Five themed emails a week was far too much on
+# top of a daily check-in, and it overlapped with behaviour-tips, which does the educational
+# job properly (explicit consent, one email a fortnight). It also had two targeting bugs: a
+# finished plan still counted as "has a plan", so the Friday/Sunday mails went to people
+# whose week ended months ago, and the Tuesday no-plan nudge skipped exactly the people it
+# was written for. The file stays in the repo; with no schedule here it never runs.
+# [functions."weekly-emails"]
+#   schedule = "0 * * * *"
+#   timeout = 26
 
-# Abandoned cart - every 5 minutes, matching the in-file `export const config` schedule:
-# the first nudge fires "15 minutes after signup", which needs a frequent cadence.
+# Abandoned cart - hourly. The three nudges fire at 20h, 27h and 5 days after signup, so the
+# old every-5-minutes cadence ran 288 times a day to do the work of 24. The "15 minutes after
+# signup" note that justified it was left over from before the free-day-one model.
 [functions."abandoned-cart"]
-  schedule = "*/5 * * * *"
+  schedule = "0 * * * *"
   timeout = 26
 
-# Educational tips (consent only) - weekly run, function enforces a 14-day gap
+# Educational tips (consent only) - weekly run, function enforces a 14-day gap.
+# This is now the ONLY educational/marketing email. Tips are chosen by the pet's species.
 [functions."behaviour-tips"]
   schedule = "0 9 * * 3"
   timeout = 26

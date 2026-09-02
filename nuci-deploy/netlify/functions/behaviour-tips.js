@@ -23,9 +23,11 @@ const NUCI = { bg:'#F2F1EC', card:'#FBFBF8', text:'#1A211C', sec:'#5C6660', sage
 
 function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-// A small library of tips. One is picked per send, cycling by index so nobody
-// receives the same tip twice in a row.
-const TIPS = [
+// Tips are grouped by species and picked from the group matching the pet the owner
+// actually told us about. GENERAL is the fallback when the species is unknown or is
+// something other than a dog or a cat. Each group cycles by index so nobody gets the
+// same tip twice in a row.
+const GENERAL = [
   {
     eyebrow: 'Behaviour, understood',
     title: 'Why punishment usually backfires',
@@ -33,15 +35,6 @@ const TIPS = [
       'When a pet does something we dislike, the instinct is to interrupt it. The problem is that most unwanted behaviour is driven by an underlying state - boredom, fear, or unmet energy - and a telling-off does nothing to that state.',
       'What it does do is add tension to the moment. The behaviour often continues, but now it happens when you are out of the room.',
       'The more reliable move is to change what happens <em>before</em> the behaviour: the trigger, the timing, or what your pet has to do instead.'
-    ]
-  },
-  {
-    eyebrow: 'Behaviour, understood',
-    title: 'The five-minute rule for a calmer evening',
-    body: [
-      'Most household flashpoints happen in the same twenty-minute window - usually when someone comes home, or just before food.',
-      'A short, predictable activity placed just before that window changes the whole shape of it. Five minutes of sniffing, chewing or slow play is enough to take the edge off.',
-      'It works because you are not asking your pet to calm down during the peak. You are lowering the peak before it arrives.'
     ]
   },
   {
@@ -72,6 +65,104 @@ const TIPS = [
     ]
   }
 ];
+
+const DOG_TIPS = [
+  {
+    eyebrow: 'Dogs, understood',
+    title: 'The five-minute rule for a calmer evening',
+    body: [
+      'Most household flashpoints happen in the same twenty-minute window - usually when someone comes home, or just before food.',
+      'A short, predictable activity placed just before that window changes the whole shape of it. Five minutes of sniffing, chewing or slow play is enough to take the edge off.',
+      'It works because you are not asking your dog to calm down during the peak. You are lowering the peak before it arrives.'
+    ]
+  },
+  {
+    eyebrow: 'Dogs, understood',
+    title: 'A sniffing walk beats a longer one',
+    body: [
+      'Owners often answer a restless dog with more distance. More distance builds fitness, which tends to produce a dog who needs even more.',
+      'Twenty minutes spent letting your dog choose where to sniff will settle them more than an hour of brisk heel-walking. Scent work is genuinely tiring in a way that movement is not.',
+      'If you only change one thing this week, let the lead go slack and follow the nose.'
+    ]
+  },
+  {
+    eyebrow: 'Dogs, understood',
+    title: 'Greeting the door without the chaos',
+    body: [
+      'Jumping at the door is rarely about dominance or bad manners. It is a burst of arousal meeting a person who is, from your dog\'s point of view, extremely exciting.',
+      'The fix is boring on purpose: come in, say nothing, do not make eye contact, and wait. Greet only once four feet are on the floor.',
+      'It feels cold for about a week. Then the arrival stops being the biggest event of the day, which is the whole point.'
+    ]
+  },
+  {
+    eyebrow: 'Dogs, understood',
+    title: 'Barking at the window',
+    body: [
+      'A dog barking at passers-by is being rewarded every single time: the person walks on, and from the dog\'s side, the barking worked.',
+      'That loop cannot be trained away while the window is still available. Frosting the lower half of the glass, or simply moving the dog\'s bed, removes the rehearsal.',
+      'Management first, training second. It is much easier to teach a new response when the old one is not being practised forty times a day.'
+    ]
+  }
+];
+
+const CAT_TIPS = [
+  {
+    eyebrow: 'Cats, understood',
+    title: 'Litter tray problems are rarely about the litter',
+    body: [
+      'When a cat stops using the tray, the cause is usually one of three things: a medical issue, the tray itself, or something about where it is.',
+      'The rule of thumb is one tray per cat plus one, each in a quiet spot with an escape route, away from food and from the washing machine.',
+      'Straining, frequent visits or blood need a vet the same day - in male cats especially, a blockage is an emergency, not a behaviour problem.'
+    ]
+  },
+  {
+    eyebrow: 'Cats, understood',
+    title: 'Why height matters more than space',
+    body: [
+      'Cats do not measure a home in square metres, they measure it in vantage points. A small flat with three good perches feels larger to a cat than a big one with none.',
+      'A shelf, a cleared windowsill or the top of a wardrobe gives them somewhere to watch from and somewhere to retreat to.',
+      'A lot of tension between cats in one household eases simply by adding vertical space, so they no longer have to negotiate the same floor.'
+    ]
+  },
+  {
+    eyebrow: 'Cats, understood',
+    title: 'Play that actually tires a cat',
+    body: [
+      'A cat toy left on the floor is furniture. What tires a cat is a full hunting sequence: stalk, chase, pounce, catch, and then a meal.',
+      'Move the wand away from your cat rather than towards them, let them catch it at the end, and feed straight after. Two short sessions beat one long one.',
+      'Cats who never complete the sequence often redirect it - at ankles, at another cat, or at three in the morning.'
+    ]
+  },
+  {
+    eyebrow: 'Cats, understood',
+    title: 'Scratching is not damage, it is signalling',
+    body: [
+      'Scratching leaves both a visual mark and a scent one. Telling a cat off for it asks them to stop communicating, which is not a request they can act on.',
+      'Put a sturdy post right next to the spot they already use - not across the room - and make sure it is tall enough for a full stretch and does not wobble.',
+      'Once the new surface is being used, the old one can be covered. Doing it the other way round almost never works.'
+    ]
+  }
+];
+
+function tipsFor(species){
+  const sp = String(species || '').toLowerCase();
+  if (sp.indexOf('dog') > -1) return DOG_TIPS;
+  if (sp.indexOf('cat') > -1) return CAT_TIPS;
+  return GENERAL;
+}
+
+// The species the owner told us about, from the stored plan blob.
+function speciesFrom(data){
+  try{
+    const d = typeof data === 'string' ? JSON.parse(data) : data;
+    if (!d) return null;
+    if (d.answers && d.answers.petType) return d.answers.petType;
+    if (Array.isArray(d.pets)) {
+      for (const p of d.pets) if (p && p.answers && p.answers.petType) return p.answers.petType;
+    }
+  }catch(e){}
+  return null;
+}
 
 function emailHtml(tip, unsubUrl){
   const paras = tip.body.map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:${NUCI.text};font-family:Arial,sans-serif">${p}</p>`).join('');
@@ -128,8 +219,12 @@ exports.handler = async (event) => {
 
   // ONLY people who gave explicit, separate consent. No exceptions.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
-    `?select=email,marketing_consent,last_tip_sent,tip_index` +
-    `&marketing_consent=eq.true`;
+    `?select=email,marketing_consent,last_tip_sent,tip_index,data,marketing_opt_out` +
+    `&marketing_consent=eq.true` +
+    // Belt and braces: ticking the tips box is what puts someone on this list, but a global
+    // "unsubscribe from everything" must win over it. Without this line, anyone who used an
+    // ?unsub=all link kept receiving tips because that link does not touch marketing_consent.
+    `&marketing_opt_out=not.eq.true`;
 
   let profiles = [];
   try {
@@ -150,7 +245,8 @@ exports.handler = async (event) => {
     if (p.last_tip_sent && (now - new Date(p.last_tip_sent).getTime()) < FORTNIGHT) continue;
 
     const idx = Number.isInteger(p.tip_index) ? p.tip_index : 0;
-    const tip = TIPS[idx % TIPS.length];
+    const list = tipsFor(speciesFrom(p.data));
+    const tip = list[idx % list.length];
 
     const ok = await sendEmail(p.email, tip);
     if (!ok) continue;
@@ -165,7 +261,7 @@ exports.handler = async (event) => {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal'
         },
-        body: JSON.stringify({ last_tip_sent: new Date().toISOString(), tip_index: (idx + 1) % TIPS.length })
+        body: JSON.stringify({ last_tip_sent: new Date().toISOString(), tip_index: (idx + 1) % list.length })
       });
     } catch (e) { /* non-fatal */ }
   }

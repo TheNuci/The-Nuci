@@ -2198,7 +2198,41 @@ const LINKS_INTL={
 // Requires the companion Netlify function: /.netlify/functions/create-payment-intent
 // Add ?paydebug=1 to the URL to print wallet availability inside the payment sheet itself.
 var PAY_DEBUG = (function(){ try{ return new URLSearchParams(location.search).get('paydebug')==='1'; }catch(e){ return false; } })();
-var STRIPE_PK = 'pk_live_51TgpuU38TKGlSfSu58kiEkHXinPEFME2w6bN1PhuLeSOs9sCf9u3vEOsHuew49JItXeCn9jWM6dqnP9bfIXCqkke00YW2Hc5fc';   // Stripe Dashboard -> Developers -> API keys
+// ═══════ STRIPE: LIVE ON THE REAL DOMAIN, TEST EVERYWHERE ELSE ═══════
+// The mode is decided by the HOSTNAME, not by a URL parameter or a flag anyone can set.
+// A ?test=1 style switch would let a stranger on thenuci.com pay with a test card and walk
+// away with a real plan, so there is deliberately no way to turn test mode on in production.
+//
+//   localhost / 127.0.0.1        -> test   (netlify dev)
+//   *.netlify.app / .netlify.live -> test  (deploy previews and netlify dev --live)
+//   anything else, incl. thenuci.com -> LIVE
+//
+// create-payment-intent.js applies the SAME rule server-side from the request Origin, so the
+// publishable key and the secret key can never end up in different modes.
+var STRIPE_PK_LIVE = 'pk_live_51TgpuU38TKGlSfSu58kiEkHXinPEFME2w6bN1PhuLeSOs9sCf9u3vEOsHuew49JItXeCn9jWM6dqnP9bfIXCqkke00YW2Hc5fc';
+var STRIPE_PK_TEST = 'pk_test_51TgpuU38TKGlSfSuKgmohX53urlKmo00yeD56QksWzcVcuERGsrLIrR5TkIYUsl1a9gsMGyx1X5ey6c8bEg9PujE000z6ryyHq';
+// Test mode on the REAL domain, opened with  thenuci.com/?teststripe=YOUR_DEBUG_KEY
+// The key itself is never in this file - it is only passed to the server, which compares it
+// with THE_NUCI_DEBUG_KEY. A wrong or missing key just means live mode, so nobody reaches
+// test mode by guessing a URL. Kept in sessionStorage so it survives the questionnaire and
+// every screen change, and dies when the tab closes.
+var STRIPE_TEST_TOKEN = (function(){
+  try{
+    var t=new URLSearchParams(location.search).get('teststripe');
+    if(t){ sessionStorage.setItem('nuciTestStripe', t); return t; }
+    return sessionStorage.getItem('nuciTestStripe') || '';
+  }catch(e){ return ''; }
+})();
+// Only the starting guess, for local work. What we ACTUALLY use is decided by the server and
+// comes back with the payment intent.
+var STRIPE_TEST_MODE = (function(){
+  try{
+    var h=(location.hostname||'').toLowerCase();
+    return h==='localhost' || h==='127.0.0.1' || h==='::1'
+        || h.endsWith('.netlify.app') || h.endsWith('.netlify.live');
+  }catch(e){ return false; }
+})();
+var STRIPE_PK = STRIPE_TEST_MODE ? STRIPE_PK_TEST : STRIPE_PK_LIVE;
 const DISCOUNT_LINKS_INTL={};  // no discounts - regular prices only
 // Back-compat aliases used elsewhere
 const STRIPE_PAYMENT_LINK=LINKS_INTL.single;
@@ -6916,7 +6950,7 @@ function proceedToPayment(pkg){
 // redirect methods), which means the whole payment - 3-D Secure included - finishes inside
 // the sheet with no page navigation. Any failure falls back to the hosted payment link, so
 // a buyer can never be stuck on a broken sheet.
-var __stripeJs=null, __stripeInst=null, __payElements=null, __payBusy=false;
+var __stripeJs=null, __stripeInst=null, __stripeMode=null, __payElements=null, __payBusy=false;
 function loadStripeJs(){
   if(window.Stripe) return Promise.resolve();
   if(__stripeJs) return __stripeJs;
@@ -6962,13 +6996,34 @@ function openEmbeddedPay(pkg){
     .then(function(){
       __payStage('2. stripe.js loaded, asking for payment intent\u2026');
       return fetch('/.netlify/functions/create-payment-intent',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ packageId:pkg.id, discount:discountActive(), email:state.userEmail||null })});
+        body:JSON.stringify({ packageId:pkg.id, discount:discountActive(), email:state.userEmail||null,
+                              testToken: STRIPE_TEST_TOKEN || undefined })});
     })
     .then(function(r){ if(!r.ok) throw new Error('create-payment-intent '+r.status); return r.json(); })
     .then(function(out){
       if(!out||!out.clientSecret) throw new Error('no client secret');
-      __payStage('3. intent ok, building elements\u2026');
+      // The SERVER decides the mode; we follow it. Choosing on the client would let the
+      // publishable key and the secret key drift apart, which fails confusingly
+      // ("No such payment_intent").
+      STRIPE_TEST_MODE = (out.testMode === true);
+      STRIPE_PK = STRIPE_TEST_MODE ? STRIPE_PK_TEST : STRIPE_PK_LIVE;
+      if(__stripeInst && __stripeMode !== STRIPE_TEST_MODE){ __stripeInst=null; }
+      __stripeMode = STRIPE_TEST_MODE;
+      __payStage('3. intent ok'+(STRIPE_TEST_MODE?' (TEST MODE)':'')+', building elements\u2026');
       __stripeInst=__stripeInst||Stripe(STRIPE_PK);
+      // Impossible to miss, so a test payment is never mistaken for a real one.
+      if(STRIPE_TEST_MODE){
+        try{
+          if(!document.getElementById('payTestBanner')){
+            var tb=document.createElement('div');
+            tb.id='payTestBanner';
+            tb.style.cssText='margin:0 0 12px;padding:10px 12px;border-radius:10px;background:#F6E7C4;color:#5A4413;font-size:.78rem;line-height:1.45;font-weight:600;text-align:center';
+            tb.textContent='TEST MODE \u2014 no real money. Card 4242 4242 4242 4242, any future date, any CVC.';
+            var host2=document.getElementById('payExpressHost');
+            if(host2 && host2.parentNode) host2.parentNode.insertBefore(tb, host2);
+          }
+        }catch(e){}
+      }
       __payElements=__stripeInst.elements({
         clientSecret:out.clientSecret,
         fonts:[{cssSrc:'https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap'}],
@@ -7062,6 +7117,14 @@ function openEmbeddedPay(pkg){
     .catch(function(err){
       __payStage('CHAIN FAILED: '+((err&&err.message)||String(err)));
       console.warn('embedded pay failed, falling back to the payment link', err);
+      if(STRIPE_TEST_MODE){
+        // The payment links are LIVE links. Falling back to one from a test session would put
+        // a real 9.95 charge in front of someone who is only testing, so in test mode we show
+        // the failure instead of quietly switching to real money.
+        var pe=document.getElementById('payErr');
+        if(pe){ pe.textContent='Test mode: payment setup failed - '+((err&&err.message)||err); pe.style.display='block'; }
+        return;
+      }
       closeSheet();
       var link=pkgLink(pkg);
       if(link){ window.location.href=link; } else { handlePaidReturn(true); }

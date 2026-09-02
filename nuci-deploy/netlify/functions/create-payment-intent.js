@@ -9,7 +9,36 @@
 //
 // Prices live HERE, server-side. The client only ever sends a package id and a discount
 // flag - never an amount - so the sheet cannot be tampered with into paying less.
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// ── LIVE ON THE REAL DOMAIN, TEST EVERYWHERE ELSE ──
+// The mode is decided from the request's Origin/Referer host, mirroring the rule in app.html
+// exactly. It is deliberately NOT a field in the request body: the client must not be able to
+// ask for test mode, or someone on thenuci.com could pay with a test card and get a real plan.
+//
+// Netlify env vars:
+//   STRIPE_SECRET_KEY        sk_live_...  (already set)
+//   STRIPE_SECERET_KEY_TEST  sk_test_...  (the name in Netlify, typo and all)
+// Both spellings of the test name are accepted below, so renaming it later breaks nothing.
+const Stripe = require('stripe');
+
+// Test mode is granted for exactly two reasons, and a request body alone is never one of
+// them on its own: the token must MATCH the secret that only Netlify holds.
+function wantsTestMode(event, body) {
+  const secret = process.env.THE_NUCI_DEBUG_KEY;
+  if (secret && body && typeof body.testToken === 'string' && body.testToken === secret) return true;
+  return isTestHost(event);
+}
+
+function isTestHost(event) {
+  try {
+    const h = event.headers || {};
+    const src = h.origin || h.Origin || h.referer || h.Referer || '';
+    const host = src ? new URL(src).hostname.toLowerCase() : '';
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1'
+        || host.endsWith('.netlify.app') || host.endsWith('.netlify.live');
+  } catch (e) {
+    return false;   // unreadable origin -> live, never the permissive direction
+  }
+}
 
 const PRICES = {
   single: { full: 995,  discounted: 495, credits: 1, name: 'The Nuci - 1 plan'  },
@@ -21,7 +50,16 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
   try {
-    const body = JSON.parse(event.body || '{}');
+    const body0 = (() => { try { return JSON.parse(event.body || '{}'); } catch (e) { return {}; } })();
+    const testMode = wantsTestMode(event, body0);
+    const testKey = process.env.STRIPE_SECERET_KEY_TEST   // current name in Netlify
+                 || process.env.STRIPE_SECRET_KEY_TEST;    // correctly spelled, if renamed
+    const key = testMode ? testKey : process.env.STRIPE_SECRET_KEY;
+    if (!key) {
+      return { statusCode: 500, body: JSON.stringify({ error: testMode ? 'test secret key not set in Netlify' : 'STRIPE_SECRET_KEY not set' }) };
+    }
+    const stripe = Stripe(key);
+    const body = body0;
     const p = PRICES[body.packageId];
     if (!p) {
       return { statusCode: 400, body: JSON.stringify({ error: 'unknown package' }) };
@@ -59,7 +97,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientSecret: intent.client_secret, amount, currency: 'eur' })
+      body: JSON.stringify({ clientSecret: intent.client_secret, amount, currency: 'eur', testMode })
     };
   } catch (e) {
     return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
