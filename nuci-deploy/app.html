@@ -6983,6 +6983,27 @@ function openEmbeddedPay(pkg){
             '.Tab':{ border:'1.5px solid rgba(0,0,0,0.07)' },
             '.Tab--selected':{ border:'1.5px solid #6B8F71', backgroundColor:'rgba(107,143,113,.10)' } } }
       });
+      // ─── THE EXPRESS CHECKOUT ELEMENT NEEDS ITS OWN Elements INSTANCE ───
+      // Stripe's reference for stripe.elements(options) says plainly: for the Express Checkout
+      // Element, use the "Elements object WITHOUT an Intent". It does not work with the
+      // clientSecret variant above. Given a clientSecret instance it has no amount and no
+      // currency to reason about, so it renders no buttons and fires NO events at all - not
+      // ready, not availablepaymentmethodschange, not loaderror. That silence, identical in
+      // Safari and Chrome, is exactly what we were chasing.
+      //
+      // So: the Payment Element keeps the clientSecret instance (it needs one), and the wallets
+      // get a deferred-mode instance built from the same amount. The PaymentIntent is already
+      // created either way - at confirm time we submit this instance and then confirm against
+      // the clientSecret we are holding.
+      var __eceElements=__stripeInst.elements({
+        mode:'payment',
+        amount:Math.round(price*100),
+        currency:'eur',
+        appearance:{ theme:'flat',
+          variables:{ colorPrimary:'#3E5A47', colorBackground:'#FBFBF8', colorText:'#1A211C',
+            fontFamily:'Inter, -apple-system, sans-serif', borderRadius:'14px' } }
+      });
+      var __eceSecret=out.clientSecret;
       // Wallet buttons: Apple Pay above Google Pay, each full-width on its own row.
       __payStage('4. elements ok, creating express checkout\u2026');
       var __payDbg=__payStage;
@@ -7031,7 +7052,38 @@ function openEmbeddedPay(pkg){
           try{ console.warn('[pay] express checkout failed to load:', ev&&ev.error); }catch(e){}
           __payDbg('express checkout FAILED: '+m);
         });
-        ece.on('confirm',function(){ confirmEmbeddedPay(); });
+        // Deferred-mode confirmation: submit THIS instance first, then confirm against the
+        // clientSecret. confirmEmbeddedPay() cannot be reused here - it confirms the card
+        // instance, which the wallet never touched.
+        ece.on('confirm',function(){
+          if(__payBusy) return;
+          __payBusy=true;
+          var perr=document.getElementById('payErr');
+          __eceElements.submit().then(function(sub){
+            if(sub && sub.error){ throw sub.error; }
+            return __stripeInst.confirmPayment({
+              elements:__eceElements,
+              clientSecret:__eceSecret,
+              redirect:'if_required',
+              confirmParams:{ return_url: location.origin + location.pathname + '?paid=true' }
+            });
+          }).then(function(res){
+            __payBusy=false;
+            if(res && res.error){
+              if(perr){ perr.textContent=res.error.message||'Payment failed. Please try again.'; perr.style.display='block'; }
+              return;
+            }
+            var pi=res&&res.paymentIntent;
+            if(pi && (pi.status==='succeeded'||pi.status==='processing')){
+              try{ nuciTrack('purchase_wallet', pi.id); }catch(e){}
+              closeSheet();
+              handlePaidReturn(true);
+            }
+          }).catch(function(e){
+            __payBusy=false;
+            if(perr){ perr.textContent=(e&&e.message)||'Payment failed. Please try again.'; perr.style.display='block'; }
+          });
+        });
         ece.mount('#payExpressHost');
         __payStage('5. express checkout mounted, waiting for Stripe\u2026');
         // If Stripe never answers, say so rather than sitting on stage 5 forever - silence is
@@ -7055,7 +7107,7 @@ function openEmbeddedPay(pkg){
         },5000);
       };
       try{
-        __wireEce(__payElements.create('expressCheckout',{
+        __wireEce(__eceElements.create('expressCheckout',{
           buttonHeight:48,
           layout:{ maxColumns:1, maxRows:2, overflow:'never' },
           buttonTheme:{ applePay:'black', googlePay:'black' },
@@ -7077,7 +7129,7 @@ function openEmbeddedPay(pkg){
         var m1=(e1&&e1.message)||String(e1);
         try{ console.warn('[pay] expressCheckout options rejected:', e1); }catch(e){}
         try{
-          __wireEce(__payElements.create('expressCheckout',{}));
+          __wireEce(__eceElements.create('expressCheckout',{}));
           __payDbg('options rejected, retried with defaults \u2014 ' + m1);
         }catch(e2){
           __payDbg('express checkout could not be created: '+((e2&&e2.message)||String(e2)));
