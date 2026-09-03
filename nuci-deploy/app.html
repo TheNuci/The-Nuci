@@ -2140,11 +2140,15 @@ function toggleMic(btn){
       var fr=new FileReader();
       fr.onloadend=function(){
         var b64=String(fr.result||'').split(',')[1]||'';
-        fetch('/.netlify/functions/transcribe',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({audio:b64, mime:(rec.mimeType||mime||'audio/webm'),
-            hint:(navigator.language||'').slice(0,2).toLowerCase()})
+        // Inside a FileReader callback, so the token is resolved first and the upload
+        // chained onto it - transcribe now refuses calls without a session.
+        authHeaders().then(function(_h){
+          return fetch('/.netlify/functions/transcribe',{
+            method:'POST',
+            headers:_h,
+            body:JSON.stringify({audio:b64, mime:(rec.mimeType||mime||'audio/webm'),
+              hint:(navigator.language||'').slice(0,2).toLowerCase()})
+          });
         })
         .then(function(r){ return r.json(); })
         .then(function(d){
@@ -2524,9 +2528,10 @@ function hasSavablePlan(){
   return false;
 }
 function persistState(){ clearTimeout(_saveTimer); _saveTimer=setTimeout(persistStateNow,900); }
-// checkout-context now requires proof that the caller owns the email (it used to hand a
-// stranger's answers to anyone who asked). Every call carries the current access token.
-async function ctxHeaders(){
+// Every server call that costs money or touches personal data now carries the signed-in
+// user's access token: checkout-context (ownership) and the AI/transcribe endpoints (so a
+// stranger cannot spend your Anthropic and OpenAI credit).
+async function authHeaders(){
   var h={'Content-Type':'application/json'};
   try{
     if(supa){
@@ -4412,10 +4417,10 @@ function vmConfirmLang(){
 }
 
 // Step 2: call the AI. May return needInfo (ask questions) or a draft.
-function vmGenerate(){
+async function vmGenerate(){
   var el=document.getElementById('vetHelp');
   el.innerHTML='<div class="vet-loading">Writing your '+(VM.mode==='email'?'email':'script')+'\u2026</div>';
-  fetch('/.netlify/functions/vet-message',{method:'POST',headers:{'Content-Type':'application/json'},
+  fetch('/.netlify/functions/vet-message',{method:'POST',headers:await authHeaders(),
     body:JSON.stringify({mode:VM.mode, lang:VM.lang, answers:state.answers, extra:VM.extra})})
     .then(function(r){ return r.json(); })
     .then(function(d){
@@ -6447,7 +6452,7 @@ async function renderDayOnePreview(){
   ptabRingStart();
 
   try{
-    const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await fetch(AI_ENDPOINT,{method:'POST',headers:await authHeaders(),
       body:JSON.stringify({answers:state.answers, planLength:state.planLength||7, previewOnly:true, lang:appLang()})});
     if(!res.ok) throw new Error('bad');
     const plan=await res.json();
@@ -6852,7 +6857,7 @@ async function generatePlanAI(){
     if(!res){
       // On the free day-one trial we only need day 1 in full plus the shape of the week; days
       // 2-7 are written one at a time each evening from the owner's check-ins.
-      res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+      res=await fetch(AI_ENDPOINT,{method:'POST',headers:await authHeaders(),
         body:JSON.stringify({answers:state.answers,lang:appLang(),dayOneOnly:!!state.__trialPending})});
     }
     try{ nuciTrack('gen_target', (state.answers&&state.answers.petName)||'?'); }catch(e){}
@@ -7016,7 +7021,7 @@ function proceedToPayment(pkg){
         __pendingBlankPet:state.__pendingBlankPet||false };
       // This one sits in a non-async function, so the token is resolved first and the send
       // chained onto it - still fire-and-forget from the caller's point of view.
-      ctxHeaders().then(function(_h){
+      authHeaders().then(function(_h){
         return fetch('/.netlify/functions/checkout-context',{method:'POST',headers:_h,
           body:JSON.stringify({action:'save', email:state.userEmail, ctx:_sc}), keepalive:true});
       }).catch(function(){});
@@ -7459,7 +7464,7 @@ async function runPaidReturn(){
         var _em2=state.userEmail;
         if(!_em2){ try{ var _l2=JSON.parse(localStorage.getItem('nuciState')||'null'); _em2=_l2&&_l2.userEmail; }catch(e){} }
         if(_em2){
-          var _cr=await fetch('/.netlify/functions/checkout-context',{method:'POST',headers:await ctxHeaders(),
+          var _cr=await fetch('/.netlify/functions/checkout-context',{method:'POST',headers:await authHeaders(),
             body:JSON.stringify({action:'load', email:_em2})});
           if(_cr.ok){
             var _cj=await _cr.json();
@@ -7510,7 +7515,7 @@ async function runPaidReturn(){
       var _pfAns = ps.addPetPending ? (ps.addPetPending.answers||ps.answers) : ps.answers;
       if(_needGen && _pfAns && _pfAns.petName){
         window.__genPrefetch={ answersJson:JSON.stringify(_pfAns),
-          promise: fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+          promise: fetch(AI_ENDPOINT,{method:'POST',headers:await authHeaders(),
             body:JSON.stringify({answers:_pfAns, lang:appLang()})}) };
       }
     }catch(e){}
@@ -7539,7 +7544,7 @@ async function runPaidReturn(){
       // note again now that we know who this is.
       if((!ps || !ps.answers || !ps.answers.petName) && state.userEmail){
         try{
-          var _cr2=await fetch('/.netlify/functions/checkout-context',{method:'POST',headers:await ctxHeaders(),
+          var _cr2=await fetch('/.netlify/functions/checkout-context',{method:'POST',headers:await authHeaders(),
             body:JSON.stringify({action:'load', email:state.userEmail})});
           if(_cr2.ok){
             var _cj2=await _cr2.json();
@@ -7591,7 +7596,7 @@ async function runPaidReturn(){
     // Final save attempt: by now (generation + webhook poll = 10-20s) the session has almost
     // always recovered, so this turns an earlier silent RLS failure into a successful upload.
     try{ await persistStateNow(); }catch(e){}
-    try{ if(state.userEmail){ fetch('/.netlify/functions/checkout-context',{method:'POST',headers:await ctxHeaders(),
+    try{ if(state.userEmail){ fetch('/.netlify/functions/checkout-context',{method:'POST',headers:await authHeaders(),
       body:JSON.stringify({action:'clear', email:state.userEmail}), keepalive:true}).catch(function(){}); } }catch(e){}
     log('DONE');
   }catch(e){
@@ -8836,7 +8841,7 @@ async function submitAskAI(){
   btn.disabled=true; btn.textContent='Thinking...';
   ans.innerHTML='<div class="a-card" style="margin-top:0"><div style="color:var(--secondary);font-size:.9rem">Nuci is thinking\u2026</div></div>';
   try{
-    var resp=await fetch('/.netlify/functions/ask-followup',{method:'POST',headers:{'Content-Type':'application/json'},
+    var resp=await fetch('/.netlify/functions/ask-followup',{method:'POST',headers:await authHeaders(),
       body:JSON.stringify({question:q,answers:state.answers,plan:state.aiBehaviorExplain||'',lang:appLang()})});
     var data=await resp.json();
     var text=data && data.answer ? data.answer : 'I could not answer that right now. Please try again.';
@@ -11061,7 +11066,7 @@ async function claimRatingBonus(){
     +'<h2 style="font-size:1.4rem;letter-spacing:-0.03em;margin-bottom:8px">Building your bonus days\u2026</h2>'
     +'<p style="font-size:0.9rem;color:var(--secondary)">Days '+(oldLen+1)+'\u2013'+newLen+', shaped around your week.</p></div>'; }
   try{
-    const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await fetch(AI_ENDPOINT,{method:'POST',headers:await authHeaders(),
       body:JSON.stringify({answers:state.answers, lang:appLang(), extend:true, fromDay:oldLen+1, days:3,
         priorCheckins:(state.checkins||[]).slice(-7)})});
     if(res.ok){
@@ -11127,7 +11132,7 @@ async function planEndNotYet(){
       +'<h2 style="font-size:1.3rem;letter-spacing:-0.03em;margin-bottom:8px">One moment\u2026</h2></div>';
     var msg=null;
     try{
-      const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+      const res=await fetch(AI_ENDPOINT,{method:'POST',headers:await authHeaders(),
         body:JSON.stringify({answers:state.answers, lang:appLang(), sorryMessage:true,
           issue:state.answers.mainIssue||'', priorCheckins:(state.checkins||[]).slice(-10)})});
       if(res.ok){ var data=await res.json(); msg=data.message||data.text||(data.days?null:null); }
@@ -11169,7 +11174,7 @@ async function extendPlanThreeDays(){
     +'<h2 style="font-size:1.4rem;letter-spacing:-0.03em;margin-bottom:8px">Building days '+(oldLen+1)+'\u2013'+newLen+'\u2026</h2>'
     +'<p style="font-size:0.9rem;color:var(--secondary)">Shaping them around what you\u2019ve told us.</p></div>';
   try{
-    const res=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await fetch(AI_ENDPOINT,{method:'POST',headers:await authHeaders(),
       body:JSON.stringify({answers:state.answers, lang:appLang(), extend:true, fromDay:oldLen+1, days:3,
         priorCheckins:(state.checkins||[]).slice(-7)})});
     if(!res.ok) throw new Error('ai '+res.status);

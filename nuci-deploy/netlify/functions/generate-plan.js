@@ -7,7 +7,7 @@ const { rateLimit } = require('./_ratelimit');
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Content-Type': 'application/json'
 };
@@ -82,6 +82,11 @@ exports.handler = async (event) => {
   // Rate limit real generation (protects the Anthropic bill from scripted abuse).
   const rl = rateLimit(event, { max: 12, windowMs: 60000 });
   if (!rl.ok) return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: 'rate_limited', message: 'Too many requests, please wait a moment.' }) };
+  // Paid endpoint: a signed-in caller only. Without this, anyone could spend your API
+  // credit by POSTing here (see _requireuser.js).
+  const { requireUser } = require('./_requireuser');
+  const _who = await requireUser(event);
+  if (!_who.ok) return { statusCode: _who.status, headers: CORS, body: JSON.stringify({ error: _who.error }) };
   // Cap request body size so a huge payload can't be used to run up token costs.
   if ((event.body || '').length > 12000) return { statusCode: 413, headers: CORS, body: JSON.stringify({ error: 'too_large' }) };
 

@@ -5,7 +5,7 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Content-Type': 'application/json'
 };
@@ -19,6 +19,11 @@ exports.handler = async (event) => {
   const { rateLimit } = require('./_ratelimit');
   const rl = rateLimit(event, { max: 12, windowMs: 60000 });
   if (!rl.ok) return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: 'rate_limited' }) };
+  // Paid endpoint: a signed-in caller only. Without this, anyone could spend your API
+  // credit by POSTing here (see _requireuser.js).
+  const { requireUser } = require('./_requireuser');
+  const _who = await requireUser(event);
+  if (!_who.ok) return { statusCode: _who.status, headers: CORS, body: JSON.stringify({ error: _who.error }) };
   if ((event.body || '').length > 30000) return { statusCode: 413, headers: CORS, body: JSON.stringify({ error: 'too_large' }) };
 
   let b = {};

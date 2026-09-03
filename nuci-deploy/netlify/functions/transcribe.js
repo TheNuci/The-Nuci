@@ -27,6 +27,11 @@ exports.handler = async (event) => {
   // one with no rate limit at all - an easy way for someone to run up the bill.
   const rl = rateLimit(event, { max: 10, windowMs: 60000 });
   if (!rl.ok) return { statusCode: 429, body: JSON.stringify({ error: 'rate_limited' }) };
+  // Paid endpoint: a signed-in caller only. Without this, anyone could spend your API
+  // credit by POSTing here (see _requireuser.js).
+  const { requireUser } = require('./_requireuser');
+  const _who = await requireUser(event);
+  if (!_who.ok) return { statusCode: _who.status, headers: {}, body: JSON.stringify({ error: _who.error }) };
   if (!OPENAI_API_KEY) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Transcription is not configured' }) };
   }
