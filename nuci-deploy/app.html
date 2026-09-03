@@ -2196,8 +2196,8 @@ function toggleMic(btn){
       var fr=new FileReader();
       fr.onloadend=function(){
         var b64=String(fr.result||'').split(',')[1]||'';
-        // Inside a FileReader callback, so the token is resolved first and the upload
-        // chained onto it - transcribe now refuses calls without a session.
+        // The token is sent when there IS one, but transcribe does not require it: the
+        // microphone is offered during the questionnaire, before anyone has an account.
         authHeaders().then(function(_h){
           return fetch('/.netlify/functions/transcribe',{
             method:'POST',
@@ -5324,19 +5324,29 @@ async function afterEmailVerified(){
   if(!(state.answers && state.answers.petName)){
     try{ await loadStateForUser(state.userEmail); }catch(e){}
   }
-  // Welcome email + first profile write happen once, now that there's a session and
-  // RLS will accept the insert. nuci_welcomed guards against a repeat.
+  // Welcome email + first profile write happen once, now that there's a session and RLS will
+  // accept the insert. nuci_welcomed guards against a repeat.
+  //
+  // NOT AWAITED, deliberately. These are two network round trips - a Supabase write and a
+  // Resend send - and the code used to wait for both while the person stared at the register
+  // screen. That was the second or two before generation started. Nothing below depends on
+  // either of them, so they are started and left to finish on their own.
   try{
     if(!localStorage.getItem('nuci_welcomed')){
       var nm=state.userName||'';
       try{ var pj=JSON.parse(localStorage.getItem('nuci_pending_signup')||'{}'); if(pj&&pj.name) nm=pj.name; }catch(e){}
       try{
-        await supa.from('profiles').upsert({email:state.userEmail, data:serializeStateForCloud(),
+        supa.from('profiles').upsert({email:state.userEmail, data:serializeStateForCloud(),
           signup_at:new Date().toISOString(), pet_name_pending:(state.answers&&state.answers.petName)||null,
           updated_at:new Date().toISOString(),
           timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone)||null},{onConflict:'email'});
       }catch(e){}
-      try{ await fetch('/.netlify/functions/welcome-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.userEmail,name:nm}),keepalive:true}); }catch(e){}
+      // keepalive so it survives the screen change that happens immediately after.
+      try{ fetch('/.netlify/functions/welcome-email',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:state.userEmail,name:nm}),keepalive:true}).catch(function(){}); }catch(e){}
+      // The flag is set now rather than on success. A missed welcome is recoverable - the
+      // function dedupes server-side and confirm.html calls it too - while waiting to find
+      // out is the delay we are removing.
       try{ localStorage.setItem('nuci_welcomed','1'); localStorage.removeItem('nuci_pending_signup'); }catch(e){}
     }
   }catch(e){}
@@ -8664,8 +8674,13 @@ function renderToday(){
   var t=state.answers.petType||'other';
   // Late check-in banner: missed last night's window -> can still log it until noon.
   var __lateD=lateCheckinDay();
+  // The glow bar uses NEGATIVE offsets. An absolutely positioned child is laid out inside the
+  // padding box, so with this card's 1.5px border the bar sat just below and just inside the
+  // edge, leaving a sliver of border above it and, most visibly, in the corners. Pulling it
+  // out by 2px covers the border; the card's overflow:hidden clips it back to the rounded
+  // corner, so it runs cleanly edge to edge.
   var trialBanner = trialActive() ? ('<div style="background:var(--card);border:1.5px solid var(--border);border-radius:18px;box-shadow:var(--shadow);padding:15px 16px 14px;margin:6px 0 12px;position:relative;overflow:hidden">'
-    +'<div class="nuci-glow-bar" style="position:absolute;top:0;left:0;right:0;height:3px"></div>'
+    +'<div class="nuci-glow-bar" style="position:absolute;top:-2px;left:-2px;right:-2px;height:5px"></div>'
     +'<div style="font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--sage);margin-bottom:8px">Day one \u00b7 free for the next</div>'
     +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
       +'<div class="nuci-glow" id="trialLeft" style="font-size:1.85rem;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap">'+trialFmtLeft()+'</div>'

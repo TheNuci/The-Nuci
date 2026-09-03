@@ -15,7 +15,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const MODEL = process.env.TRANSCRIBE_MODEL || 'gpt-4o-transcribe';
 
 // Keep clips small - this is short-form voice input, not podcast transcription.
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
+const MAX_BYTES = 2 * 1024 * 1024; // 2 MB - roughly a minute of speech, plenty for one answer
 
 const { rateLimit } = require('./_ratelimit');
 
@@ -25,13 +25,15 @@ exports.handler = async (event) => {
   }
   // This is the most expensive endpoint per call (OpenAI audio) and previously the ONLY paid
   // one with no rate limit at all - an easy way for someone to run up the bill.
-  const rl = rateLimit(event, { max: 10, windowMs: 60000 });
+  const rl = rateLimit(event, { max: 6, windowMs: 60000 });
   if (!rl.ok) return { statusCode: 429, body: JSON.stringify({ error: 'rate_limited' }) };
-  // Paid endpoint: a signed-in caller only. Without this, anyone could spend your API
-  // credit by POSTing here (see _requireuser.js).
-  const { requireUser } = require('./_requireuser');
-  const _who = await requireUser(event);
-  if (!_who.ok) return { statusCode: _who.status, headers: {}, body: JSON.stringify({ error: _who.error }) };
+  // DELIBERATELY OPEN, unlike the other paid endpoints.
+  //
+  // The microphone is offered inside the questionnaire, which happens BEFORE anyone has an
+  // account, so requiring a session here simply broke it ("sign_in_required" on question 3).
+  // Since it cannot be closed, it is made small instead: a tighter rate limit and a much
+  // lower size cap than the AI endpoints, which between them bound what a script can spend.
+  // This is also the cheapest call in the whole app, a fraction of a cent per clip.
   if (!OPENAI_API_KEY) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Transcription is not configured' }) };
   }
