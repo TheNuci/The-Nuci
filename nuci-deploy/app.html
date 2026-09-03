@@ -2577,7 +2577,15 @@ async function persistStateNow(){
     // Write the blob for any real plan. `purchased` is set ONLY by an actual purchase - a
     // trial must never flip that column, or the free day would unlock the whole week.
     if(hasSavablePlan()){ _rec.data=serializeStateForCloud(); }
-    if(state.purchased){ _rec.purchased=true; }
+    // `purchased`, `plan_credits`, `transactions` and `last_stripe_session` are NO LONGER
+    // writable by the browser - Postgres revoked column UPDATE from anon/authenticated, so
+    // including any of them here would make the whole upsert fail with 42501 and the profile
+    // would stop saving at all.
+    //
+    // Sending them was the free-week hole: `state.purchased=true; persistStateNow()` in the
+    // console bought nothing and unlocked everything. Money facts are now set exclusively by
+    // stripe-webhook.js, which only acts on a signed event from Stripe, and read back on the
+    // next load. The client may still READ them; it may no longer assert them.
     // Keep pet_name_pending honest. It was written once at signup and never touched again, so
     // it drifted in two ways: someone who did a second questionnaire for another pet still got
     // nudge emails naming the FIRST pet, and every paying customer kept a stale "pet in
@@ -7780,7 +7788,10 @@ async function handlePaidReturn(demo){
   state.transactions.push({date:new Date().toISOString(),packageId:state.packageId||'single',
     price:state.pricePaid!=null?state.pricePaid:9.95,
     credits:(p&&p.planCredits)||1});   // credits bought in THIS purchase, not the running total
-  try{ if(supa&&state.userEmail) supa.from('profiles').update({purchased:true}).eq('email',state.userEmail.toLowerCase()); }catch(e){}
+  // The browser used to declare the purchase here. It can't any more, and shouldn't: this
+  // ran on ?paid=true, which anyone could type. stripe-webhook.js sets purchased and the
+  // credits from the signed Stripe event; the local flag below is only what THIS tab shows
+  // until the next load reads the truth back from the server.
   try{ history.replaceState({},'',location.pathname); }catch(e){}
   // Safety net for existing pets: the add-pet context can be lost across the Stripe redirect
   // (in-memory flags don't survive the reload). If the plan we're about to generate is for a pet
