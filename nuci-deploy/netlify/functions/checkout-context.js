@@ -10,7 +10,7 @@
 const { rateLimit } = require('./_ratelimit');
 const SUPABASE_URL = process.env.THE_NUCI_SUPABASE_URL || 'https://dsuiqkcjfayazzvfwdqk.supabase.co';
 const SERVICE_KEY = process.env.THE_NUCI_SUPABASE_SERVICE_ROLE_KEY;
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Content-Type': 'application/json' };
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Content-Type': 'application/json' };
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
@@ -25,6 +25,30 @@ exports.handler = async (event) => {
   const email = String(b.email || '').trim().toLowerCase();
   const action = String(b.action || '');
   if (!email || email.indexOf('@') < 0) return { statusCode: 400, headers: CORS, body: '{}' };
+
+  // ── PROVE THE CALLER IS THIS PERSON ──
+  // This used to accept an email and nothing else, so `{action:'load', email:'someone@else'}`
+  // handed back a stranger's questionnaire answers and pet name to anybody who asked. The
+  // note is written with the service role (that is the whole point - it must survive an
+  // expired session), so ownership has to be checked here, exactly as delete-user.js does:
+  // read the bearer token, ask Supabase who it belongs to, and require the same address.
+  const authHeader = event.headers['authorization'] || event.headers['Authorization'] || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'no_token' }) };
+  try {
+    const ANON = process.env.SUPABASE_ANON_KEY || SERVICE_KEY;
+    const who = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { 'apikey': ANON, 'Authorization': 'Bearer ' + token }
+    });
+    if (!who.ok) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'bad_token' }) };
+    const u = await who.json();
+    const tokenEmail = ((u && u.email) || '').trim().toLowerCase();
+    if (!tokenEmail || tokenEmail !== email) {
+      return { statusCode: 403, headers: CORS, body: JSON.stringify({ error: 'not_your_account' }) };
+    }
+  } catch (e) {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'auth_check_failed' }) };
+  }
 
   const H = { 'apikey': SERVICE_KEY, 'Authorization': 'Bearer ' + SERVICE_KEY, 'Content-Type': 'application/json' };
 

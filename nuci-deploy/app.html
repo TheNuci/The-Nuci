@@ -2515,6 +2515,19 @@ function hasSavablePlan(){
   return false;
 }
 function persistState(){ clearTimeout(_saveTimer); _saveTimer=setTimeout(persistStateNow,900); }
+// checkout-context now requires proof that the caller owns the email (it used to hand a
+// stranger's answers to anyone who asked). Every call carries the current access token.
+async function ctxHeaders(){
+  var h={'Content-Type':'application/json'};
+  try{
+    if(supa){
+      var g=await supa.auth.getSession();
+      var tk=g && g.data && g.data.session && g.data.session.access_token;
+      if(tk) h['Authorization']='Bearer '+tk;
+    }
+  }catch(e){}
+  return h;
+}
 async function persistStateNow(){
   clearTimeout(_saveTimer);
   // Storage strategy (see auth rework):
@@ -2918,7 +2931,16 @@ function showScreen(id){
   // The one-page questionnaire is skipped: its entry animation leaves a transform on the
   // screen, which makes the first upward scroll jump. It appears without one.
   const el=$(id);
-  if(el){ el.classList.add('active'); if(id!=='screen-assess1'){ playAnim(el,'anim'); } else { clearAnim(el); } }
+  // The landing is excluded from screenIn for the same reason screen-assess1 is: it already
+  // animates itself. Its .rv elements fade in over .9s, so wrapping the whole screen in a
+  // further .44s fade meant nothing was on screen for the first fifth of a second - and the
+  // nav, which has no .rv of its own, appeared exactly when that outer fade finished. Leaving
+  // the page showed the mirror image: the landing vanished at once while the next screen was
+  // still arriving. Painting it immediately removes both gaps and keeps its designed motion.
+  if(el){
+    el.classList.add('active');
+    if(id!=='screen-assess1' && id!=='screen-landing'){ playAnim(el,'anim'); } else { clearAnim(el); }
+  }
   // The landing is a full-width marketing page; every other screen is the phone-framed app.
   // One class on <html> switches between the two (see the .landing-mode rules in the CSS).
   try{ document.documentElement.classList.toggle('landing-mode', id==='screen-landing'); }catch(e){}
@@ -6975,8 +6997,12 @@ function proceedToPayment(pkg){
         priorCredits:state.planCredits||0, plansGenerated:state.plansGenerated||0,
         addPetPending:addCtx?{answers:addCtx.answers, forExistingPet:addCtx.forExistingPet||null}:null,
         __pendingBlankPet:state.__pendingBlankPet||false };
-      fetch('/.netlify/functions/checkout-context',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'save', email:state.userEmail, ctx:_sc}), keepalive:true}).catch(function(){});
+      // This one sits in a non-async function, so the token is resolved first and the send
+      // chained onto it - still fire-and-forget from the caller's point of view.
+      ctxHeaders().then(function(_h){
+        return fetch('/.netlify/functions/checkout-context',{method:'POST',headers:_h,
+          body:JSON.stringify({action:'save', email:state.userEmail, ctx:_sc}), keepalive:true});
+      }).catch(function(){});
     }
   }catch(e){}
   // In-app sheet takes over when a publishable key is configured; the pendingState and
@@ -7415,7 +7441,7 @@ async function runPaidReturn(){
         var _em2=state.userEmail;
         if(!_em2){ try{ var _l2=JSON.parse(localStorage.getItem('nuciState')||'null'); _em2=_l2&&_l2.userEmail; }catch(e){} }
         if(_em2){
-          var _cr=await fetch('/.netlify/functions/checkout-context',{method:'POST',headers:{'Content-Type':'application/json'},
+          var _cr=await fetch('/.netlify/functions/checkout-context',{method:'POST',headers:await ctxHeaders(),
             body:JSON.stringify({action:'load', email:_em2})});
           if(_cr.ok){
             var _cj=await _cr.json();
@@ -7495,7 +7521,7 @@ async function runPaidReturn(){
       // note again now that we know who this is.
       if((!ps || !ps.answers || !ps.answers.petName) && state.userEmail){
         try{
-          var _cr2=await fetch('/.netlify/functions/checkout-context',{method:'POST',headers:{'Content-Type':'application/json'},
+          var _cr2=await fetch('/.netlify/functions/checkout-context',{method:'POST',headers:await ctxHeaders(),
             body:JSON.stringify({action:'load', email:state.userEmail})});
           if(_cr2.ok){
             var _cj2=await _cr2.json();
@@ -7547,7 +7573,7 @@ async function runPaidReturn(){
     // Final save attempt: by now (generation + webhook poll = 10-20s) the session has almost
     // always recovered, so this turns an earlier silent RLS failure into a successful upload.
     try{ await persistStateNow(); }catch(e){}
-    try{ if(state.userEmail){ fetch('/.netlify/functions/checkout-context',{method:'POST',headers:{'Content-Type':'application/json'},
+    try{ if(state.userEmail){ fetch('/.netlify/functions/checkout-context',{method:'POST',headers:await ctxHeaders(),
       body:JSON.stringify({action:'clear', email:state.userEmail}), keepalive:true}).catch(function(){}); } }catch(e){}
     log('DONE');
   }catch(e){

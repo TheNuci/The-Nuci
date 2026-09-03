@@ -28,7 +28,10 @@ const STRIPE_WEBHOOK_SECRET_2 = process.env.STRIPE_WEBHOOK_SECRET_2;
 // Optional third slot for a TEST-mode webhook, so you can verify the whole billing flow with a
 // test card without touching either live secret. Remove or ignore before it matters - live
 // payments never verify against a test secret anyway.
-const STRIPE_WEBHOOK_SECRET_TEST = process.env.STRIPE_WEBHOOK_SECRET_TEST;
+// REMOVED from the accepted list: a test-mode signing secret must never be able to grant
+// real credits on a live profile. Test payments are verified against a test webhook in a
+// test project, not here.
+// const STRIPE_WEBHOOK_SECRET_TEST = process.env.STRIPE_WEBHOOK_SECRET_TEST;
 
 // ---- Verify Stripe signature (so nobody can fake a purchase) ----
 function verifyStripeSignature(rawBody, sigHeader, secret) {
@@ -67,7 +70,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method not allowed' };
   }
-  if (!SUPABASE_URL || !SERVICE_KEY || (!STRIPE_WEBHOOK_SECRET && !STRIPE_WEBHOOK_SECRET_2 && !STRIPE_WEBHOOK_SECRET_TEST)) {
+  if (!SUPABASE_URL || !SERVICE_KEY || (!STRIPE_WEBHOOK_SECRET && !STRIPE_WEBHOOK_SECRET_2)) {
     return { statusCode: 500, body: 'Missing environment configuration' };
   }
 
@@ -76,8 +79,7 @@ exports.handler = async (event) => {
 
   // Valid if the signature matches EITHER account's secret.
   const okSig = verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET)
-    || verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET_2)
-    || verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET_TEST);
+    || verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET_2);
   if (!okSig) {
     return { statusCode: 400, body: 'Invalid signature' };
   }
@@ -86,12 +88,29 @@ exports.handler = async (event) => {
   try { evt = JSON.parse(rawBody); }
   catch (e) { return { statusCode: 400, body: 'Bad JSON' }; }
 
-  // We only act on a completed checkout (a real, paid purchase).
-  if (evt.type !== 'checkout.session.completed') {
+  // TWO shapes of paid event, because there are two ways to pay:
+  //   checkout.session.completed  - the hosted Payment Links
+  //   payment_intent.succeeded    - the in-app sheet (card, Apple Pay, Google Pay)
+  // The sheet creates a PaymentIntent directly and never produces a Checkout Session, so
+  // until now NOTHING server-side recorded an in-app purchase: the credit existed only
+  // because the browser wrote purchased=true into its own row. That is exactly the write we
+  // are about to take away from the client, so this has to land first.
+  if (evt.type !== 'checkout.session.completed' && evt.type !== 'payment_intent.succeeded') {
     return { statusCode: 200, body: 'ignored' };
   }
 
-  const session = evt.data && evt.data.object ? evt.data.object : {};
+  const obj = evt.data && evt.data.object ? evt.data.object : {};
+  // Normalise a PaymentIntent into the same shape the rest of this function already reads.
+  const session = (evt.type === 'payment_intent.succeeded')
+    ? {
+        id: obj.id,                                   // pi_... - dedupe key, same column
+        payment_status: obj.status === 'succeeded' ? 'paid' : obj.status,
+        amount_total: obj.amount_received != null ? obj.amount_received : obj.amount,
+        metadata: obj.metadata || {},                 // create-payment-intent sets packageId/credits/email
+        customer_details: { email: (obj.metadata && obj.metadata.email) || obj.receipt_email || null },
+        customer_email: obj.receipt_email || null
+      }
+    : obj;
   // Only count if actually paid
   if (session.payment_status && session.payment_status !== 'paid') {
     return { statusCode: 200, body: 'not paid' };

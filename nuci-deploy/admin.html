@@ -135,6 +135,24 @@ input:focus{outline:none;border-color:var(--sage)}
       </div>
       <div id="resetDone" style="display:none;font-size:.85rem;color:var(--forest);margin-top:4px"></div>
     </div>
+
+    <div class="sec card" style="border:1px solid rgba(180,84,84,.35)">
+      <h2 style="color:#b45454">Erase all statistics</h2>
+      <div class="muted" style="margin-bottom:12px">Permanently deletes the tracked <b>events, funnel history and client errors</b> from Supabase. Unlike the reset above, this cannot be undone and there is no "show all-time" afterwards. Accounts, plans, purchases and revenue are <b>not</b> touched - only the analytics.</div>
+      <div id="wipeIdle">
+        <button class="ghost" style="color:#b45454;width:auto;padding:13px 22px" onclick="wipeAsk()">Erase all statistics…</button>
+      </div>
+      <div id="wipeConfirm" style="display:none">
+        <div style="font-size:.9rem;line-height:1.5;margin-bottom:10px"><b>This deletes the analytics history for good.</b> Type <b>ERASE</b> to confirm.</div>
+        <input type="text" id="wipeWord" placeholder="ERASE" autocomplete="off" style="max-width:180px">
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <button class="btn" style="width:auto;padding:13px 18px;background:#b45454" onclick="wipeGo()">Erase permanently</button>
+          <button class="ghost" onclick="wipeCancel()">Cancel</button>
+        </div>
+        <div id="wipeErr" style="color:var(--danger);font-size:.78rem;min-height:18px;margin-top:6px"></div>
+      </div>
+      <div id="wipeDone" style="display:none;font-size:.85rem;color:var(--forest);margin-top:4px"></div>
+    </div>
   </div>
 </div>
 
@@ -291,6 +309,44 @@ async function inspect(){
   }catch(e){ out.textContent='Error: '+e; }
 }
 function copyInspect(){ try{ navigator.clipboard.writeText(document.getElementById('inspOut').textContent); }catch(e){} }
+
+// ── Erase all statistics = DESTRUCTIVE, unlike the baseline reset above ──
+// Typing the word is deliberate friction: this one cannot be undone, and it sits one click
+// away from a dashboard you open on a phone.
+function wipeAsk(){
+  document.getElementById('wipeIdle').style.display='none';
+  document.getElementById('wipeConfirm').style.display='block';
+  document.getElementById('wipeDone').style.display='none';
+  document.getElementById('wipeErr').textContent='';
+  var w=document.getElementById('wipeWord'); if(w){ w.value=''; try{ w.focus(); }catch(e){} }
+}
+function wipeCancel(){
+  document.getElementById('wipeConfirm').style.display='none';
+  document.getElementById('wipeIdle').style.display='block';
+}
+async function wipeGo(){
+  var errEl=document.getElementById('wipeErr'); errEl.textContent='';
+  var word=((document.getElementById('wipeWord')||{}).value||'').trim().toUpperCase();
+  if(word!=='ERASE'){ errEl.textContent='Type ERASE to confirm.'; return; }
+  try{
+    var r=await fetch('/.netlify/functions/admin-reset-stats',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({key:KEY,action:'purge'})});
+    if(r.status===403){ errEl.textContent='Wrong key - re-open the dashboard.'; return; }
+    if(r.status===404){ errEl.textContent='admin-reset-stats is not deployed.'; return; }
+    var j={}; try{ j=await r.json(); }catch(e){}
+    if(!r.ok || j.ok===false){
+      // The server half may not know 'purge' yet - say so plainly instead of pretending.
+      errEl.textContent=(j.error||'The server does not support "purge" yet - add that action to admin-reset-stats.js.');
+      return;
+    }
+    document.getElementById('wipeConfirm').style.display='none';
+    document.getElementById('wipeIdle').style.display='block';
+    var done=document.getElementById('wipeDone');
+    done.style.display='block';
+    done.textContent='Statistics erased'+(j.deleted!=null?(' \u00b7 '+j.deleted+' rows'):'')+'. Reloading\u2026';
+    setTimeout(function(){ location.reload(); }, 1200);
+  }catch(e){ errEl.textContent='Error: '+e; }
+}
 // ── Build line ──
 // Preferred source: the admin-stats payload (d.build), so the dashboard states which build
 // the SERVER saw last. Fallback: scrape BUILD_STAMP out of the deployed /app itself, so the
