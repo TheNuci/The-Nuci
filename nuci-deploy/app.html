@@ -2218,19 +2218,28 @@ var PAY_DEBUG = (function(){ try{ return new URLSearchParams(location.search).ge
 // publishable key and the secret key can never end up in different modes.
 var STRIPE_PK_LIVE = 'pk_live_51TgpuU38TKGlSfSu58kiEkHXinPEFME2w6bN1PhuLeSOs9sCf9u3vEOsHuew49JItXeCn9jWM6dqnP9bfIXCqkke00YW2Hc5fc';
 var STRIPE_PK_TEST = 'pk_test_51TgpuU38TKGlSfSuKgmohX53urlKmo00yeD56QksWzcVcuERGsrLIrR5TkIYUsl1a9gsMGyx1X5ey6c8bEg9PujE000z6ryyHq';
-// REMOVED Sep 2026: the ?teststripe= switch that enabled test mode on thenuci.com itself.
-// Stripe separates test from live, but Supabase does not - a test purchase ran the real code
-// against the real profile, cleared trialStart and set purchased=true. One test on a live
-// account converted it for good. thenuci.com is now always live, with no way to change that
-// from a URL.
+// Test mode on the real domain:  thenuci.com/?teststripe=YOUR_DEBUG_KEY
 //
-// Test mode survives ONLY on localhost, where the live account cannot be reached at all and
-// nothing costs real money. Deleting that too would mean every future payment test charges
-// 9.95 EUR and contaminates one more profile.
+// This was removed once, after a test purchase converted a live account for good, and is back
+// now only because the danger it caused is fenced off elsewhere: stripe-webhook.js refuses to
+// write a test-mode payment to any address without "+test" in it. Test with a +test address.
+//
+// The key itself is never in this file - it is passed to the server, which compares it with
+// THE_NUCI_DEBUG_KEY. A wrong or missing key simply means live mode, so no visitor reaches
+// test mode by guessing a URL. Held in sessionStorage so it survives the questionnaire, and
+// gone when the tab closes.
+var STRIPE_TEST_TOKEN = (function(){
+  try{
+    var t=new URLSearchParams(location.search).get('teststripe');
+    if(t){ sessionStorage.setItem('nuciTestStripe', t); return t; }
+    return sessionStorage.getItem('nuciTestStripe') || '';
+  }catch(e){ return ''; }
+})();
 var STRIPE_TEST_MODE = (function(){
   try{
     var h=(location.hostname||'').toLowerCase();
-    return h==='localhost' || h==='127.0.0.1' || h==='::1';
+    return h==='localhost' || h==='127.0.0.1' || h==='::1'
+        || h.endsWith('.netlify.live');   // netlify dev --live, for phone testing
   }catch(e){ return false; }
 })();
 var STRIPE_PK = STRIPE_TEST_MODE ? STRIPE_PK_TEST : STRIPE_PK_LIVE;
@@ -7176,7 +7185,8 @@ function openEmbeddedPay(pkg){
     .then(function(){
       __payStage('2. stripe.js loaded, asking for payment intent\u2026');
       return fetch('/.netlify/functions/create-payment-intent',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ packageId:pkg.id, discount:discountActive(), email:state.userEmail||null })});
+        body:JSON.stringify({ packageId:pkg.id, discount:discountActive(), email:state.userEmail||null,
+                              testToken: STRIPE_TEST_TOKEN || undefined })});
     })
     .then(function(r){ if(!r.ok) throw new Error('create-payment-intent '+r.status); return r.json(); })
     .then(function(out){

@@ -28,10 +28,22 @@ const STRIPE_WEBHOOK_SECRET_2 = process.env.STRIPE_WEBHOOK_SECRET_2;
 // Optional third slot for a TEST-mode webhook, so you can verify the whole billing flow with a
 // test card without touching either live secret. Remove or ignore before it matters - live
 // payments never verify against a test secret anyway.
-// REMOVED from the accepted list: a test-mode signing secret must never be able to grant
-// real credits on a live profile. Test payments are verified against a test webhook in a
-// test project, not here.
-// const STRIPE_WEBHOOK_SECRET_TEST = process.env.STRIPE_WEBHOOK_SECRET_TEST;
+// Test-mode webhook, accepted but FENCED IN (see the livemode guard below). Without a fence
+// this secret could grant real credits on a real profile, which is why it was taken out
+// entirely for a while.
+const STRIPE_WEBHOOK_SECRET_TEST = process.env.STRIPE_WEBHOOK_SECRET_TEST;
+// Which addresses a TEST payment is allowed to touch. Anything else is ignored outright, so
+// a test card can never convert a paying customer.
+//   THE_NUCI_TEST_EMAILS   optional, comma-separated exact addresses
+// Any address containing "+test" is always allowed, which is what plus-addressing is for.
+function testEmailAllowed(email){
+  const e = String(email || '').toLowerCase();
+  if (!e) return false;
+  if (e.includes('+test')) return true;
+  const list = String(process.env.THE_NUCI_TEST_EMAILS || '')
+    .split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+  return list.includes(e);
+}
 
 // ---- Verify Stripe signature (so nobody can fake a purchase) ----
 function verifyStripeSignature(rawBody, sigHeader, secret) {
@@ -70,7 +82,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method not allowed' };
   }
-  if (!SUPABASE_URL || !SERVICE_KEY || (!STRIPE_WEBHOOK_SECRET && !STRIPE_WEBHOOK_SECRET_2)) {
+  if (!SUPABASE_URL || !SERVICE_KEY || (!STRIPE_WEBHOOK_SECRET && !STRIPE_WEBHOOK_SECRET_2 && !STRIPE_WEBHOOK_SECRET_TEST)) {
     return { statusCode: 500, body: 'Missing environment configuration' };
   }
 
@@ -79,7 +91,8 @@ exports.handler = async (event) => {
 
   // Valid if the signature matches EITHER account's secret.
   const okSig = verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET)
-    || verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET_2);
+    || verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET_2)
+    || verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET_TEST);
   if (!okSig) {
     return { statusCode: 400, body: 'Invalid signature' };
   }
@@ -121,6 +134,17 @@ exports.handler = async (event) => {
     || null;
   if (!email) {
     return { statusCode: 200, body: 'no email on session' };
+  }
+
+  // ── THE FENCE ──
+  // Stripe stamps every event with livemode. A test event may only ever write to an address
+  // that is obviously a test address; for anyone else it is acknowledged (so Stripe stops
+  // retrying) and then dropped. Without this, a 4242 card could hand a real customer's
+  // profile a free week - or, worse, mark your own live account as paid, which is precisely
+  // what happened once already.
+  if (evt.livemode === false && !testEmailAllowed(email)) {
+    console.warn('test-mode event ignored for non-test address');
+    return { statusCode: 200, body: 'test event ignored (not a test address)' };
   }
 
   try {
