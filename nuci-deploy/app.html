@@ -314,6 +314,27 @@ html{scroll-padding-top:96px}
 .micbtn{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:none;background:rgba(107,143,113,0.12);color:var(--forest);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,transform .2s ease;margin-left:6px}
 .micbtn:active{transform:scale(.94)}
 .micbtn.rec{background:var(--forest);color:#fff;animation:micPulse 1.2s ease-in-out infinite}
+/* Idle attention pulse, only until the mic has been used once (see opMicSeen). Distinct from
+   .rec above, which means "recording right now" - this one must not look like that. */
+/* A centred modal, separate from the bottom sheet. The sheet is right for things you act on
+   with your thumb; a short explanation reads better as a card in the middle of the screen. */
+#nuciModal{position:fixed;inset:0;z-index:100001;display:none;align-items:center;justify-content:center;padding:24px}
+#nuciModal.open{display:flex}
+#nuciModal .nm-dim{position:absolute;inset:0;background:rgba(26,33,28,.42);backdrop-filter:blur(4px);
+  opacity:0;transition:opacity .22s ease}
+#nuciModal.in .nm-dim{opacity:1}
+#nuciModal .nm-card{position:relative;z-index:1;width:100%;max-width:340px;background:var(--card);
+  border:1px solid var(--border);border-radius:24px;padding:26px 24px;text-align:center;
+  box-shadow:0 24px 60px rgba(26,33,28,.22);
+  opacity:0;transform:translateY(10px) scale(.97);transition:opacity .22s ease,transform .26s cubic-bezier(.32,.9,.28,1)}
+#nuciModal.in .nm-card{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){ #nuciModal .nm-dim,#nuciModal .nm-card{transition:none} }
+.micbtn-hint{background:rgba(107,143,113,.22);color:var(--forest);animation:micHint 1.9s ease-in-out infinite}
+@keyframes micHint{
+  0%,100%{box-shadow:0 0 0 0 rgba(107,143,113,.45)}
+  70%{box-shadow:0 0 0 12px rgba(107,143,113,0)}
+}
+@media(prefers-reduced-motion:reduce){ .micbtn-hint{animation:none} }
 .micbtn.busy{background:rgba(107,143,113,.2);color:var(--sage);pointer-events:none}
 .micbtn.busy svg{animation:micSpin .9s linear infinite}
 @keyframes micSpin{to{transform:rotate(360deg)}}
@@ -2101,6 +2122,39 @@ function autoGrow(el, minLines){
 function speechSupported(){
   return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 }
+// Shown once, the first time someone taps the mic in the questionnaire: people do not expect
+// to be allowed to answer in their own language, so they type broken English instead.
+function opMicSeen(){ try{ return localStorage.getItem('nuciMicSeen')==='1'; }catch(e){ return false; } }
+function openModal(html){
+  var m=document.getElementById('nuciModal');
+  if(!m){
+    m=document.createElement('div'); m.id='nuciModal';
+    m.innerHTML='<div class="nm-dim" onclick="closeModal()"></div><div class="nm-card"></div>';
+    document.body.appendChild(m);
+  }
+  m.querySelector('.nm-card').innerHTML=html;
+  m.classList.add('open');
+  requestAnimationFrame(function(){ m.classList.add('in'); });
+}
+function closeModal(){
+  var m=document.getElementById('nuciModal');
+  if(!m) return;
+  m.classList.remove('in');
+  setTimeout(function(){ m.classList.remove('open'); }, 240);
+}
+function opMicExplain(btn){
+  try{ localStorage.setItem('nuciMicSeen','1'); }catch(e){}
+  try{ var h=document.querySelector('.micbtn-hint'); if(h) h.classList.remove('micbtn-hint'); }catch(e){}
+  openModal(
+    '<div class="d-eb" style="color:var(--sage)">Speak, don\'t type</div>'
+    +'<h2 style="font-size:1.3rem;letter-spacing:-.02em;margin:6px 0 8px">Say it in any language.</h2>'
+    +'<p style="font-size:.9rem;color:var(--secondary);line-height:1.55;margin-bottom:18px">'
+      +'Tap the microphone and describe what happens, in whatever language you think in. '
+      +'Slovenian, English, anything. It is written down for you automatically.</p>'
+    +'<button class="btn btn-primary" style="width:100%" onclick="closeModal();setTimeout(function(){var b=document.querySelector(\'.micbtn\');if(b)toggleMic(b);},300)">Start speaking</button>'
+    +'<button class="btn" style="width:100%;margin-top:10px;background:rgba(107,143,113,.12);color:var(--forest);border:none" onclick="closeModal()">Maybe later</button>'
+  );
+}
 function micBtnHTML(targetId){
   if(!speechSupported()) return '';
   return '<button type="button" class="micbtn" data-target="'+targetId+'" onclick="toggleMic(this)" aria-label="Speak your answer">'
@@ -2111,6 +2165,8 @@ function micReset(){
   document.querySelectorAll('.micbtn').forEach(function(b){ b.classList.remove('rec'); b.classList.remove('busy'); });
 }
 function toggleMic(btn){
+  // First tap in the questionnaire explains itself instead of silently starting to record.
+  if(btn && btn.classList.contains('micbtn-hint') && !__mediaRec){ opMicExplain(btn); return; }
   // already recording -> stop and transcribe
   if(__mediaRec && __mediaRec.state==='recording'){
     try{ __mediaRec.stop(); }catch(e){ micReset(); }
@@ -3296,7 +3352,19 @@ function opInput(q,i){
     el.oninput=function(){ state.answers[q.id]=el.value; opProgress(); opSyncDone(); };
     el.onfocus=function(){ el.style.borderColor='var(--sage)'; };
     el.onblur=function(){ el.style.borderColor='var(--border)'; };
+    el.id = el.id || ('opf_'+q.id);
     box.appendChild(el);
+    // Speaking beats typing for the one question that asks people to describe a problem, and
+    // the transcription detects the language on its own - so someone can just talk in Slovene.
+    // The button pulses until it has been used once, because a mic icon on its own reads as
+    // decoration and almost nobody taps it.
+    if(q.type==='textarea' && speechSupported()){
+      var mw=document.createElement('div');
+      mw.style.cssText='display:flex;align-items:center;gap:10px;margin-top:10px';
+      mw.innerHTML=micBtnHTML(el.id).replace('class="micbtn"','class="micbtn'+(opMicSeen()?'':' micbtn-hint')+'"')
+        +'<span style="font-size:.82rem;color:var(--secondary);line-height:1.35">Prefer to talk? Tap and say it out loud.</span>';
+      box.appendChild(mw);
+    }
     var b=document.createElement('button'); b.className='btn btn-primary';
     b.style.cssText='margin-top:14px;width:100%';
     if(opWireQuestionButton(b, q, i, 'Please fill this in')) box.appendChild(b);
@@ -5202,7 +5270,7 @@ async function verifyOtpCode(code){
     for(var i=0;i<els.length;i++){ els[i].value=''; els[i].classList.remove('filled'); }
     try{ els[0].focus(); }catch(e){}
   }
-  if(!supa){ setErr('Connection error \u2014 please try again.'); return; }
+  if(!supa){ setErr('Connection error. Please try again.'); return; }
 
   __otpBusy=true;
   if(row) row.classList.add('busy');
@@ -5222,7 +5290,7 @@ async function verifyOtpCode(code){
     }
   }catch(e){
     __otpBusy=false; if(row) row.classList.remove('busy');
-    setErr('Something went wrong \u2014 please try again.');
+    setErr('Something went wrong. Please try again.');
     clearBoxes();
     return;
   }
@@ -7224,11 +7292,11 @@ function openEmbeddedPay(pkg){
             // code as a real one - trialUnlock() clears trialStart and sets purchased=true on
             // the REAL profile row. Only the money is fake. So the account being modified is
             // named right here, because doing this on a live account silently converts it.
-            tb.innerHTML='TEST MODE \u2014 fake money, REAL account data.<br>'
+            tb.innerHTML='TEST MODE. Fake money, REAL account data.<br>'
               + 'Card 4242 4242 4242 4242, any future date, any CVC.<br>'
               + '<span style="font-weight:400">This will modify: <b>'
               + esc(state.userEmail || 'not logged in')
-              + '</b> \u2014 use a throwaway address, not your own account.</span>';
+              + '</b>. Use a throwaway address, not your own account.</span>';
             var host2=document.getElementById('payExpressHost');
             if(host2 && host2.parentNode) host2.parentNode.insertBefore(tb, host2);
           }
@@ -11091,7 +11159,7 @@ async function claimRatingBonus(){
   persistStateNow();
   closePlanEnd();
   showTab('today');
-  toast('3 bonus days added \u2013 they start tomorrow');
+  toast('3 bonus days added, they start tomorrow');
 }
 function planEndWorked(){
   // They're happy -> archive the plan and tell them where to find it.
@@ -11111,7 +11179,7 @@ function planEndWorked(){
     +'<div style="width:110px;height:110px;border-radius:50%;background:rgba(107,143,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--sage);margin:10px auto 22px">'+icon('check','52px',1.7)+'</div>'
     +'<h1 style="font-size:1.9rem;letter-spacing:-0.04em;line-height:1.16;margin:0 0 18px">Thank you for<br><span class="accent">trusting the plan.</span></h1>'
     +(state.__ratedThisPlan?'':'<div id="rateRow" style="margin:0 0 22px"><div style="font-size:.82rem;color:var(--secondary);margin-bottom:8px">How was the plan?</div>'
-    +'<div style="font-size:.72rem;color:var(--secondary);opacity:.85;margin:-2px 0 8px">As a thank-you for any rating \u2013 1\u2605 or 5\u2605 \u2013 you get 3 bonus days.</div>'
+    +'<div style="font-size:.72rem;color:var(--secondary);opacity:.85;margin:-2px 0 8px">As a thank-you for any rating, 1\u2605 or 5\u2605, you get 3 bonus days.</div>'
     +'<div style="display:flex;gap:10px;justify-content:center">'
     +[1,2,3,4,5].map(function(n){ return '<button onclick="ratePlan('+n+')" style="background:none;border:none;font-size:1.9rem;line-height:1;color:rgba(214,168,78,.35);cursor:pointer;padding:4px" id="rateS'+n+'">\u2605</button>'; }).join('')
     +'</div></div>')
