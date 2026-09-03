@@ -1,3 +1,4 @@
+const { unsubUrl: nuciUnsubUrl } = require('./_unsubtoken');
 // ── Premium email shell (forest-editorial, matches the app) ──────────
 const NUCI = { bg:'#F2F1EC', card:'#FBFBF8', ink:'#1A211C', sec:'#5C6660', sage:'#6B8F71', forest:'#3E5A47', border:'#E6E3DA' };
 function nuciEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -71,7 +72,7 @@ function escapeHtml(s) {
 // them, so each stage gets its own not-yet-started wording instead.
 function emailHtml(petName, toEmail, stage, started) {
   const pet = petName ? escapeHtml(petName) : 'your pet';
-  const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
+  const unsubUrl = toEmail ? nuciUnsubUrl(toEmail, 'all') : 'https://thenuci.com/';
   const cta = `https://thenuci.com/app.html?resume=1`;
   const tick = (x) => `<div style="font-size:14px;color:${NUCI.ink};font-family:Arial,sans-serif;padding:5px 0"><span style="color:${NUCI.sage}">&#10003;</span>&nbsp;&nbsp;${x}</div>`;
 
@@ -154,7 +155,7 @@ async function sendEmail(apiKey, to, petName, stage, started) {
     2: petName ? `${petName}'s free day is still unopened` : `Your free day is still unopened`
   };
   const subject = subjects[stage] || subjects[1];
-  const unsubUrl = `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(to)}`;
+  const unsubUrl = nuciUnsubUrl(to, 'all');
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },

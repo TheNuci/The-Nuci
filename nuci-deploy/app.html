@@ -11357,7 +11357,11 @@ async function adaptNextDay(nextDay){
         if(unsubEmail){
           // Server-side (service role): the person clicking an email link isn't logged in,
           // so the browser can't update their row under ownership RLS.
-          await fetch('/.netlify/functions/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:unsubEmail.toLowerCase(), kind:unsubKind})});
+          // Pass the &t= signature straight through. New links carry one; links in emails
+          // sent before it existed do not, and the function still accepts those.
+          var unsubTok=params.get('t')||'';
+          await fetch('/.netlify/functions/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({email:unsubEmail.toLowerCase(), kind:unsubKind, token:unsubTok})});
         }
       }catch(e){}
       var isTips = unsubKind==='tips';

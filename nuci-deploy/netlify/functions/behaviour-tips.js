@@ -1,3 +1,4 @@
+const { unsubUrl: nuciUnsubUrl } = require('./_unsubtoken');
 // The Nuci · Educational behaviour tips
 //
 // Sends occasional, genuinely useful behaviour tips.
@@ -197,7 +198,7 @@ function emailHtml(tip, unsubUrl){
 }
 
 async function sendEmail(to, tip){
-  const unsubUrl = `https://thenuci.com/app.html?unsub=tips&e=${encodeURIComponent(to)}`;
+  const unsubUrl = nuciUnsubUrl(to, 'tips');
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },

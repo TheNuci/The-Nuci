@@ -99,8 +99,9 @@ async function markWelcomeSent(email){
   }catch(e){}
 }
 
+const { unsubUrl: nuciUnsubUrl } = require('./_unsubtoken');
 function welcomeHtml(name, toEmail) {
-  const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
+  const unsubUrl = toEmail ? nuciUnsubUrl(toEmail, 'all') : 'https://thenuci.com/';
   return nuciShell({
       preheader: 'Day one of your plan is ready.',
       eyebrow: 'Welcome',

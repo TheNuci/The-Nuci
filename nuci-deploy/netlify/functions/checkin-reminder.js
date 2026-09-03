@@ -1,3 +1,4 @@
+const { unsubUrl: nuciUnsubUrl } = require('./_unsubtoken');
 // ── Premium email shell (forest-editorial, matches the app) ──────────
 const NUCI = { bg:'#F2F1EC', card:'#FBFBF8', ink:'#1A211C', sec:'#5C6660', sage:'#6B8F71', forest:'#3E5A47', border:'#E6E3DA' };
 function nuciEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -103,7 +104,7 @@ function emailHtml(toEmail, names) {
   // initializer - a guaranteed ReferenceError whenever pet names were present,
   // which would have crash-looped every send with names, hourly, forever.)
   const forLine = names ? `<p style="margin:0 0 6px;font-size:14px;color:#5C6660">Tonight\u2019s check-in: <b>${nuciEsc(names)}</b></p>` : '';
-  const unsubUrl = toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/';
+  const unsubUrl = toEmail ? nuciUnsubUrl(toEmail, 'all') : 'https://thenuci.com/';
   return nuciShell({
       preheader: 'A quick check-in keeps the plan on track.',
       eyebrow: 'Evening check-in',
@@ -112,12 +113,12 @@ function emailHtml(toEmail, names) {
         + nuciPara("Tomorrow's steps adapt to your answer.",10)
         + nuciBtn("Check in for today","https://thenuci.com/?checkin=1")
         + nuciBox(`<div style="text-align:center"><div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${NUCI.sec};font-family:Arial,sans-serif">Your check-in window</div><div style="font-family:Georgia,serif;font-size:26px;color:${NUCI.forest};margin-top:4px">20:00 - 23:00</div></div>`),
-      unsubUrl: toEmail ? `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(toEmail)}` : 'https://thenuci.com/'
+      unsubUrl: toEmail ? nuciUnsubUrl(toEmail, 'all') : 'https://thenuci.com/'
     });
 }
 
 async function sendEmail(apiKey, to, names) {
-  const unsubUrl = `https://thenuci.com/app.html?unsub=all&e=${encodeURIComponent(to)}`;
+  const unsubUrl = nuciUnsubUrl(to, 'all');
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
