@@ -10313,12 +10313,11 @@ const CI_STEPS=[
 let ciData={},ciStep=0;
 function ciFlow(){ return ciData.occurred==='No'?CI_STEPS.filter(s=>s.id==='occurred'):CI_STEPS; }
 var CHECKIN_OPEN_HOUR=20, CHECKIN_CLOSE_HOUR=23;  // 20:00 - 22:59 local
-// ═══ TEMPORARY: set back to false when the filming is done ═══
-// With this on, the evening check-in can be opened at any hour. It exists so the flow can be
-// recorded in daylight. Leaving it on in production changes the product: the whole point of
-// the evening window is that the day has actually happened before it is reported on, and the
+// Filming override, OFF. Set to true to open the check-in at any hour and any number of times
+// (for recording the flow in daylight); set back to false the moment you are done. The evening
+// window is not decoration: the day has to have happened before it can be reported on, and the
 // next day is written from that report.
-var CHECKIN_ALWAYS_OPEN = true;
+var CHECKIN_ALWAYS_OPEN = false;
 // With the flag on, the once-a-day limit goes too: the check-in can be opened again and again,
 // which is what recording the flow needs. Every "already checked in today" test goes through
 // this one function so nothing is left blocking.
