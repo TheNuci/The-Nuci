@@ -3299,6 +3299,24 @@ function opUpdateCta(){
   if(!b) return;
   var price=(PACKAGES&&PACKAGES[0])?pkgPrice(PACKAGES[0]):9.95;
   var label, note;
+  // NOT SIGNED IN YET -> always the free-day wording.
+  //
+  // trialEligible() reads local state, and startFreshState() deliberately keeps trialStart,
+  // plansGenerated, transactions and pets so a logged-in account never loses them. On a phone
+  // that has been used before, an anonymous visitor therefore inherits somebody else's
+  // history and gets quoted 9.95 for a free day - which is what happens when you run the
+  // questionnaire twice on your own device.
+  //
+  // Before an email is known we cannot tell who this is, so the honest default is the offer
+  // everyone starts with. The real check has not moved: goAfterAuth() decides after login,
+  // where the account is known, and check-email backs it up server-side.
+  if(!state.userEmail){
+    label='Start day one, free';
+    note='No payment now. Day one is yours to try.';
+    b.textContent=label;
+    if(n) n.textContent=note;
+    return;
+  }
   if(spareCredits()>=1){
     // Already paid for a plan they have not used - no charge, but not a free trial either.
     label='Create the plan';
