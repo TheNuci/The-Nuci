@@ -639,14 +639,15 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 /* glass nav */
 /* The nav and its scrim are MOVED OUT of #screen-app at boot (see moveNavToBody). A fixed
    element is positioned against the viewport only if no ancestor creates a containing block,
-   and any transform, filter, backdrop-filter or contain anywhere above it does exactly that -
-   which is why the bar was floating in the middle of the page instead of sitting at the
-   bottom. As a direct child of <body> nothing can be above it to break it.
-   Since it no longer inherits the app screen's display:none, its visibility is driven by
-   body.app-open, set in showScreen. */
+   and any transform, filter, backdrop-filter or contain above it does exactly that - which is
+   why the bar floated mid-page instead of sitting at the bottom.
+   The cost of moving it is that it no longer inherits the app screen's display:none, so its
+   visibility has to be stated. It is tied to #screen-app ACTUALLY BEING ACTIVE rather than to
+   a class someone has to remember to set: a flag can be left behind by any path into the app
+   that does not go through showScreen, and then the bar shows up on the landing page. */
 .nav,.navscrim{display:none}
-body.app-open .navscrim{display:block}
-body.app-open .nav{display:flex}
+body:has(#screen-app.active) .navscrim{display:block}
+body:has(#screen-app.active) .nav{display:flex}
 .navscrim{position:fixed;left:0;right:0;bottom:0;height:128px;z-index:900;pointer-events:none;
   -webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);
   background:linear-gradient(to top,rgba(242,241,236,0.65),rgba(242,241,236,0));
@@ -3022,6 +3023,19 @@ function moveNavToBody(){
       if(el && el.parentNode!==document.body) document.body.appendChild(el);
     });
   }catch(e){}
+  syncNavVisible();
+}
+// The single source of truth: is the app screen on screen right now?
+function syncNavVisible(){
+  try{
+    var app=document.getElementById('screen-app');
+    var on=!!(app && app.classList.contains('active'));
+    document.body.classList.toggle('app-open', on);
+    ['.navscrim','.nav'].forEach(function(sel){
+      var el=document.querySelector(sel);
+      if(el) el.style.display = on ? (sel==='.nav' ? 'flex' : 'block') : 'none';
+    });
+  }catch(e){}
 }
 function showScreen(id){
   // Record a REAL history entry for every user-driven screen change. These pushes happen
@@ -3047,7 +3061,8 @@ function showScreen(id){
   // The landing is a full-width marketing page; every other screen is the phone-framed app.
   // One class on <html> switches between the two (see the .landing-mode rules in the CSS).
   try{ document.documentElement.classList.toggle('landing-mode', id==='screen-landing'); }catch(e){}
-  // The nav lives on <body> now, so it no longer hides itself with the app screen.
+  try{ syncNavVisible(); }catch(e){}
+  // Belt and braces for browsers without :has() - the CSS above is the primary rule.
   try{ document.body.classList.toggle('app-open', id==='screen-app'); }catch(e){}
   if(__prevId && __prevId!==id && !window.__navFromPop){
     try{ history.pushState({nuci:3, screen:id}, ''); }catch(e){}
@@ -7997,6 +8012,9 @@ async function handlePaidReturn(demo){
 // ═══════ APP SHELL ═══════
 let curTab='today';
 function enterApp(){
+  // Also here, not only in showScreen: enterApp is the other way into the app, and the nav
+  // must never be left visible over the landing page or the questionnaire.
+  setTimeout(function(){ try{ syncNavVisible(); }catch(e){} }, 0);
   // Close and archive anything that ran out while the owner was away, BEFORE painting a tab -
   // otherwise an expired plan quietly shows an empty Today with no explanation.
   try{ trialCheck(); }catch(e){}
