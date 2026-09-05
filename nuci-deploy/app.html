@@ -2876,6 +2876,7 @@ function planStartFromPurchase(){
 // Check-in window: strictly 20:00-22:59 local time, and only on the active day's date.
 function checkinWindowState(){
   // returns 'before' | 'open' | 'after'
+  if(typeof CHECKIN_ALWAYS_OPEN!=='undefined' && CHECKIN_ALWAYS_OPEN) return 'open';
   var h=new Date().getHours();
   if(h<20) return 'before';
   if(h<23) return 'open';
@@ -8433,8 +8434,10 @@ function ritualPart(part,time,tasks,dayNum,open){
 }
 function checkinButtonHtml(checkedIn){
   if(checkedIn) return '<button class="a-checkbtn done" disabled>\u2713 Checked in for today</button>';
-  var h=new Date().getHours();
-  var open=(h>=20 && h<23);
+  // Was reading the clock itself instead of asking checkinWindowOpen(), so it kept showing the
+  // disabled "opens at 20:00" button even with the always-open flag on. Two copies of the same
+  // rule is how that happens; there is now one.
+  var open=checkinWindowOpen();
   if(open) return '<button class="a-checkbtn pulse" onclick="openCheckin()">Check in now \u00b7 open until 23:00</button>';
   // closed: show when it opens
   return '<button class="a-checkbtn closed" disabled>Check-in opens at 20:00</button>';
