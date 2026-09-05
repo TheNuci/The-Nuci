@@ -583,7 +583,11 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
   font-size:0.95rem;letter-spacing:.01em;transition:opacity .4s ease;min-height:1.4em;padding:0 30px}
 
 /* ═══════ APP SHELL ═══════ */
-#screen-app{padding-bottom:130px}
+/* Clearance for the floating nav bar. It sits at max(16px, safe-area) from the bottom and is
+   about 66px tall, so on a phone with a large home-indicator inset the old flat 130px left the
+   last card tucked under it. Content passing UNDER the frosted bar is intentional; running out
+   of room at the end of the list was not. */
+#screen-app{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
 .app-head{position:fixed;top:0;left:0;right:0;z-index:40;
   padding:calc(env(safe-area-inset-top) + 14px) 24px 14px;
   display:flex;flex-direction:column;align-items:center;gap:10px;
@@ -633,6 +637,16 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
 .tag{font-size:0.8rem;color:var(--forest);background:rgba(107,143,113,0.12);padding:3px 10px;border-radius:99px}
 .aicard{background:linear-gradient(160deg,rgba(107,143,113,0.09),rgba(200,178,140,0.06))}
 /* glass nav */
+/* The nav and its scrim are MOVED OUT of #screen-app at boot (see moveNavToBody). A fixed
+   element is positioned against the viewport only if no ancestor creates a containing block,
+   and any transform, filter, backdrop-filter or contain anywhere above it does exactly that -
+   which is why the bar was floating in the middle of the page instead of sitting at the
+   bottom. As a direct child of <body> nothing can be above it to break it.
+   Since it no longer inherits the app screen's display:none, its visibility is driven by
+   body.app-open, set in showScreen. */
+.nav,.navscrim{display:none}
+body.app-open .navscrim{display:block}
+body.app-open .nav{display:flex}
 .navscrim{position:fixed;left:0;right:0;bottom:0;height:128px;z-index:900;pointer-events:none;
   -webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);
   background:linear-gradient(to top,rgba(242,241,236,0.65),rgba(242,241,236,0));
@@ -2998,6 +3012,17 @@ document.addEventListener('animationend',function(e){
     clearTimeout(el.__animT); clearAnim(el);
   }
 },true);
+// Runs once, as early as the elements exist. Re-parenting rather than restyling, because we
+// do not need to know WHICH ancestor was creating the containing block - out of the subtree,
+// the whole class of problem is gone.
+function moveNavToBody(){
+  try{
+    ['.navscrim','.nav'].forEach(function(sel){
+      var el=document.querySelector(sel);
+      if(el && el.parentNode!==document.body) document.body.appendChild(el);
+    });
+  }catch(e){}
+}
 function showScreen(id){
   // Record a REAL history entry for every user-driven screen change. These pushes happen
   // inside click handlers (user activation), so Chrome/Safari's back-button intervention
@@ -3022,6 +3047,8 @@ function showScreen(id){
   // The landing is a full-width marketing page; every other screen is the phone-framed app.
   // One class on <html> switches between the two (see the .landing-mode rules in the CSS).
   try{ document.documentElement.classList.toggle('landing-mode', id==='screen-landing'); }catch(e){}
+  // The nav lives on <body> now, so it no longer hides itself with the app screen.
+  try{ document.body.classList.toggle('app-open', id==='screen-app'); }catch(e){}
   if(__prevId && __prevId!==id && !window.__navFromPop){
     try{ history.pushState({nuci:3, screen:id}, ''); }catch(e){}
   }
@@ -10265,7 +10292,17 @@ const CI_STEPS=[
 let ciData={},ciStep=0;
 function ciFlow(){ return ciData.occurred==='No'?CI_STEPS.filter(s=>s.id==='occurred'):CI_STEPS; }
 var CHECKIN_OPEN_HOUR=20, CHECKIN_CLOSE_HOUR=23;  // 20:00 - 22:59 local
-function checkinWindowOpen(){ var h=new Date().getHours(); return h>=CHECKIN_OPEN_HOUR && h<CHECKIN_CLOSE_HOUR; }
+// ═══ TEMPORARY: set back to false when the filming is done ═══
+// With this on, the evening check-in can be opened at any hour. It exists so the flow can be
+// recorded in daylight. Leaving it on in production changes the product: the whole point of
+// the evening window is that the day has actually happened before it is reported on, and the
+// next day is written from that report.
+var CHECKIN_ALWAYS_OPEN = true;
+function checkinWindowOpen(){
+  if(CHECKIN_ALWAYS_OPEN) return true;
+  var h=new Date().getHours();
+  return h>=CHECKIN_OPEN_HOUR && h<CHECKIN_CLOSE_HOUR;
+}
 function openCheckin(){
   if(planFrozen()){ toast('Plan is frozen \u2744\uFE0F'); return; }
   if(state.lastCheckinDate===todayKey()){ toast('Already checked in today'); return; }
@@ -11426,6 +11463,7 @@ async function adaptNextDay(nextDay){
     if(__instant){ try{ var _l0=JSON.parse(localStorage.getItem('nuciState')||'null'); if(_l0&&_l0.purchased) __instant=false; }catch(e){} }
     if(__instant){ try{ var _s0=JSON.parse(sessionStorage.getItem('nuciState')||'null'); if(_s0&&_s0.answers&&_s0.answers.petName) __instant=false; }catch(e){} }
     if(__instant){
+      try{ moveNavToBody(); }catch(e){}
       var __paintLanding=function(){ try{ showScreen('screen-landing'); initLanding(); }catch(e){} };
       if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', __paintLanding, {once:true}); }
       else __paintLanding();
