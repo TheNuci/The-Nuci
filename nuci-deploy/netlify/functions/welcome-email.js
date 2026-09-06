@@ -80,6 +80,11 @@ async function ensureSignupAt(email){
       headers: Object.assign(sbHeaders(), { 'Prefer':'resolution=ignore-duplicates,return=minimal' }),
       body: JSON.stringify([{ email, signup_at: now }])
     });
+    // PATCH only where it is still null, so an existing timestamp is never reset (that would
+    // restart the nudge clock). This also repairs the case the webhook creates: when someone
+    // pays before the app has written their row, stripe-webhook.js inserts the profile first
+    // and the INSERT above is then ignored as a duplicate - leaving signup_at null forever,
+    // which quietly excluded them from every abandoned-cart nudge.
     await fetch(process.env.SUPABASE_URL + '/rest/v1/profiles?email=eq.' + encodeURIComponent(email) + '&signup_at=is.null', {
       method:'PATCH',
       headers: Object.assign(sbHeaders(), { 'Prefer':'return=minimal' }),

@@ -1494,17 +1494,6 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
      Replace PASTE_YOUR_PIXEL_ID_HERE with the 15-digit ID from Events Manager.
      It appears in ONE place only (the FB_PIXEL_ID line below). -->
 <script>
-// ── Internal-traffic filter. Run nuciInternal() once in the console on each of
-// your own devices; from then on that device sends nothing to Meta or to our own
-// analytics. nuciInternal(false) turns it back off. Survives reloads (localStorage).
-window.nuciInternal = function(v){
-  try{
-    if(v === false){ localStorage.removeItem('nuci_internal'); console.log('Nuci: internal mode OFF - this device is tracked again (reload the page).'); }
-    else { localStorage.setItem('nuci_internal','1'); console.log('Nuci: internal mode ON - this device is now excluded from all analytics.'); }
-  }catch(e){ console.log('Nuci: could not access localStorage', e); }
-};
-function nuciIsInternal(){ try{ return localStorage.getItem('nuci_internal')==='1'; }catch(e){ return false; } }
-
 var FB_PIXEL_ID = '1620366293016411';
 !function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -1514,7 +1503,7 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window,document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0 && !nuciIsInternal()){
+if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
   fbq('init', FB_PIXEL_ID);
   fbq('track', 'PageView');
 }
@@ -1522,6 +1511,51 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0 && !nuciIsInternal()){
 <!-- ═══════ /META PIXEL ═══════ -->
 </head>
 <body>
+<script>
+/* ═══════ UNSUBSCRIBE, HANDLED FIRST ═══════
+   This used to live inside route(), which runs only after the app has booted and the Supabase
+   library has loaded, and it awaited the server call BEFORE drawing anything. So the person
+   clicking Unsubscribe in an email got a blank page for as long as all of that took - and a
+   permanently blank one if any part of it failed.
+   It is now the first thing on the page: the confirmation is drawn immediately and the request
+   goes out behind it. Nothing here depends on the app, the session, or any library. */
+(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    var kind=q.get('unsub');
+    if(!kind) return;
+    var email=(q.get('e')||'').toLowerCase();
+    var tok=q.get('t')||'';
+    var isTips = kind==='tips';
+    var headline = isTips ? 'You will not receive behaviour tips again.'
+                          : 'You will not receive emails from The Nuci again.';
+    var subline = isTips
+      ? 'Emails that are part of a plan you purchased are unaffected. You can turn tips back on any time in your profile.'
+      : 'This switches off reminders and all other emails. You can turn them back on any time in your profile.';
+    document.documentElement.innerHTML='<head><meta charset="utf-8">'
+      +'<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+      +'<title>Unsubscribed \u00b7 The Nuci</title></head><body style="margin:0">'
+      +'<div style="min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:32px;'
+      +'background:#F2F1EC;font-family:-apple-system,Inter,sans-serif">'
+      +'<div style="max-width:380px;text-align:center">'
+      +'<div style="font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:#6B8F71;margin-bottom:10px">Unsubscribed</div>'
+      +'<h1 style="font-size:1.6rem;font-weight:400;letter-spacing:-.03em;color:#1A211C;margin:0 0 10px">'+headline+'</h1>'
+      +'<p style="font-size:.92rem;color:#5C6660;line-height:1.6;margin:0 0 22px">'+subline+'</p>'
+      +'<a href="/" style="display:inline-block;background:#3E5A47;color:#F2F1EC;text-decoration:none;'
+      +'padding:13px 26px;border-radius:14px;font-size:.95rem">Back to The Nuci</a>'
+      +'</div></div></body>';
+    // Sent after the page is on screen, and never awaited: the person should not be made to
+    // wait for it, and a slow or failed request must not leave them staring at nothing.
+    if(email){
+      try{
+        fetch('/.netlify/functions/unsubscribe',{method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({email:email, kind:kind, token:tok}), keepalive:true}).catch(function(){});
+      }catch(e){}
+    }
+  }catch(e){}
+})();
+</script>
 <div id="appFrame" role="main">
 
 <!-- SPLASH -->
@@ -2033,7 +2067,6 @@ window.addEventListener('unhandledrejection', function(ev){ try{ var r=ev.reason
 // ── Anonymous first-party analytics: event counts only, no cookies, no personal data,
 // no third-party scripts. Session id lives in sessionStorage (gone when the tab closes).
 function nuciTrack(ev, extra){
-  if(nuciIsInternal()) return; // own devices: nothing reaches our analytics or Meta
   try{
     var sid=null;
     try{ sid=sessionStorage.getItem('nuci_sid'); if(!sid){ sid=Math.random().toString(36).slice(2,12); sessionStorage.setItem('nuci_sid', sid); } }catch(e){}
@@ -2051,14 +2084,6 @@ function fbTrack(ev, extra){
   if(typeof fbq !== 'function') return;
   if(ev === 'assessment_start'){
     fbq('trackCustom', 'QuestionnaireStart');
-  }
-  else if(ev === 'assessment_done'){
-    // The event Meta test-2 optimises on: all 8 questions answered. assessment_done
-    // has two call sites (normal finish + trial-convert path), so dedupe per session
-    // the same way Purchase is deduped below.
-    try{ if(sessionStorage.getItem('fb_reg_sent')) return; }catch(e){}
-    fbq('track', 'CompleteRegistration');
-    try{ sessionStorage.setItem('fb_reg_sent','1'); }catch(e){}
   }
   else if(ev === 'offer_view'){
     fbq('track', 'ViewContent', {content_name:'offer_screen', currency:'EUR'});
@@ -7356,6 +7381,20 @@ function openEmbeddedPay(pkg){
     .then(loadStripeJs)
     .then(function(){
       __payStage('2. stripe.js loaded, asking for payment intent\u2026');
+      // REUSE an intent already created in this tab for the same package and price.
+      // Every open of the payment sheet used to create a fresh PaymentIntent, so a single
+      // person browsing the price three times left three "Incomplete" rows in Stripe. With
+      // real traffic that buries the conversion rate under noise and makes it impossible to
+      // tell "nobody opens the sheet" from "everybody opens it and nobody pays".
+      // Scoped to this tab only: an intent is abandoned the moment the tab is, and a stale
+      // secret is never worth resurrecting across sessions.
+      try{
+        var _ci=window.__payIntentCache;
+        if(_ci && _ci.pkg===pkg.id && _ci.discount===discountActive() && _ci.secret
+           && (Date.now()-_ci.at) < 20*60*1000){
+          return { ok:true, json:function(){ return Promise.resolve({clientSecret:_ci.secret, amount:_ci.amount, currency:'eur', testMode:_ci.testMode}); } };
+        }
+      }catch(e){}
       return fetch('/.netlify/functions/create-payment-intent',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({ packageId:pkg.id, discount:discountActive(), email:state.userEmail||null,
                               testToken: STRIPE_TEST_TOKEN || undefined })});
@@ -7363,6 +7402,10 @@ function openEmbeddedPay(pkg){
     .then(function(r){ if(!r.ok) throw new Error('create-payment-intent '+r.status); return r.json(); })
     .then(function(out){
       if(!out||!out.clientSecret) throw new Error('no client secret');
+      try{
+        window.__payIntentCache={ pkg:pkg.id, discount:discountActive(), secret:out.clientSecret,
+          amount:out.amount, testMode:out.testMode===true, at:Date.now() };
+      }catch(e){}
       // The SERVER decides the mode; we follow it. Choosing on the client would let the
       // publishable key and the secret key drift apart, which fails confusingly
       // ("No such payment_intent").
@@ -7454,6 +7497,7 @@ function openEmbeddedPay(pkg){
           var pi=res&&res.paymentIntent;
           if(pi && (pi.status==='succeeded'||pi.status==='processing')){
             try{ nuciTrack('purchase_wallet', pi.id); }catch(e){}
+            try{ window.__payIntentCache=null; }catch(e){}   // spent, never reuse
             closeSheet();
             handlePaidReturn(true);   // same completion path as the card form
           }
@@ -7547,6 +7591,7 @@ function confirmEmbeddedPay(){
     var pi=res.paymentIntent;
     if(pi && (pi.status==='succeeded'||pi.status==='processing')){
       try{ nuciTrack('purchase_embedded', pi.id); }catch(e){}
+      try{ window.__payIntentCache=null; }catch(e){}   // spent, never reuse
       closeSheet();
       // Same completion path as the "no payment link" local case: pendingState was written
       // by proceedToPayment, so credits, the add-pet context and the trial unlock all behave

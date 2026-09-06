@@ -225,6 +225,10 @@ exports.handler = async (event) => {
       // paid before the app ever wrote their row). A PATCH would match 0 rows, return 200,
       // and the purchase would be recorded NOWHERE. Create the row instead, so the payment
       // is always on record and the credit is granted the moment they sign in with this email.
+      // NOTE signup_at: the app's own welcome step only fills it when it is still null, so a
+      // row created here first would keep whatever we write. Stamping "now" is right - this is
+      // genuinely the first time this address appears - and it keeps the abandoned-cart nudges
+      // working for anyone who pays before the app has written their profile.
       const ins = Object.assign({ email: email.toLowerCase(), signup_at: new Date().toISOString() }, patch);
       const insRes = await sb('profiles', {
         method: 'POST',

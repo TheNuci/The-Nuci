@@ -18,6 +18,7 @@
 //   {key, action:'get'}                    -> {baseline: {...}|null}
 //   {key, action:'set', snapshot:{...}}    -> stores {at, snapshot}
 //   {key, action:'clear'}                  -> removes the baseline
+//   {key, action:'purge'}                  -> DELETES the analytics rows for good
 // Minimal Supabase REST helper (service_role) - no npm dependency, same pattern as the
 // site's other functions. All calls hit PostgREST directly.
 function sbHeaders(){
@@ -45,6 +46,21 @@ async function sbDeleteMeta(id){
 }
 
 const META_ID = 'stats_baseline';
+
+// Destructive counterpart to the baseline reset above. The baseline hides history; this
+// removes it. Only the two ANALYTICS tables are touched - profiles, purchases and revenue are
+// never in scope, because losing those would be unrecoverable and is never what "reset the
+// statistics" means.
+async function sbDeleteAll(table){
+  // PostgREST refuses an unfiltered DELETE, which is a good safety rule - so the filter is
+  // written to match every row rather than removed.
+  const url = process.env.SUPABASE_URL + '/rest/v1/' + table + '?ts=not.is.null';
+  const r = await fetch(url, {
+    method: 'DELETE',
+    headers: Object.assign(sbHeaders(), { 'Prefer': 'return=minimal' })
+  });
+  if(!r.ok) throw new Error(table + ' delete ' + r.status + ' ' + (await r.text()).slice(0,120));
+}
 
 exports.handler = async function(event){
   if(event.httpMethod !== 'POST'){
@@ -79,6 +95,19 @@ exports.handler = async function(event){
       try{ await sbUpsertMeta(META_ID, value); }
       catch(e){ return json(500, { error: 'could not store baseline: ' + e.message }); }
       return json(200, { ok: true, baseline: value });
+    }
+    if(action === 'purge'){
+      const done = [], failed = [];
+      for(const t of ['analytics_events','client_errors']){
+        try{ await sbDeleteAll(t); done.push(t); }
+        catch(e){ failed.push(t + ': ' + e.message); }
+      }
+      // The baseline is meaningless once the rows behind it are gone.
+      try{ await sbDeleteMeta(META_ID); }catch(e){}
+      if(failed.length && !done.length){
+        return json(500, { ok:false, error: failed.join(' | ') });
+      }
+      return json(200, { ok:true, cleared: done, failed: failed.length ? failed : undefined });
     }
     if(action === 'clear'){
       try{ await sbDeleteMeta(META_ID); }
