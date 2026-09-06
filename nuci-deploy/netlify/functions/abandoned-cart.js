@@ -1,4 +1,16 @@
-const { unsubUrl: nuciUnsubUrl } = require('./_unsubtoken');
+// This file is an ES module (export default), so it cannot use require(). The signature is
+// computed inline rather than through the shared helper. Same algorithm, same secret - see
+// _unsubtoken.js.
+import { createHmac } from 'node:crypto';
+function nuciUnsubUrl(email, kind){
+  const e = String(email || '').trim().toLowerCase();
+  const secret = process.env.THE_NUCI_UNSUB_SECRET
+    || process.env.THE_NUCI_SUPABASE_SERVICE_ROLE_KEY
+    || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const t = secret ? createHmac('sha256', secret).update(e, 'utf8').digest('hex').slice(0, 24) : '';
+  return 'https://thenuci.com/app.html?unsub=' + encodeURIComponent(kind || 'all')
+       + '&e=' + encodeURIComponent(e) + (t ? ('&t=' + t) : '');
+}
 // ── Premium email shell (forest-editorial, matches the app) ──────────
 const NUCI = { bg:'#F2F1EC', card:'#FBFBF8', ink:'#1A211C', sec:'#5C6660', sage:'#6B8F71', forest:'#3E5A47', border:'#E6E3DA' };
 function nuciEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
