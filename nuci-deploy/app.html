@@ -645,6 +645,25 @@ input.age-range::-moz-range-thumb{width:26px;height:26px;border-radius:50%;backg
    visibility has to be stated. It is tied to #screen-app ACTUALLY BEING ACTIVE rather than to
    a class someone has to remember to set: a flag can be left behind by any path into the app
    that does not go through showScreen, and then the bar shows up on the landing page. */
+/* Consent banner. Accept and Decline are the SAME size and weight on purpose: under the GDPR
+   refusing has to be as easy as agreeing, and a grey "decline" next to a green "accept" is the
+   pattern regulators single out. No third option, no "manage preferences" maze. */
+#nuciConsent{position:fixed;left:0;right:0;bottom:0;z-index:100002;padding:16px;
+  display:none;justify-content:center;pointer-events:none}
+#nuciConsent.on{display:flex}
+#nuciConsent .nc-card{pointer-events:auto;width:100%;max-width:420px;background:var(--card,#FBFBF8);
+  border:1px solid var(--border,#E5E3DC);border-radius:20px;padding:18px 18px 16px;
+  box-shadow:0 18px 50px rgba(26,33,28,.20);
+  transform:translateY(14px);opacity:0;transition:opacity .3s ease,transform .34s cubic-bezier(.32,.9,.28,1)}
+#nuciConsent.in .nc-card{transform:none;opacity:1}
+#nuciConsent p{font-size:.84rem;line-height:1.5;color:var(--secondary,#5C6660);margin:0 0 14px}
+#nuciConsent .nc-row{display:flex;gap:9px}
+#nuciConsent button{flex:1;padding:12px 10px;border:none;border-radius:12px;cursor:pointer;
+  font-family:inherit;font-size:.9rem;font-weight:600}
+#nuciConsent .nc-yes{background:var(--forest,#3E5A47);color:#F2F1EC}
+#nuciConsent .nc-no{background:rgba(107,143,113,.14);color:var(--forest,#3E5A47)}
+#nuciConsent a{color:var(--sage,#6B8F71)}
+@media(prefers-reduced-motion:reduce){ #nuciConsent .nc-card{transition:none} }
 .nav,.navscrim{display:none}
 body:has(#screen-app.active) .navscrim{display:block}
 body:has(#screen-app.active) .nav{display:flex}
@@ -1497,18 +1516,27 @@ body.kb-open .nav,body.kb-open .navscrim{opacity:0;pointer-events:none;transform
      It appears in ONE place only (the FB_PIXEL_ID line below). -->
 <script>
 var FB_PIXEL_ID = '1620366293016411';
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window,document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
+// NOT LOADED ON SIGHT ANY MORE.
+// The pixel used to run the moment the page did: it fetched Meta's script and fired PageView
+// before the visitor had agreed to anything, which is third-party tracking without consent.
+// Nothing here touches the network until nuciConsentGiven() is true; the banner calls this
+// after Accept, and a visitor who declines never loads Meta at all.
+window.loadMetaPixel = function(){
+  if(window.__fbLoaded) return;
+  if(!FB_PIXEL_ID || FB_PIXEL_ID.indexOf('PASTE_') === 0) return;
+  window.__fbLoaded = true;
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window,document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
   fbq('init', FB_PIXEL_ID);
   fbq('track', 'PageView');
-}
+};
+try{ if(localStorage.getItem('nuciConsent')==='yes') window.loadMetaPixel(); }catch(e){}
 </script>
 <!-- ═══════ /META PIXEL ═══════ -->
 </head>
@@ -1555,6 +1583,51 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
           body:JSON.stringify({email:email, kind:kind, token:tok}), keepalive:true}).catch(function(){});
       }catch(e){}
     }
+  }catch(e){}
+})();
+</script>
+<div id="nuciConsent" aria-live="polite">
+  <div class="nc-card">
+    <p><b style="color:var(--text,#1A211C)">Can we measure how the app is used?</b><br>
+    Anonymous usage statistics only, so we can see which steps people get stuck on. Nothing is
+    measured and nothing is stored on your device until you choose.
+    <a href="#" onclick="return nuciConsentPolicy(event)">What this covers</a></p>
+    <div class="nc-row">
+      <button class="nc-no" onclick="nuciConsentSet(false)">Decline</button>
+      <button class="nc-yes" onclick="nuciConsentSet(true)">Accept</button>
+    </div>
+  </div>
+</div>
+<script>
+function nuciConsentSet(yes){
+  try{ localStorage.setItem('nuciConsent', yes ? 'yes' : 'no'); }catch(e){}
+  var el=document.getElementById('nuciConsent');
+  if(el){ el.classList.remove('in'); setTimeout(function(){ el.classList.remove('on'); }, 320); }
+  if(yes){
+    // Load what was held back, and record the visit that was not recorded while we waited.
+    try{ if(window.loadMetaPixel) window.loadMetaPixel(); }catch(e){}
+    try{ if(typeof nuciTrack==='function') nuciTrack('app_open'); }catch(e){}
+  }
+}
+function nuciConsentPolicy(e){
+  if(e) e.preventDefault();
+  try{ if(typeof openLegal==='function'){ openLegal('cookies'); return false; } }catch(err){}
+  try{ if(typeof landingLegal==='function'){ landingLegal(e,'cookies'); }}catch(err){}
+  return false;
+}
+(function(){
+  try{
+    if(new URLSearchParams(location.search).get('unsub')) return;   // unsubscribe page, not the app
+    var v=null; try{ v=localStorage.getItem('nuciConsent'); }catch(e){}
+    if(v==='yes' || v==='no') return;                               // already answered
+    var show=function(){
+      var el=document.getElementById('nuciConsent');
+      if(!el) return;
+      el.classList.add('on');
+      requestAnimationFrame(function(){ el.classList.add('in'); });
+    };
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',show);
+    else show();
   }catch(e){}
 })();
 </script>
@@ -1611,9 +1684,12 @@ if(FB_PIXEL_ID && FB_PIXEL_ID.indexOf('PASTE_') !== 0){
 <!-- ============ SOCIAL PROOF ============ -->
 <section class="sec sec-alt">
   <div class="wrap2">
+    <!-- The 4.9, the stars and the user count were written straight into the markup, shown
+         whether or not anything stood behind them. Removed rather than hidden: the reviews
+         below are from real owners and carry this section on their own, while a number nobody
+         can point to is worth less than nothing on a page people buy from. -->
     <div class="proof-top rv">
-      <div class="proof-stars"><span class="proof-score">4.9</span>&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-      <div class="proof-count"><b>374+ users</b> &middot; real homes, real change</div>
+      <div class="proof-count">Real homes, <b>real change</b></div>
     </div>
 
     <div class="review rv d1">
@@ -2068,7 +2144,15 @@ window.addEventListener('error', function(ev){ try{ reportError(ev.message, ev.f
 window.addEventListener('unhandledrejection', function(ev){ try{ var r=ev.reason||{}; reportError('unhandledrejection: '+(r.message||String(r)), '', 0, 0, r.stack); }catch(e){} });
 // ── Anonymous first-party analytics: event counts only, no cookies, no personal data,
 // no third-party scripts. Session id lives in sessionStorage (gone when the tab closes).
+// 'yes' | 'no' | null. Null means the visitor has not answered yet, and until they do,
+// nothing is measured and nothing is written to their device beyond what the app itself needs
+// to work. ePrivacy is about STORAGE on the device, not about the word "cookie" - a session id
+// in sessionStorage counts, and analytics is not strictly necessary.
+function nuciConsentGiven(){
+  try{ return localStorage.getItem('nuciConsent')==='yes'; }catch(e){ return false; }
+}
 function nuciTrack(ev, extra){
+  if(!nuciConsentGiven()) return;   // no consent, no measurement - and no session id written
   try{
     var sid=null;
     try{ sid=sessionStorage.getItem('nuci_sid'); if(!sid){ sid=Math.random().toString(36).slice(2,12); sessionStorage.setItem('nuci_sid', sid); } }catch(e){}

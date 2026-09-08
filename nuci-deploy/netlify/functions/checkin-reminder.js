@@ -252,7 +252,27 @@ export default async (req) => {
     // excluded. Legacy single-pet rows without aiPlan data fall back to the old check,
     // but then only when the profile is marked purchased (pre-gate rows).
     const names = activePetNames(p.data, lp.date);
-    const eligible = names.length > 0 || (p.purchased === true && hasActivePlan(p.data));
+
+    // THE PLAN HAS TO BE UNLOCKED, not merely started.
+    //
+    // activePetNames() only asks "does this pet have a plan whose calendar days have not run
+    // out". A free day one satisfies that for the whole week, so someone whose 24 hours expired
+    // without paying kept getting the evening reminder every night - a service email for a
+    // service they do not have.
+    //
+    // Two groups may receive it: people who paid, and people whose FREE day is still running
+    // (the evening check-in is the point of that day). Nobody else.
+    let unlocked = p.purchased === true;
+    if (!unlocked) {
+      try {
+        const d = typeof p.data === 'string' ? JSON.parse(p.data) : p.data;
+        const ts = d && d.trialStart ? new Date(d.trialStart).getTime() : 0;
+        unlocked = !!ts && (Date.now() - ts) < 24 * 60 * 60 * 1000;
+      } catch (e) { unlocked = false; }
+    }
+    if (!unlocked) { skipped++; diag.push(`${p.email}: plan not unlocked (free day over, not paid)`); continue; }
+
+    const eligible = names.length > 0 || hasActivePlan(p.data);
     if (!eligible) { skipped++; diag.push(`${p.email}: no active plan (any pet)`); continue; }
 
     if (wantDebug) { diag.push(`${p.email}: WOULD SEND (local ${lp.hour}:xx, tz=${p.timezone}, pets=${joinNames(names)||'-'})`); continue; }

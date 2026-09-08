@@ -48,9 +48,11 @@ function nuciBox(inner){ return `<table role="presentation" width="100%" style="
 // netlify/functions/abandoned-cart.js
 //
 // Scheduled function - runs every 5 minutes (see netlify.toml).
-// Sends TWO nudges to users who signed up and have NOT purchased:
-//   20h - about four hours before the free day one runs out ("it ends soon, unlock the week")
-//   36h - twelve hours after it lapsed ("your pet is waiting to carry on")
+// Sends FOUR nudges to users who signed up and have NOT purchased:
+//   20h    - about four hours before the free day runs out ("it ends soon, unlock the week")
+//   36h    - just after it lapsed ("your pet is waiting to carry on")
+//   day 4  - the plan is still there
+//   day 10 - final one, and it says so; the plan is archived at day 14
 // Each is sent at most once per user, and the wording differs depending on whether they ever
 // actually opened their free day one. No 15-minute nudge: confirming the code drops people
 // straight into plan generation, so at that point there is nothing to chase.
@@ -122,6 +124,42 @@ function emailHtml(petName, toEmail, stage, started) {
     });
   }
 
+  // Stage 4 · day 10. The last one, and it says so. Four days before the plan is archived.
+  if (stage === 4) {
+    return nuciShell({
+      preheader: `${pet}'s plan is archived in a few days.`,
+      eyebrow: 'Last note from us',
+      titleHtml: `We will stop<br>${nuciAccent('writing after this')}.`,
+      bodyHtml: nuciPara(`This is the last email about ${pet}. In a few days the plan is archived and the week closes.`)
+        + nuciPara('If the behaviour has settled on its own, that is the best outcome there is and we are glad. If it has not, everything is still exactly where you left it.',10)
+        + nuciBtn(`Continue ${pet}'s week`, cta)
+        + nuciBox([
+            'Your answers and day one are still saved',
+            'One payment, no subscription',
+            'Six days, each written from your check-in'
+          ].map(tick).join('')),
+      unsubUrl
+    });
+  }
+
+  // Stage 3 · day 4. Quiet reminder that nothing has been lost.
+  if (stage === 3) {
+    return nuciShell({
+      preheader: `${pet}'s week is still where you left it.`,
+      eyebrow: 'Still saved',
+      titleHtml: `Nothing has been<br>${nuciAccent('lost')}.`,
+      bodyHtml: nuciPara(`${pet}'s plan is still on hold, with day one and everything you logged exactly as you left them.`)
+        + nuciPara('Behaviour rarely settles by waiting. The rest of the week is already written, and it picks up from day two.',10)
+        + nuciBtn(`Continue ${pet}'s week`, cta)
+        + nuciBox([
+            'Picks up from day two, nothing to redo',
+            'One payment, no subscription',
+            'Adapts to what you report each evening'
+          ].map(tick).join('')),
+      unsubUrl
+    });
+  }
+
   // Stage 2 · 36 hours - twelve hours after the free day lapsed. Nothing is lost, it waits.
   if (stage === 2) {
     return nuciShell({
@@ -161,10 +199,14 @@ async function sendEmail(apiKey, to, petName, stage, started) {
   const pet = petName || 'your pet';
   const subjects = started ? {
     1: petName ? `${petName}'s free day ends in a few hours` : `Your free day ends in a few hours`,
-    2: petName ? `${petName} is waiting to carry on` : `Your plan is waiting to carry on`
+    2: petName ? `${petName} is waiting to carry on` : `Your plan is waiting to carry on`,
+    3: petName ? `${petName}'s week is still where you left it` : `Your week is still where you left it`,
+    4: petName ? `Last note about ${petName}'s plan` : `Last note about your plan`
   } : {
     1: petName ? `${petName}'s day one is ready` : `Your free day one is ready`,
-    2: petName ? `${petName}'s free day is still unopened` : `Your free day is still unopened`
+    2: petName ? `${petName}'s free day is still unopened` : `Your free day is still unopened`,
+    3: petName ? `${petName}'s plan is still waiting` : `Your plan is still waiting`,
+    4: petName ? `Last note about ${petName}'s plan` : `Last note about your plan`
   };
   const subject = subjects[stage] || subjects[1];
   const unsubUrl = nuciUnsubUrl(to, 'all');
@@ -247,7 +289,7 @@ export default async (req) => {
   // Candidates: signed up, not purchased, opted in. We fetch both nudge flags
   // and decide per-profile whether the 15-min or the 48-h nudge is due.
   const url = `${SUPABASE_URL}/rest/v1/profiles` +
-    `?select=email,signup_at,pet_name_pending,purchased,cart_nudge_sent,cart_nudge2_sent,marketing_opt_out,data` +
+    `?select=email,signup_at,pet_name_pending,purchased,cart_nudge_sent,cart_nudge2_sent,cart_nudge3_sent,cart_nudge4_sent,marketing_opt_out,data` +
     `&signup_at=not.is.null` +
     `&purchased=not.eq.true` +
     `&marketing_opt_out=not.eq.true`;
@@ -269,9 +311,13 @@ export default async (req) => {
   }
 
   const now = Date.now();
-  // Two nudges only. 20h catches the decision while the free day is still open; 36h is
-  // twelve hours after it has lapsed, when the plan is sitting there waiting to resume.
-  const SECOND_NUDGE_MIN = 2160;   // 36h - 12 hours after the free day has run out
+  // Four nudges across the 14 days the plan now stays payable. Spaced, not daily: a mail every
+  // day to someone who has not bought trains them to mark it as spam, and Gmail applies that
+  // reputation to EVERY address - including confirmation codes and the check-ins paying
+  // customers rely on. Four gives the same window without spending the domain on it.
+  const SECOND_NUDGE_MIN = 2160;    // 36h  - just after the free day lapsed
+  const THIRD_NUDGE_MIN  = 5760;    // day 4
+  const FOURTH_NUDGE_MIN = 14400;   // day 10, and it says so
   let sent = 0, skipped = 0, failed = 0;
   const diag = [];
   // Time budget: stop cleanly before the 26s limit; the every-5-minutes cadence and the
@@ -302,8 +348,34 @@ export default async (req) => {
       (Array.isArray(_d.pets) && _d.pets.some(function(x){ return x && x.aiPlan && x.aiPlan.days && x.aiPlan.days.length; }))
     );
 
-    // Decide which nudge (if any) is due. The longer wait is checked first.
-    // Second nudge: 27h after signup, if not sent and still no purchase.
+    // Decide which nudge (if any) is due. The LONGEST wait is checked first, so someone who
+    // arrives late in the sequence gets the message that fits where they are, not the whole
+    // backlog in a row.
+    // Fourth nudge: day 10, the last one, four days before the plan is archived.
+    if (ageMin >= FOURTH_NUDGE_MIN && p.cart_nudge4_sent !== true) {
+      try {
+        await sendEmail(RESEND_API_KEY, p.email, p.pet_name_pending, 4, started);
+        await markFlag(p.email, 'cart_nudge4_sent');
+        for (const f of ['cart_nudge_sent','cart_nudge2_sent','cart_nudge3_sent']) {
+          if (p[f] !== true) await markFlag(p.email, f);
+        }
+        sent++; diag.push(`${p.email}: SENT 4th nudge (age ${ageMin}min / day 10)`);
+      } catch (e) { failed++; diag.push(`${p.email}: 4th send failed - ${e.message}`); }
+      continue;
+    }
+    // Third nudge: day 4.
+    if (ageMin >= THIRD_NUDGE_MIN && p.cart_nudge3_sent !== true) {
+      try {
+        await sendEmail(RESEND_API_KEY, p.email, p.pet_name_pending, 3, started);
+        await markFlag(p.email, 'cart_nudge3_sent');
+        for (const f of ['cart_nudge_sent','cart_nudge2_sent']) {
+          if (p[f] !== true) await markFlag(p.email, f);
+        }
+        sent++; diag.push(`${p.email}: SENT 3rd nudge (age ${ageMin}min / day 4)`);
+      } catch (e) { failed++; diag.push(`${p.email}: 3rd send failed - ${e.message}`); }
+      continue;
+    }
+    // Second nudge: 36h after signup, if not sent and still no purchase.
     if (ageMin >= SECOND_NUDGE_MIN && p.cart_nudge2_sent !== true) {
       try {
         await sendEmail(RESEND_API_KEY, p.email, p.pet_name_pending, 2, started);
@@ -326,8 +398,10 @@ export default async (req) => {
     // Nothing due.
     if (ageMin < MIN_AGE_MIN) { skipped++; diag.push(`${p.email}: too new (${ageMin}min, need >=${MIN_AGE_MIN})`); }
     else if (p.cart_nudge_sent === true && ageMin < SECOND_NUDGE_MIN) { skipped++; diag.push(`${p.email}: 1st sent, waiting for 36h (${ageMin}min)`); }
-    else if (p.cart_nudge2_sent === true) { skipped++; diag.push(`${p.email}: both nudges sent, nothing further`); }
-    else { skipped++; diag.push(`${p.email}: all three nudges already sent`); }
+    else if (p.cart_nudge2_sent === true && ageMin < THIRD_NUDGE_MIN) { skipped++; diag.push(`${p.email}: 2nd sent, waiting for day 4 (${ageMin}min)`); }
+    else if (p.cart_nudge3_sent === true && ageMin < FOURTH_NUDGE_MIN) { skipped++; diag.push(`${p.email}: 3rd sent, waiting for day 10 (${ageMin}min)`); }
+    else if (p.cart_nudge4_sent === true) { skipped++; diag.push(`${p.email}: all four sent, nothing further`); }
+    else { skipped++; diag.push(`${p.email}: nothing due`); }
   }
 
   const summary = `Cart nudge run: sent=${sent} skipped=${skipped} failed=${failed} total=${profiles.length}`;
